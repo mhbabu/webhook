@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class AgentPlatformRole extends Model
 {
-    protected $fillable = ['agent_id', 'platform_id', 'status', 'current_load', 'max_limit'];
+    protected $fillable = ['agent_id', 'platform_id', 'status', 'current_load', 'max_limit', 'status_updated_at'];
 
     public function agent() { 
         return $this->belongsTo(User::class, 'agent_id'); 

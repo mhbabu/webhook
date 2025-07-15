@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('platform_id')->constrained()->onDelete('cascade');
             $table->enum('status', ['OCCUPIED', 'BUSY', 'OFFLINE', 'BREAK'])->default('OFFLINE');
             $table->integer('current_load')->default(0);
+            $table->timestamp('status_updated_at')->nullable();
             $table->integer('max_limit')->default(3);
             $table->timestamps();
 
