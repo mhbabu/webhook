@@ -58,7 +58,7 @@ class WebhookController extends Controller
     }
 
     // Meta Webhook verification (GET request)
-    public function verifyInstagram(Request $request)
+    public function verifyIntragram(Request $request)
     {
         $verify_token = env('INSTAGRAM_VERIFY_TOKEN'); // Get from .env
 
@@ -74,7 +74,7 @@ class WebhookController extends Controller
     }
 
     // Receiving webhook POST payload
-    public function receiveInstagramMsg(Request $request)
+    public function receiveInstagramMsg2(Request $request)
     {
         Log::info('📩 Instagram Webhook Data:', $request->all());
 
@@ -82,6 +82,47 @@ class WebhookController extends Controller
         return response('EVENT_RECEIVED', 200);
     }
 
+    public function receiveInstragramMsg(Request $request)
+    {
+        Log::info('📩 Instagram Webhook Payload:', $request->all());
+
+        $entries = $request->input('entry', []);
+        foreach ($entries as $entry) {
+            foreach ($entry['changes'] ?? [] as $change) {
+                $value = $change['value'] ?? [];
+                $senderId = $value['from'] ?? null;
+                $messageText = $value['message'] ?? null;
+
+                if ($senderId && $messageText) {
+                    // Send reply
+                    $this->sendInstagramMessage($senderId, "You said: " . $messageText);
+                }
+            }
+        }
+
+        return response('EVENT_RECEIVED', 200);
+    }
+
+    protected function sendInstagramMessage($recipientId, $message)
+    {
+        $accessToken = env('INSTAGRAM_GRAPH_TOKEN'); // Your page access token
+        $url = "https://graph.facebook.com/v19.0/me/messages";
+
+        $payload = [
+            'messaging_product' => 'instagram',
+            'recipient' => ['id' => $recipientId],
+            'message' => ['text' => $message],
+        ];
+
+        $response = Http::withToken($accessToken)
+            ->post($url, $payload);
+
+        Log::info('📤 Instagram Reply Response:', [
+            'recipient' => $recipientId,
+            'payload' => $payload,
+            'response' => $response->json()
+        ]);
+    }
 
     // 1. Verify Meta Webhook (GET)
     public function verifyMessenger(Request $request)
