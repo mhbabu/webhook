@@ -107,17 +107,17 @@ class WebhookController extends Controller
 
         $response = [
             "Source"       => "WHATSAPP",
-            "TraceId"      => "wa123",
+            "TraceId"      => uniqid(),
             "MessageId"    => $messageId,
             "Sender"       => $from,
             "SenderName"   => $senderName,
             "SentTo"       => $to,
-            "ParentId"     => $messages[0]['context']['id'] ?? 'PARENT ID',
+            "ParentId"     => $messages[0]['context']['id'] ?? null,
             "Timestamp"    => $timestamp,
             "Message"      => $combinedText,
             "AttachmentId" => $cachedData['attachmentIds'],
             "Attachments"  => $cachedData['attachments'],
-            "Subject"      => "Product Information request"
+            "Subject"      => "WhatsApp Webhook"
         ];
 
         Log::info('Processed WhatsApp message response:', $response);
