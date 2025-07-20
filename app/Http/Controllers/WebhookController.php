@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Jobs\ProcessMessageJob;
 use Illuminate\Support\Facades\Log;
 use ProcessIncomingMessageJob;
 use Illuminate\Support\Facades\Http;
