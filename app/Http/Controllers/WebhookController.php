@@ -7,6 +7,8 @@ use App\Jobs\ProcessMessageJob;
 use Illuminate\Support\Facades\Log;
 use ProcessIncomingMessageJob;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
+use GuzzleHttp\Exception\RequestException;
 
 class WebhookController extends Controller
 {
@@ -40,21 +42,168 @@ class WebhookController extends Controller
 
     public function whatsapp(Request $request)
     {
-        // dd(request()->all());
-        $data = $request->all(); // Get the full JSON payload
-
+        $data = $request->all();
         Log::info('Received WhatsApp message:', $data);
 
-        // Try to extract the message
-        $message = $data['entry'][0]['changes'][0]['value']['messages'][0] ?? null;
+        $entry    = $data['entry'][0]['changes'][0]['value'] ?? [];
+        $messages = $entry['messages'] ?? [];
+        $contacts = $entry['contacts'][0] ?? null;
 
-        if ($message) {
-            $from = $message['from']; // User phone number
-            $text = $message['text']['body'] ?? '';
-            Log::info("User $from says: $text");
+        $from       = null;
+        $messageId  = null;
+        $timestamp  = 0;
+        $to         = $entry['metadata']['display_phone_number'] ?? null;
+        $senderName = $contacts['profile']['name'] ?? 'Unknown';
+        $mediaIds   = [];
+        $attachments = [];
+        $caption    = null;
+
+        foreach ($messages as $msg) {
+            $type = $msg['type'] ?? '';
+            $from = $msg['from'] ?? $from;
+            $messageId = $msg['id'] ?? $messageId;
+            $timestamp = isset($msg['timestamp']) ? (int)$msg['timestamp'] : $timestamp;
+
+            if (in_array($type, ['image', 'video', 'document'])) {
+                $mediaId = $msg[$type]['id'] ?? null;
+                $mediaUrl = $this->getMediaUrl($mediaId);
+
+                if ($mediaId && $mediaUrl) {
+                    $mediaIds[] = $mediaId;
+                    $attachments[] = $mediaUrl;
+                }
+
+                if (!$caption && !empty($msg[$type]['caption'])) {
+                    $caption = $msg[$type]['caption'];
+                }
+            } elseif ($type === 'text') {
+                // Prefer latest text if multiple text messages received
+                $caption = $msg['text']['body'] ?? $caption;
+            }
         }
 
-        return response()->json(['status' => 'ok']);
+        $cacheKey = "whatsapp_thread_{$from}";
+        $cacheTTL = 30; // seconds
+
+        $cachedData = Cache::get($cacheKey, [
+            'texts' => [],
+            'attachmentIds' => [],
+            'attachments' => [],
+            'lastTimestamp' => 0,
+        ]);
+
+        if ($caption) {
+            $cachedData['texts'][] = $caption;
+        }
+        if ($mediaIds) {
+            $cachedData['attachmentIds'] = array_merge($cachedData['attachmentIds'], $mediaIds);
+            $cachedData['attachments']   = array_merge($cachedData['attachments'], $attachments);
+        }
+        $cachedData['lastTimestamp'] = $timestamp;
+
+        Cache::put($cacheKey, $cachedData, $cacheTTL);
+
+        $combinedText = !empty($cachedData['texts']) ? implode("\n", $cachedData['texts']) : 'No text message';
+
+        $response = [
+            "Source"       => "WHATSAPP",
+            "TraceId"      => "wa123",
+            "MessageId"    => $messageId,
+            "Sender"       => $from,
+            "SenderName"   => $senderName,
+            "SentTo"       => $to,
+            "ParentId"     => $messages[0]['context']['id'] ?? 'PARENT ID',
+            "Timestamp"    => $timestamp,
+            "Message"      => $combinedText,
+            "AttachmentId" => $cachedData['attachmentIds'],
+            "Attachments"  => $cachedData['attachments'],
+            "Subject"      => "Product Information request"
+        ];
+
+        Log::info('Processed WhatsApp message response:', $response);
+
+        return response()->json($response);
+    }
+
+
+    private function getMediaUrl($mediaId)
+    {
+        $accessToken = env('WHATSAPP_ACCESS_TOKEN');
+
+        if (!$mediaId) {
+            return null;
+        }
+
+        $cacheKey = "whatsapp_media_url_{$mediaId}";
+        $cachedUrl = Cache::get($cacheKey);
+        if ($cachedUrl) {
+            return $cachedUrl;
+        }
+
+        $url = "https://graph.facebook.com/v18.0/{$mediaId}";
+
+        try {
+            $client = new \GuzzleHttp\Client();
+            $response = $client->get($url, [
+                'headers' => [
+                    'Authorization' => "Bearer {$accessToken}"
+                ]
+            ]);
+            $body = json_decode($response->getBody(), true);
+            Log::info('media body response :', $body);
+
+            $mediaUrl = $body['url'] ?? null;
+
+            if ($mediaUrl) {
+                // Cache media url for 10 minutes to avoid repeated calls
+                Cache::put($cacheKey, $mediaUrl, now()->addMinutes(10));
+            }
+
+            return $mediaUrl;
+
+        } catch (RequestException $e) {
+            Log::error("Error fetching media URL for mediaId {$mediaId}: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function fetchWhatsappMedia($mediaId)
+    {
+        $accessToken = env('WHATSAPP_ACCESS_TOKEN');
+        $client = new \GuzzleHttp\Client();
+
+        try {
+            // Get media URL first
+            $response = $client->get("https://graph.facebook.com/v18.0/{$mediaId}", [
+                'headers' => [
+                    'Authorization' => "Bearer {$accessToken}"
+                ]
+            ]);
+
+            $body = json_decode($response->getBody(), true);
+            $mediaUrl = $body['url'] ?? null;
+
+            if (!$mediaUrl) {
+                return response()->json(['error' => 'Media URL not found'], 404);
+            }
+
+            // Now fetch the actual media content (stream it)
+            $mediaResponse = $client->get($mediaUrl, [
+                'headers' => [
+                    'Authorization' => "Bearer {$accessToken}"
+                ],
+                'stream' => true,
+            ]);
+
+            // Return streamed response with appropriate headers
+            return response($mediaResponse->getBody(), 200)
+                ->header('Content-Type', $mediaResponse->getHeaderLine('Content-Type'))
+                ->header('Content-Disposition', $mediaResponse->getHeaderLine('Content-Disposition'));
+
+        } catch (\Exception $e) {
+            Log::error("Error fetching WhatsApp media: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch media'], 500);
+        }
     }
 
     // Meta Webhook verification (GET request)
