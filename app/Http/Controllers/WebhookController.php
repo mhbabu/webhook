@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessWhatsAppMessageBatch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use ProcessIncomingMessageJob;
@@ -28,17 +29,6 @@ class WebhookController extends Controller
     }
 
     // ✅ Webhook message receiver
-    public function whatsapp2(Request $request)
-    {
-        // You can log the incoming payload for debugging
-        // \Log::info('WhatsApp webhook received:', $request->all());
-
-        // Dispatch to background job to avoid delay
-        ProcessIncomingMessageJob::dispatch($request->all());
-
-        return response()->json(['status' => 'received'], 200);
-    }
-
     public function whatsapp(Request $request)
     {
         $data = $request->all();
@@ -46,16 +36,77 @@ class WebhookController extends Controller
 
         $entry    = $data['entry'][0]['changes'][0]['value'] ?? [];
         $messages = $entry['messages'] ?? [];
+        // Removed $contacts and $senderName entirely
+
+        $from        = null;
+        $messageId   = null;
+        $timestamp   = 0;
+        $to          = $entry['metadata']['display_phone_number'] ?? null;
+        $mediaIds    = [];
+        $attachments = [];
+        $caption     = null;
+        $parentId    = null;
+
+        foreach ($messages as $msg) {
+            $type = $msg['type'] ?? '';
+            $from = $msg['from'] ?? $from;
+            $messageId = $msg['id'] ?? $messageId;
+            $timestamp = isset($msg['timestamp']) ? (int)$msg['timestamp'] : $timestamp;
+            $parentId = $msg['context']['id'] ?? $parentId;
+
+            if (in_array($type, ['image', 'video', 'document'])) {
+                $mediaId = $msg[$type]['id'] ?? null;
+                $mediaUrl = $this->getMediaUrl($mediaId);
+
+                if ($mediaId && $mediaUrl) {
+                    $mediaIds[] = $mediaId;
+                    $attachments[] = $mediaUrl;
+                }
+
+                if (!$caption && !empty($msg[$type]['caption'])) {
+                    $caption = $msg[$type]['caption'];
+                }
+            } elseif ($type === 'text') {
+                $caption = $msg['text']['body'] ?? $caption;
+            }
+        }
+
+        $response = [
+            "Source"       => "WHATSAPP",
+            "TraceId"      => 'wa' . uniqid(),
+            "MessageId"    => $messageId,
+            "Sender"       => $from,
+            "SentTo"       => $to,
+            "ParentId"     => $parentId,
+            "Timestamp"    => $timestamp,
+            "Message"      => $caption ?? 'No message content',
+            "AttachmentId" => $mediaIds,
+            "Attachments"  => $attachments,
+            "Subject"      => "Product Information request"
+        ];
+
+        Log::info('Processed WhatsApp message response:', $response);
+
+        return response()->json($response);
+    }
+
+    public function whatsapp3(Request $request)
+    {
+        $data = $request->all();
+        Log::info('Received WhatsApp message:', $data);
+
+        $entry = $data['entry'][0]['changes'][0]['value'] ?? [];
+        $messages = $entry['messages'] ?? [];
         $contacts = $entry['contacts'][0] ?? null;
 
-        $from       = null;
-        $messageId  = null;
-        $timestamp  = 0;
-        $to         = $entry['metadata']['display_phone_number'] ?? null;
-        $senderName = $contacts['profile']['name'] ?? 'Unknown';
-        $mediaIds   = [];
+        $from        = null;
+        $messageId   = null;
+        $timestamp   = 0;
+        $to          = $entry['metadata']['display_phone_number'] ?? null;
+        $senderName  = $contacts['profile']['name'] ?? 'Unknown';
+        $mediaIds    = [];
         $attachments = [];
-        $caption    = null;
+        $caption     = null;
 
         foreach ($messages as $msg) {
             $type = $msg['type'] ?? '';
@@ -76,18 +127,18 @@ class WebhookController extends Controller
                     $caption = $msg[$type]['caption'];
                 }
             } elseif ($type === 'text') {
-                // Prefer latest text if multiple text messages received
                 $caption = $msg['text']['body'] ?? $caption;
             }
         }
 
+        // Cache key per sender (wa_id)
         $cacheKey = "whatsapp_thread_{$from}";
         $cacheTTL = 30; // seconds
 
         $cachedData = Cache::get($cacheKey, [
-            'texts' => [],
+            'texts'         => [],
             'attachmentIds' => [],
-            'attachments' => [],
+            'attachments'   => [],
             'lastTimestamp' => 0,
         ]);
 
@@ -100,30 +151,19 @@ class WebhookController extends Controller
         }
         $cachedData['lastTimestamp'] = $timestamp;
 
+        // Save updated cache
         Cache::put($cacheKey, $cachedData, $cacheTTL);
 
-        $combinedText = !empty($cachedData['texts']) ? implode("\n", $cachedData['texts']) : 'No text message';
+        // ✅ Debounced Job Dispatch (prevent multiple jobs)
+        $lockKey = "lock_whatsapp_batch_job_{$from}";
+        $lockTTL = 10; // Prevent multiple dispatches within 10s
+        if (Cache::add($lockKey, true, $lockTTL)) {
+            ProcessWhatsAppMessageBatch::dispatch($from)->delay(now()->addSeconds(5));
+        }
 
-        $response = [
-            "Source"       => "WHATSAPP",
-            "TraceId"      => uniqid(),
-            "MessageId"    => $messageId,
-            "Sender"       => $from,
-            "SenderName"   => $senderName,
-            "SentTo"       => $to,
-            "ParentId"     => $messages[0]['context']['id'] ?? null,
-            "Timestamp"    => $timestamp,
-            "Message"      => $combinedText,
-            "AttachmentId" => $cachedData['attachmentIds'],
-            "Attachments"  => $cachedData['attachments'],
-            "Subject"      => "WhatsApp Webhook"
-        ];
-
-        Log::info('Processed WhatsApp message response:', $response);
-
-        return response()->json($response);
+        // Return immediate response
+        return response()->json(['status' => 'received']);
     }
-
 
     private function getMediaUrl($mediaId)
     {
@@ -142,15 +182,14 @@ class WebhookController extends Controller
         $url = "https://graph.facebook.com/v18.0/{$mediaId}";
 
         try {
-            $client = new \GuzzleHttp\Client();
+            $client   = new \GuzzleHttp\Client();
             $response = $client->get($url, [
                 'headers' => [
                     'Authorization' => "Bearer {$accessToken}"
                 ]
             ]);
-            $body = json_decode($response->getBody(), true);
-            Log::info('media body response :', $body);
 
+            $body     = json_decode($response->getBody(), true);
             $mediaUrl = $body['url'] ?? null;
 
             if ($mediaUrl) {
@@ -169,7 +208,7 @@ class WebhookController extends Controller
     public function fetchWhatsappMedia($mediaId)
     {
         $accessToken = env('WHATSAPP_ACCESS_TOKEN');
-        $client = new \GuzzleHttp\Client();
+        $client      = new \GuzzleHttp\Client();
 
         try {
             // Get media URL first
@@ -179,7 +218,7 @@ class WebhookController extends Controller
                 ]
             ]);
 
-            $body = json_decode($response->getBody(), true);
+            $body     = json_decode($response->getBody(), true);
             $mediaUrl = $body['url'] ?? null;
 
             if (!$mediaUrl) {
