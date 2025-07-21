@@ -3,10 +3,10 @@ version: '3.5'
 services:
   backend:
     container_name: webhook-backend
-    image: webhook:backend
     build:
       context: .
       dockerfile: DockerFile
+    # Remove image tag to force local build & avoid pull errors
     restart: unless-stopped
     tty: true
     working_dir: /var/www/html
@@ -25,19 +25,14 @@ services:
         condition: service_healthy
     volumes:
       - .:/var/www/html
-    deploy:
-      resources:
-        limits:
-          memory: 256M
     networks:
       - automatrix
 
   websocket:
+    container_name: webhook-websocket
     build:
       context: .
       dockerfile: DockerFile
-    image: webhook:websocket
-    container_name: webhook-websocket
     restart: unless-stopped
     command: ["php", "artisan", "websockets:serve"]
     user: root
@@ -56,23 +51,18 @@ services:
       kafka:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "sh", "docker/health-checker/websocket-health-checker.sh" ]
+      test: ["CMD", "sh", "docker/health-checker/websocket-health-checker.sh"]
       interval: 5s
       timeout: 5s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 64M
     networks:
       - automatrix
 
   queue:
+    container_name: webhook-queue
     build:
       context: .
       dockerfile: DockerFile
-    image: webhook:queue
-    container_name: webhook-queue
     command: php artisan queue:work --queue=default,trip,application,bulk_applications
     volumes:
       - .:/var/www/html
@@ -83,10 +73,6 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          memory: 128M
     networks:
       - automatrix
 
@@ -105,16 +91,12 @@ services:
     volumes:
       - ./docker/nginx/conf.d:/etc/nginx/conf.d
       - ./public:/var/www/html/public
-    deploy:
-      resources:
-        limits:
-          memory: 512M
     networks:
       - automatrix
 
   db:
-    image: mysql:8
     container_name: webhook-db
+    image: mysql:8
     restart: unless-stopped
     tty: true
     ports:
@@ -133,10 +115,6 @@ services:
       retries: 5
       start_period: 5s
       timeout: 5s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
     networks:
       - automatrix
 
@@ -151,16 +129,12 @@ services:
       retries: 5
       start_period: 5s
       timeout: 5s
-    deploy:
-      resources:
-        limits:
-          memory: 64M
     networks:
       - automatrix
 
   zookeeper:
-    image: bitnami/zookeeper:latest
     container_name: zookeeper
+    image: bitnami/zookeeper:latest
     ports:
       - "2181:2181"
     environment:
@@ -175,8 +149,8 @@ services:
       - automatrix
 
   kafka:
-    image: bitnami/kafka:latest
     container_name: kafka
+    image: bitnami/kafka:latest
     ports:
       - "9092:9092"
     environment:
@@ -184,11 +158,11 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       ALLOW_PLAINTEXT_LISTENER: "yes"
       KAFKA_LISTENERS: PLAINTEXT://:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092   # Changed to service name
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
     depends_on:
       - zookeeper
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server kafka:9092"] # Changed to service name
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server kafka:9092"]
       interval: 10s
       retries: 5
       start_period: 10s
