@@ -1,10 +1,10 @@
-# Use official PHP 8.1 FPM image as base
+# Use PHP 8.2 to satisfy Laravel 12+ requirements
 FROM php:8.2-fpm
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Install system dependencies and PHP extensions including sockets for WebSocket support
+# Install system dependencies and PHP extensions
 RUN apt-get update && apt-get install -y \
     build-essential \
     git \
@@ -45,29 +45,32 @@ RUN apt-get update && apt-get install -y \
 # Install Composer globally
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
 
-# Copy project files to container
+# Copy project files
 COPY --chown=root:root . /var/www/html
 
-# Set permissions for storage and bootstrap cache directories
+# Let Git trust the repo
+RUN git config --global --add safe.directory /var/www/html
+
+# Set permissions
 RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Install PHP dependencies without dev packages, optimize autoloader
+# Install PHP dependencies (production)
 RUN composer install --no-dev --optimize-autoloader
 
-# Copy Supervisor configuration files
+# Supervisor config
 COPY ./docker/supervisor/* /etc/supervisor/conf.d/
 
-# Set the user to root
+# Set user
 USER root
 
-# Add Laravel scheduler cron job
-RUN echo "* * * * * cd /var/www/html && php artisan schedule:run >> /dev/null 2>&1" > /etc/cron.d/webhook-cron
-RUN chmod 0644 /etc/cron.d/webhook-cron
-RUN crontab /etc/cron.d/webhook-cron
+# Cron setup
+RUN echo "* * * * * cd /var/www/html && php artisan schedule:run >> /dev/null 2>&1" > /etc/cron.d/webhook-cron \
+    && chmod 0644 /etc/cron.d/webhook-cron \
+    && crontab /etc/cron.d/webhook-cron
 
-# Uncomment these lines if you want to expose ports for PHP-FPM or WebSockets
+# Optional ports
 # EXPOSE 9000
 # EXPOSE 6001
 
-# Uncomment this line if you want to start supervisord by default
+# Optional supervisor startup
 # CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
