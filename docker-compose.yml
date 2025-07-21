@@ -6,7 +6,6 @@ services:
     build:
       context: .
       dockerfile: DockerFile
-    # Remove image tag to force local build & avoid pull errors
     restart: unless-stopped
     tty: true
     working_dir: /var/www/html
@@ -110,7 +109,7 @@ services:
       MYSQL_USER: webhook
       MYSQL_PASSWORD: webhook
     healthcheck:
-      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -pwebhook" ]
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -proot" ]
       interval: 5s
       retries: 5
       start_period: 5s
