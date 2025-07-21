@@ -1,0 +1,202 @@
+version: '3.5'
+
+services:
+  backend:
+    container_name: webhook-backend
+    image: webhook:backend
+    build:
+      context: .
+      dockerfile: DockerFile
+    restart: unless-stopped
+    tty: true
+    working_dir: /var/www/html
+    ports:
+      - "9000:9000"
+    expose:
+      - "9000"
+    depends_on:
+      websocket:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    volumes:
+      - .:/var/www/html
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - automatrix
+
+  websocket:
+    build:
+      context: .
+      dockerfile: DockerFile
+    image: webhook:websocket
+    container_name: webhook-websocket
+    restart: unless-stopped
+    command: ["php", "artisan", "websockets:serve"]
+    user: root
+    volumes:
+      - .:/var/www/html
+    working_dir: /var/www/html
+    ports:
+      - "6001:6001"
+    expose:
+      - "6001"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "sh", "docker/health-checker/websocket-health-checker.sh" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+    networks:
+      - automatrix
+
+  queue:
+    build:
+      context: .
+      dockerfile: DockerFile
+    image: webhook:queue
+    container_name: webhook-queue
+    command: php artisan queue:work --queue=default,trip,application,bulk_applications
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    networks:
+      - automatrix
+
+  webserver:
+    container_name: webhook-webserver
+    image: nginx:alpine
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "8080:80"
+    depends_on:
+      websocket:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    volumes:
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+      - ./public:/var/www/html/public
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - automatrix
+
+  db:
+    image: mysql:8
+    container_name: webhook-db
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./docker/mysql/data:/var/lib/mysql
+      - ./mysql/conf.d/my.cnf:/etc/mysql/conf.d/my.cnf
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: webhook
+      MYSQL_USER: webhook
+      MYSQL_PASSWORD: webhook
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -p$MYSQL_ROOT_PASSWORD" ]
+      interval: 5s
+      retries: 5
+      start_period: 5s
+      timeout: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - automatrix
+
+  redis:
+    container_name: webhook-redis
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli ping | grep PONG" ]
+      interval: 5s
+      retries: 5
+      start_period: 5s
+      timeout: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+    networks:
+      - automatrix
+
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+      timeout: 5s
+    networks:
+      - automatrix
+
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+      KAFKA_LISTENERS: PLAINTEXT://:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+      timeout: 5s
+    networks:
+      - automatrix
+
+networks:
+  automatrix:
+    name: automatrix
+    driver: bridge
