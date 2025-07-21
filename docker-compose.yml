@@ -128,7 +128,7 @@ services:
       MYSQL_USER: webhook
       MYSQL_PASSWORD: webhook
     healthcheck:
-      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -p$MYSQL_ROOT_PASSWORD" ]
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -pwebhook" ]
       interval: 5s
       retries: 5
       start_period: 5s
