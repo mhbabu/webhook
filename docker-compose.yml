@@ -9,6 +9,7 @@ services:
     container_name: webhook-app
     restart: unless-stopped
     working_dir: /var/www/html/webhook
+    # Mount the Laravel project from host into container.
     volumes:
       - ./webhook:/var/www/html/webhook
     networks:
@@ -21,7 +22,9 @@ services:
     ports:
       - "80:80"
     volumes:
+      # Mount the same Laravel project to serve it via Nginx.
       - ./webhook:/var/www/html/webhook
+      # Map your custom Nginx configuration into the container.
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - app
