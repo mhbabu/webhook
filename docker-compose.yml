@@ -4,46 +4,46 @@ services:
   app:
     build:
       context: .
-      dockerfile: docker/php/Dockerfile
-    container_name: webhook_app
+      dockerfile: Dockerfile
+    image: webhook-app
+    container_name: webhook-app
+    restart: unless-stopped
+    working_dir: /var/www/html/webhook
     volumes:
-      - .:/var/www/html
+      - ./webhook:/var/www/html/webhook
     networks:
-      - webhook
-    depends_on:
-      - mysql
+      - laravel
 
-  nginx:
+  webserver:
     image: nginx:alpine
-    container_name: webhook_nginx
+    container_name: webhook-nginx
+    restart: unless-stopped
     ports:
       - "80:80"
     volumes:
-      - .:/var/www/html
+      - ./webhook:/var/www/html/webhook
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - app
     networks:
-      - webhook
+      - laravel
 
-  mysql:
-    image: mysql:8
-    container_name: webhook_mysql
+  db:
+    image: mysql:8.0
+    container_name: webhook-mysql
+    restart: unless-stopped
     environment:
+      MYSQL_DATABASE: webhook_db
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: webhook
       MYSQL_USER: webhook
       MYSQL_PASSWORD: webhook
-    ports:
-      - "3306:3306"
     volumes:
-      - webhookdb:/var/lib/mysql
+      - dbdata:/var/lib/mysql
     networks:
-      - webhook
+      - laravel
 
 volumes:
-  webhookdb:
+  dbdata:
 
 networks:
-  webhook:
-    driver: bridge
+  laravel:
