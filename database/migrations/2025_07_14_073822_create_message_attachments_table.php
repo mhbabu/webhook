@@ -11,12 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('attachments', function (Blueprint $table) {
+        Schema::create('message_attachments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('message_id')->constrained()->onDelete('cascade');
-            $table->string('type');
-            $table->string('url');
-            $table->string('file_name')->nullable();
+            $table->foreignId('message_id')->constrained('messages');
+            $table->string('type', 255)->nullable();
+            $table->string('path', 1024)->nullable();
+            $table->string('mime', 255)->nullable();
+            $table->string('size');
+            $table->string('attachment_id')->nullable();
+            $table->tinyInteger('is_available')->default(0);
             $table->timestamps();
             $table->index(['message_id', 'type']);
         });

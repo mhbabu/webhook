@@ -6,25 +6,23 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('conversations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->nullable()->constrained('users');
-            $table->foreignId('platform_id')->constrained();
-            $table->foreignId('agent_id')->nullable()->constrained('users');
-            $table->string('external_conversation_id')->nullable();
+            $table->foreignId('customer_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('agent_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->string('platform')->nullable();
+            $table->uuid('trace_id');
+            $table->enum('status', ['open', 'closed'])->default('open');
+            $table->timestamp('started_at')->useCurrent();
+            $table->timestamp('closed_at')->nullable();
             $table->timestamps();
-            $table->index(['platform_id', 'agent_id', 'user_id']);
+
+            $table->index(['customer_id', 'platform', 'status']);
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('conversations');

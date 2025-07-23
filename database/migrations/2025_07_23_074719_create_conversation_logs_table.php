@@ -11,14 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('messages', function (Blueprint $table) {
+        Schema::create('conversation_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('conversation_id')->constrained()->onDelete('cascade');
-            $table->string('sender_id')->nullable();
-            $table->string('receiver_id')->nullable();
-            $table->string('type')->default('text');
-            $table->text('content')->nullable();
-            $table->enum('direction', ['incoming', 'outgoing']);
+            $table->foreignId('agent_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->enum('action', ['opened', 'closed', 'reassigned', 'agent_online', 'agent_offline', 'status_changed']);
+            $table->text('notes')->nullable();
             $table->timestamps();
         });
     }
@@ -28,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('messages');
+        Schema::dropIfExists('conversation_logs');
     }
 };

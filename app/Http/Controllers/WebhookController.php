@@ -29,7 +29,7 @@ class WebhookController extends Controller
     }
 
     // ✅ Webhook message receiver
-    public function whatsapp(Request $request)
+    public function whatsapp2(Request $request)
     {
         $data = $request->all();
         Log::info('Received WhatsApp message:', $data);
@@ -90,7 +90,7 @@ class WebhookController extends Controller
         return response()->json($response);
     }
 
-    public function whatsapp3(Request $request)
+    public function whatsapp(Request $request)
     {
         $data = $request->all();
         Log::info('Received WhatsApp message:', $data);

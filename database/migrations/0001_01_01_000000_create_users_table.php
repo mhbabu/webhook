@@ -13,16 +13,20 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('name')->nullable();
             $table->string('email')->unique()->nullable();
+            $table->string('mobile')->nullable()->index(); // WhatsApp phone number
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
-            $table->enum('role', ['agent', 'admin', 'customer'])->default('customer');
-            $table->string('external_id')->nullable(); // platform user id (for customers)
-            $table->string('platform')->nullable();    // platform name for customers
-            $table->rememberToken(); 
+            $table->enum('type', ['agent', 'admin', 'customer'])->default('customer')->index();
+            $table->string('external_id')->nullable(); // platform user id for messenger/instagram
+            $table->string('platform')->nullable()->index();
+            $table->enum('status', ['online', 'offline', 'busy', 'occupied'])->default('offline')->index(); // agent status
+            $table->integer('limit')->default(5); // max concurrent chats per agent
+            $table->rememberToken();
             $table->timestamps();
-            $table->unique(['external_id', 'platform']);
+            $table->softDeletes();
+            // $table->unique(['external_id', 'platform']);
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
