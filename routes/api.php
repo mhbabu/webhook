@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\WebhookController;
@@ -15,6 +16,14 @@ Route::post('webhook/instagram', [WebhookController::class, 'receiveInstragramMs
 Route::get('webhook/messenger', [WebhookController::class, 'verifyMessenger']); // For for webhook verification
 Route::post('webhook/messenger', [WebhookController::class, 'receiveMessengerMsg']); // POST for message reception
 
-// Route::get('/user', function (Request $request) {
-//     return $request->user();
-// })->middleware('auth:sanctum');
+Route::post('user/register', [AuthController::class, 'register']);
+Route::post('user/login', [AuthController::class, 'login']);
+Route::post('user/password/reset-request', [AuthController::class, 'passwordResetRequest']);
+Route::post('user/reset-password', [AuthController::class, 'resetPassword']);
+
+// Routes requiring authentication
+Route::middleware('auth:api')->group(function () {
+    Route::post('user/logout', [AuthController::class, 'logout']);
+    Route::post('user/update-password', [AuthController::class, 'updatePassword']);
+    // Route::post('user/update-profile', [AuthController::class, 'updateProfile']);
+});
