@@ -15,14 +15,14 @@ return new class extends Migration
             $table->id();
             $table->string('name')->nullable();
             $table->string('email')->unique()->nullable();
-            $table->string('mobile')->nullable()->index(); // WhatsApp phone number
+            $table->string('mobile')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
-            $table->enum('type', ['agent', 'admin', 'customer'])->default('customer')->index();
-            $table->string('external_id')->nullable(); // platform user id for messenger/instagram
-            $table->string('platform')->nullable()->index();
-            $table->enum('status', ['online', 'offline', 'busy', 'occupied'])->default('offline')->index(); // agent status
-            $table->integer('limit')->default(5); // max concurrent chats per agent
+            $table->string('type')->nullable; // agent, admin, supervisor etc
+            $table->string('status')->default(); // online ,offline, busy , occupied
+            $table->integer('fix_limit')->default(1); // total customer response
+            $table->integer('current_limit')->default(0); // current customer response
+            $table->string('account_status')->default('active');
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
