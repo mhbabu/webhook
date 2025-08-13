@@ -30,7 +30,7 @@ class UserService
         try {
 
             // Generate a random password
-            $password = Str::random(8); 
+            $password = Str::random(8);
             $user     = User::create([
                 'name'              => $data['name'],
                 'email'             => strtolower($data['email']),
@@ -61,17 +61,24 @@ class UserService
      */
     public function verifyOtp(string $otp): array
     {
+        if (!$this->validRequest()) {
+            return ['message' => 'Invalid request', 'status' => false];
+        }
+
         $verificationCode = $this->otpService->getValidOtp($otp);
 
         if (!$verificationCode) {
             $expiredOtp = $this->otpService->getExpiredOtp($otp);
-            $message = $expiredOtp ? 'OTP expired' : 'Invalid OTP';
+            $message    = $expiredOtp ? 'OTP expired' : 'Invalid OTP';
             return ['message' => $message, 'status' => false];
         }
 
         $user = User::find($verificationCode->user_id);
 
         if (!$user) return ['message' => 'User not found', 'status' => false];
+
+        if (!$user->reset_password_request) return ['message' => 'Invalid request', 'status' => false];
+
 
         try {
             DB::beginTransaction();
@@ -99,9 +106,8 @@ class UserService
     public function resendOtp(string $email): array
     {
         $user = User::where('email', strtolower($email))->first();
-        if (!$user) return ['message' => 'User not found', 'status' => false];
-
-        if(!$user->reset_password_request) return ['message'=> 'Invalid request', 'status'=> false];
+        if (!$user) return ['message' => 'User not found', 'status' => false, 'otp' => null];
+        if (!$this->validRequest()) return ['message' => 'Invalid request', 'status' => false, 'otp' => null];
 
         $otp = $this->otpService->generateOtp($user->id);
         // $user->notify(new AccountVerificationNotification($otp));
@@ -135,7 +141,7 @@ class UserService
         $user = User::where('email', strtolower($email))->first();
 
         if (!$user) return ['message' => 'User not found', 'status' => false];
-        $user->update(['reset_password_request' => 1]);
+        $user->update(['is_request' => 1]);
         $otp = $this->otpService->generateOtp($user->id);
         // $user->notify(new PasswordResetNotification($otp));
 
@@ -194,5 +200,10 @@ class UserService
         // request()->user()->currentAccessToken()->delete();
         request()->user()->tokens()->delete();
         return ['message' => 'Logged out successfully', 'status' => true];
+    }
+
+    public function validRequest(): bool
+    {
+        return User::where('id', Auth::id())->where('is_request', 1)->exists();
     }
 }

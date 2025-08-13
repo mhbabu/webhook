@@ -28,7 +28,7 @@ class UserTableSeeder extends Seeder
 
         DB::table('users')->insert([
             'name'                => 'AutoMatrix Admin',
-            'email'               => 'automatrix1@ourown.com',
+            'email'               => 'automatrix1@gmail.com',
             'employee_id'         => 'ADM12345',
             'type'                => 'admin',
             'password'            => bcrypt('12345678'),

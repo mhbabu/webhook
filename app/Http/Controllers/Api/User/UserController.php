@@ -26,7 +26,7 @@ class UserController extends Controller
     public function createUser(CreateNewAgenRequest $request)
     {
         $response = $this->userService->createUser($request->validated());
-        return $this->otpjsonResponse($response['message'], $response['status'], $response['password']);
+        return $this->passwordjsonResponse($response['message'], $response['status'], $response['password']);
         // return $this->jsonResponse($response['message'], $response['status']);
     }
 
@@ -45,7 +45,7 @@ class UserController extends Controller
     public function resendOtp(ResetOtpRequest $request)
     {
         $response = $this->userService->resendOtp($request->email);
-        return $this->otpjsonResponse($response['message'], $response['status'], $response['otp']);
+        return $this->jsonResponse($response['message'], $response['status'], $response['data'] ?? null);
         // return $this->jsonResponse($response['message'], $response['status']);
     }
 
@@ -104,7 +104,12 @@ class UserController extends Controller
     }
 
     // Using this respone like a demo for otp visualization
-    private function otpjsonResponse(string $message, bool $status, string $password, $data = null)
+    private function otpjsonResponse(string $message, bool $status, string $otp, $data = null)
+    {
+        return response()->json(['status' => $status, 'message' => $message, 'otp' => $otp, 'data' => $data], $status ? 200 : 400);
+    }
+
+    private function passwordjsonResponse(string $message, bool $status, string $password, $data = null)
     {
         return response()->json(['status' => $status, 'message' => $message, 'password' => $password, 'data' => $data], $status ? 200 : 400);
     }

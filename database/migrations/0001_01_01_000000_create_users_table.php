@@ -25,7 +25,7 @@ return new class extends Migration
             $table->integer('max_limit')->default(1); // total customer response
             $table->integer('current_limit')->default(0); // current customer response
             $table->string('account_status')->default('active');
-            $table->tinyInteger('reset_password_request')->nullable();
+            $table->tinyInteger('is_request')->default(0);
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
