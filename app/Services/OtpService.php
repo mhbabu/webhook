@@ -15,9 +15,11 @@ class OtpService
         $otp = mt_rand(100000, 999999);
 
         OtpVerification::create([
-            'user_id'   => $userId,
-            'otp'       => $otp,
-            'expire_at' => Carbon::now()->addMinutes(5),
+            'user_id'      => $userId,
+            'otp'          => $otp,
+            'expire_at'    => Carbon::now()->addMinutes(5),
+            'created_at'   => Carbon::now(),
+            'updated_at'   => Carbon::now(),
         ]);
 
         return $otp;

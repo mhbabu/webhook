@@ -32,7 +32,8 @@ class User extends Authenticatable
         'max_limit',
         'current_limit',
         'account_status',
-        'is_verified'
+        'is_verified',
+        'reset_password_request'
     ];
 
     /**

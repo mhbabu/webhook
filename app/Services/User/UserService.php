@@ -101,6 +101,8 @@ class UserService
         $user = User::where('email', strtolower($email))->first();
         if (!$user) return ['message' => 'User not found', 'status' => false];
 
+        if(!$user->reset_password_request) return ['message'=> 'Invalid request', 'status'=> false];
+
         $otp = $this->otpService->generateOtp($user->id);
         // $user->notify(new AccountVerificationNotification($otp));
 
@@ -133,7 +135,7 @@ class UserService
         $user = User::where('email', strtolower($email))->first();
 
         if (!$user) return ['message' => 'User not found', 'status' => false];
-
+        $user->update(['reset_password_request' => 1]);
         $otp = $this->otpService->generateOtp($user->id);
         // $user->notify(new PasswordResetNotification($otp));
 
@@ -161,6 +163,7 @@ class UserService
             DB::beginTransaction();
 
             $user->password = Hash::make($newPassword);
+            $user->reset_password_request = 0;
             $user->save();
 
             $this->otpService->deleteOtp($user->id);
