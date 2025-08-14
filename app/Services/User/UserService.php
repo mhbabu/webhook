@@ -178,6 +178,27 @@ class UserService
     }
 
     /**
+     * Update password using OTP.
+     */
+    public function updatePassword($data): array
+    {
+        $user = Auth::user();
+
+        if (!Hash::check($data['current_password'], $user->password)) {
+            return ['message' => 'The current password you provided is incorrect.', 'status' => false];
+        }
+
+        if ($data['current_password'] === $data['new_password']) {
+            return ['message' => 'The new password cannot be the same as the current password.', 'status' => false];
+        }
+
+        $user->password = bcrypt($data['new_password']);
+        $user->save();
+
+        return ['message' => 'Your password has been updated successfully.', 'status' => true];
+    }
+
+    /**
      * Log out the user.
      */
     public function getMeInfo(): array

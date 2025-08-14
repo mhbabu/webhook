@@ -11,11 +11,12 @@ Route::prefix('user')->group(function () {
     Route::post('password/reset', [UserController::class, 'resetPassword']);
 
     Route::middleware('auth:sanctum')->group(function () {
-        Route::get('/', [UserController::class, 'getUserList']);
+        Route::get('/list', [UserController::class, 'getUserList']);
+        Route::get('me', [UserController::class, 'getMe']);
         Route::post('create', [UserController::class, 'createUser'])->middleware('supervisor');
         Route::post('create', [UserController::class, 'createUser'])->middleware('supervisor');
         Route::post('logout', [UserController::class, 'logout']);
         Route::post('update-password', [UserController::class, 'updatePassword']);
-        Route::post('update-profile', [UserController::class, 'updateProfile']);
+        // Route::post('update-profile', [UserController::class, 'updateProfile']);
     });
 });
