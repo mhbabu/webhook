@@ -61,43 +61,25 @@ class UserService
      */
     public function verifyOtp(string $otp): array
     {
-        if (!$this->validRequest()) {
-            return ['message' => 'Invalid request', 'status' => false];
-        }
-
         $verificationCode = $this->otpService->getValidOtp($otp);
 
         if (!$verificationCode) {
             $expiredOtp = $this->otpService->getExpiredOtp($otp);
-            $message    = $expiredOtp ? 'OTP expired' : 'Invalid OTP';
+            $message = $expiredOtp ? 'OTP expired' : 'Invalid OTP';
             return ['message' => $message, 'status' => false];
         }
 
         $user = User::find($verificationCode->user_id);
 
-        if (!$user) return ['message' => 'User not found', 'status' => false];
-
-        if (!$user->reset_password_request) return ['message' => 'Invalid request', 'status' => false];
-
-
-        try {
-            DB::beginTransaction();
-
-            $user->is_verified       = true;
-            $user->is_active         = true;
-            $user->email_verified_at = now();
-            $user->save();
-
-            $this->otpService->deleteOtp($user->id);
-
-            DB::commit();
-
-            $token = $user->createToken('authToken')->accessToken;
-            return ['message' => 'OTP verified successfully', 'status' => true, 'data' => ['user' => new UserResource($user), 'token' => $token]];
-        } catch (Exception $e) {
-            DB::rollBack();
-            return ['message' => 'OTP verification failed: ' . $e->getMessage(), 'status' => false];
+        if (!$user) {
+            return ['message' => 'User not found', 'status' => false];
         }
+
+        if (!$this->validRequest($user->id)) {
+            return ['message' => 'Invalid request', 'status' => false];
+        }
+
+        return ['message' => 'OTP verified successfully', 'status' => true];
     }
 
     /**
@@ -106,8 +88,8 @@ class UserService
     public function resendOtp(string $email): array
     {
         $user = User::where('email', strtolower($email))->first();
-        if (!$user) return ['message' => 'User not found', 'status' => false, 'otp' => null];
-        if (!$this->validRequest()) return ['message' => 'Invalid request', 'status' => false, 'otp' => null];
+        if (!$user) return ['message' => 'User not found', 'status' => false];
+        if (!$this->validRequest($user->id)) return ['message' => 'Invalid request', 'status' => false];
 
         $otp = $this->otpService->generateOtp($user->id);
         // $user->notify(new AccountVerificationNotification($otp));
@@ -202,8 +184,8 @@ class UserService
         return ['message' => 'Logged out successfully', 'status' => true];
     }
 
-    public function validRequest(): bool
+    public function validRequest($userId): bool
     {
-        return User::where('id', Auth::id())->where('is_request', 1)->exists();
+        return User::where('id', $userId)->where('is_request', 1)->exists();
     }
 }
