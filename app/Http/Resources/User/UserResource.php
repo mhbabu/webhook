@@ -17,7 +17,6 @@ class UserResource extends JsonResource
             'max_limit'   => $this->max_limit,
             'type'        => $this->type,
             'mobile'      => $this->mobile
-
         ];
     }
 }

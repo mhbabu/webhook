@@ -23,6 +23,18 @@ class UserService
     /**
      * Register a new user and send OTP.
      */
+    public function getUserList($data)
+    {
+        $page    = $data['page'] ?? 1;
+        $perPage = $data['per_page'] ?? 10;
+        $users   = User::paginate($perPage, ['*'], 'page', $page);
+
+       return ['message' => 'User list retrieved successfully', 'status' => true, 'data' => UserResource::collection($users)->response()->getData(true)];
+    }
+
+    /**
+     * Register a new user and send OTP.
+     */
     public function createUser(array $data): array
     {
         DB::beginTransaction();
@@ -50,7 +62,6 @@ class UserService
 
             return ['message' => 'User created successfully', 'password' => $password, 'status' => true];
         } catch (Exception $e) {
-            info($e->getMessage());
             DB::rollBack();
             return ['message' => 'User creation failed: ' . $e->getMessage(), 'status' => false];
         }
@@ -133,25 +144,26 @@ class UserService
     /**
      * Reset password using OTP.
      */
-    public function resetPassword(string $otp, string $newPassword): array
+    public function resetPassword($data): array
     {
-        $verificationCode = $this->otpService->getValidOtp($otp);
+        $verificationCode = $this->otpService->getValidOtp($data['otp']);
 
         if (!$verificationCode) {
-            $expiredOtp = $this->otpService->getExpiredOtp($otp);
-            $message = $expiredOtp ? 'OTP expired' : 'Invalid OTP';
+            $expiredOtp = $this->otpService->getExpiredOtp($data['otp']);
+            $message    = $expiredOtp ? 'OTP expired' : 'Invalid OTP';
             return ['message' => $message, 'status' => false];
         }
 
         $user = User::find($verificationCode->user_id);
 
         if (!$user) return ['message' => 'User not found', 'status' => false];
+        if(!$this->validRequest($user->id)) return ['message' => 'Invalid request', 'status' => false];
 
         try {
             DB::beginTransaction();
 
-            $user->password = Hash::make($newPassword);
-            $user->reset_password_request = 0;
+            $user->password = bcrypt($data['new_password']);
+            $user->is_request = 0;
             $user->save();
 
             $this->otpService->deleteOtp($user->id);
@@ -168,10 +180,10 @@ class UserService
     /**
      * Log out the user.
      */
-    public function getMeInfo(): object
+    public function getMeInfo(): array
     {
         $user = Auth::user();
-        return  new UserResource($user);
+        return ['message' => 'User retrieved successfully', 'status' => true, 'data' => new UserResource($user)];
     }
 
     /**

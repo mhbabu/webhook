@@ -10,6 +10,7 @@ use App\Http\Requests\User\ResetPasswordRequest;
 use App\Http\Requests\User\StoreResetPassword;
 use App\Http\Requests\User\ValidateOtpRequest;
 use App\Services\User\UserService;
+use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
@@ -18,6 +19,15 @@ class UserController extends Controller
     public function __construct(UserService $userService)
     {
         $this->userService = $userService;
+    }
+
+    /**
+     * Get a list of users.
+     */
+    public function getUserList(Request $request)
+    {
+        $response = $this->userService->getUserList($request->all());
+        return $this->jsonResponse($response['message'], $response['status'], $response['data']);
     }
 
     /**
@@ -73,7 +83,7 @@ class UserController extends Controller
      */
     public function resetPassword(StoreResetPassword $request)
     {
-        $response = $this->userService->resetPassword($request->otp, $request->new_password);
+        $response = $this->userService->resetPassword($request->all());
         return $this->jsonResponse($response['message'], $response['status']);
     }
 
@@ -83,7 +93,7 @@ class UserController extends Controller
     public function getMe()
     {
         $response = $this->userService->getMeInfo();
-        return response()->json(['user' => $response], 200);
+        return response()->json(['status' => $response['status'], 'message' => $response['message'], 'user' => $response['data']], 200);
     }
 
     /**
