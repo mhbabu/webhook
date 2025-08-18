@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Requests\User\Platform;
+namespace App\Http\Requests\Platform;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
-class UpdateUserCategoryRequest extends FormRequest
+class UpdatePlatformRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -25,11 +25,25 @@ class UpdateUserCategoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'   => [ 'required', 'string', 'max:255',  Rule::unique('platforms')->ignore($this->route('platforms'))],
+            'name'   => ['required', 'string', 'max:255', Rule::unique('platforms')->ignore($this->route('platform')->id ?? null)],
             'status' => 'required|integer|in:0,1',
         ];
     }
 
+
+    /**
+     * Get the custom error messages for the validation rules.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'status.integer'  => 'The status field must be an integer.',
+            'status.in'       => 'The status field must be 0 or 1.',
+            'status.required' => 'The status field is required.',
+        ];
+    }
     /**
      * Handle a failed validation attempt.
      *

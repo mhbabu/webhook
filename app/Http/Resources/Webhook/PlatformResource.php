@@ -16,8 +16,8 @@ class PlatformResource extends JsonResource
     {
         return [
             'id'       => $this->id,
-            'name'     => ucfirst($this->name),
-            'status'   => $this->status ? 'Active' : 'Inactive'
+            'name'     => $this->name,
+            'status'   => $this->status
         ];
     }
 }

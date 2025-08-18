@@ -29,6 +29,20 @@ class StoreUserCategoryRequest extends FormRequest
         ];
     }
 
+    /**
+     * Get the custom error messages for the validation rules.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'status.integer'  => 'The status field must be an integer.',
+            'status.in'       => 'The status field must be 0 or 1.',
+            'status.required' => 'The status field is required.',
+        ];
+    }
+
      /**
      * Handle a failed validation attempt.
      *

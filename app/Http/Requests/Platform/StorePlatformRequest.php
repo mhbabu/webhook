@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests\User\Platform;
+namespace App\Http\Requests\Platform;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -26,6 +26,20 @@ class StorePlatformRequest extends FormRequest
         return [
             'name'   => ['required', 'string', 'max:255', 'unique:platforms,name'],
             'status' => 'required|integer|in:0,1',
+        ];
+    }
+
+     /**
+     * Get the custom error messages for the validation rules.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'status.integer'  => 'The status field must be an integer.',
+            'status.in'       => 'The status field must be 0 or 1.',
+            'status.required' => 'The status field is required.',
         ];
     }
 

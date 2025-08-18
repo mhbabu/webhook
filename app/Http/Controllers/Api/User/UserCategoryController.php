@@ -43,8 +43,8 @@ class UserCategoryController extends Controller
 
     public function destroy(UserCategory $category)
     {
-        if (!empty($category)) {
-            return jsonResponse('Cannot delete category with associated users', false, null, 400);
+        if (empty($category)) {
+            return jsonResponse('User category not found', false);
         }
         $category->delete();
         return jsonResponse('User category deleted successfully', true);
