@@ -9,7 +9,9 @@ use App\Http\Requests\User\ResetOtpRequest;
 use App\Http\Requests\User\ResetPasswordRequest;
 use App\Http\Requests\User\StoreResetPassword;
 use App\Http\Requests\User\UpdatePasswordRequest;
+use App\Http\Requests\User\UpdateUserProfileRequest;
 use App\Http\Requests\User\ValidateOtpRequest;
+use App\Models\User;
 use App\Services\User\UserService;
 use Illuminate\Http\Request;
 
@@ -32,11 +34,20 @@ class UserController extends Controller
     }
 
     /**
+     * Get a list of former users.
+     */
+    public function getFormerUserList(Request $request)
+    {
+        $response = $this->userService->getFormerUserList($request->all());
+        return $this->jsonResponse($response['message'], $response['status'], $response['data']);
+    }
+
+    /**
      * Register a user and send OTP.
      */
     public function createUser(CreateNewAgenRequest $request)
     {
-        $response = $this->userService->createUser($request->validated());
+       return $response = $this->userService->createUser($request->validated());
         return $this->passwordjsonResponse($response['message'], $response['status'], $response['password']);
         // return $this->jsonResponse($response['message'], $response['status']);
     }
@@ -104,6 +115,34 @@ class UserController extends Controller
     {
         $response = $this->userService->getMeInfo();
         return response()->json(['status' => $response['status'], 'message' => $response['message'], 'user' => $response['data']], 200);
+    }
+
+    /**
+     * Show User
+     */
+    public function getUserById(User $user)
+    {
+        $response = $this->userService->getUserById($user);
+        return $this->jsonResponse($response['message'], $response['status'], $response['data']);
+    }
+
+    /**
+     * Update User
+     */
+    public function updateUserProfile(UpdateUserProfileRequest $request, User $user)
+    {
+        dd($request->all());
+        $response = $this->userService->updateUserProfile($user, $request->validated());
+        return $this->jsonResponse($response['message'], $response['status']);
+    }
+
+    /**
+     * Delete User
+     */
+    public function deleteUser(User $user)
+    {
+        $response = $this->userService->deleteUser($user);
+        return $this->jsonResponse($response['message'], $response['status']);
     }
 
     /**

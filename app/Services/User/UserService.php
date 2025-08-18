@@ -29,7 +29,19 @@ class UserService
         $perPage = $data['per_page'] ?? 10;
         $users   = User::paginate($perPage, ['*'], 'page', $page);
 
-       return ['message' => 'User list retrieved successfully', 'status' => true, 'data' => UserResource::collection($users)->response()->getData(true)];
+        return ['message' => 'User list retrieved successfully', 'status' => true, 'data' => UserResource::collection($users)->response()->getData(true)];
+    }
+
+    /**
+     * Get a list of former users.
+     */
+    public function getFormerUserList($data)
+    {
+        $page    = $data['page'] ?? 1;
+        $perPage = $data['per_page'] ?? 10;
+        $users   = User::onlyTrashed()->paginate($perPage, ['*'], 'page', $page);
+
+        return ['message' => 'Former user list retrieved successfully', 'status' => true, 'data' => UserResource::collection($users)->response()->getData(true)];
     }
 
     /**
@@ -53,6 +65,10 @@ class UserService
                 'account_status'    => 'active',
                 'password'          => bcrypt($password),
             ]);
+
+            if (isset($data['profile_picture'])) {
+                $user->addMedia($data['profile_picture'])->toMediaCollection('profile_pictures');
+            }
 
             $user->platforms()->sync($data['platform_ids']); // Sync platforms
             // $otp = $this->otpService->generateOtp($user->id);
@@ -157,7 +173,7 @@ class UserService
         $user = User::find($verificationCode->user_id);
 
         if (!$user) return ['message' => 'User not found', 'status' => false];
-        if(!$this->validRequest($user->id)) return ['message' => 'Invalid request', 'status' => false];
+        if (!$this->validRequest($user->id)) return ['message' => 'Invalid request', 'status' => false];
 
         try {
             DB::beginTransaction();
@@ -205,6 +221,44 @@ class UserService
     {
         $user = Auth::user();
         return ['message' => 'User retrieved successfully', 'status' => true, 'data' => new UserResource($user)];
+    }
+
+    /**
+     * Get User by ID
+     */
+    public function getUserById(User $user): array
+    {
+        return ['message' => 'User retrieved successfully', 'status' => true, 'data' => new UserResource($user)];
+    }
+
+    /**
+     * Update User
+     */
+    public function updateUserProfile(User $user, array $data): array
+    {
+        $user->update($data);
+        return ['message' => 'User updated successfully', 'status' => true];
+    }
+
+    /**
+     * Delete User
+     */
+    public function deleteUser(User $user): array
+    {
+        if (!$user) {
+            return ['message' => 'User not found', 'status' => false];
+        }
+
+        if ($user->id === auth()->id()) {
+            return ['message' => 'You cannot delete your own account', 'status' => false];
+        }
+
+        if ($user->type === 'supervisor') {
+            return ['message' => 'You cannot delete a supervisor', 'status' => false];
+        }
+
+        $user->delete();
+        return ['message' => 'User deleted successfully', 'status' => true];
     }
 
     /**

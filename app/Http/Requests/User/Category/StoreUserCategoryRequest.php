@@ -1,35 +1,35 @@
 <?php
 
-namespace App\Http\Requests\User;
+namespace App\Http\Requests\User\Category;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class UpdateProfileRequest extends FormRequest
+class StoreUserCategoryRequest extends FormRequest
 {
-    public function rules()
+    /**
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
     {
-        return [
-            'birth_date'   => 'required|date|date_format:Y-m-d|before:today',
-            'profession'   => 'required|string|max:255',
-            'gender'       => 'required|in:male,female,common',
-            'languages'    => 'nullable|array',
-            'location'     => 'nullable|string|max:255',
-            'address'      => 'nullable|string',
-            'image'        => 'nullable|image|mimes:jpg,jpeg,png|max:2048'
-        ];
+        return true;
     }
-
-    public function messages()
-    {
-        return [
-            'image.max' => 'The Profile picture must not be greater than 2 MB.'
-        ];
-    }
-
 
     /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     */
+    public function rules(): array
+    {
+        return [
+            'name'   => 'required|string|max:255|unique:user_categories,name',
+            'status' => 'required|integer|in:0,1',
+        ];
+    }
+
+     /**
      * Handle a failed validation attempt.
      *
      * @param  \Illuminate\Contracts\Validation\Validator  $validator

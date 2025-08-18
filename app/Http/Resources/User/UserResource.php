@@ -13,9 +13,9 @@ class UserResource extends JsonResource
             'name'        => $this->name,
             'email'       => $this->email,
             'employee_id' => $this->employee_id,
-            'role'        => $this->type,
+            'role'        => $this->role->name ?? null,
+            'category'    => $this->category->name ?? null,
             'max_limit'   => $this->max_limit,
-            'type'        => $this->type,
             'mobile'      => $this->mobile
         ];
     }
