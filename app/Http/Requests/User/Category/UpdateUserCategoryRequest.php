@@ -38,7 +38,7 @@ class UpdateUserCategoryRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'status.integer' => 'The status field must be an integer.',
+            'status.integer'  => 'The status field must be an integer.',
             'status.in'       => 'The status field must be 0 or 1.',
             'status.required' => 'The status field is required.',
         ];
