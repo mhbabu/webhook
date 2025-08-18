@@ -18,6 +18,8 @@ class CreateNewAgenRequest extends FormRequest
             'max_limit'       => ['required', 'integer'],
             'platform_ids'    => ['required', 'array'],
             'platform_ids.*'  => ['integer', 'exists:platforms,id'],
+            'role_id'         => ['required', 'integer', 'exists:roles,id'],
+            'category_id'     => ['nullable', 'integer', 'exists:user_categories,id'],
             'profile_picture' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ];
     }

@@ -18,16 +18,19 @@ Route::prefix('user')->group(function () {
         Route::middleware('role:Super Admin,Admin,Supervisor')->group(function () {
             Route::apiResource('categories', UserCategoryController::class)->except(['edit', 'create']);
             Route::delete('categories/{category}', [UserCategoryController::class, 'destroy']);
-            Route::post('create', [UserController::class, 'createUser']);
-            Route::get('list', [UserController::class, 'getUserList']);
-            Route::get('former/list', [UserController::class, 'getFormerUserList']);
         });
 
         // Other routes for all authenticated users
         Route::get('me', [UserController::class, 'getMe']);
-        Route::get('{user}', [UserController::class, 'getUserById']);
         Route::post('logout', [UserController::class, 'logout'])->name('user.logout');
         Route::post('update-password', [UserController::class, 'updatePassword']);
-        Route::post('update-profile/{user}', [UserController::class, 'updateUserProfile']);
+        
     });
 });
+
+Route::middleware(['auth:sanctum', 'role:Super Admin,Admin,Supervisor'])->group(function () {
+    Route::apiResource('users', UserController::class);
+    Route::get('former/users', [UserController::class, 'getFormerUserList']);
+});
+
+require __DIR__ .'/role.php';

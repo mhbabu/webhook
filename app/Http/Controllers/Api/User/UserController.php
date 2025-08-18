@@ -27,7 +27,7 @@ class UserController extends Controller
     /**
      * Get a list of users.
      */
-    public function getUserList(Request $request)
+    public function index(Request $request)
     {
         $response = $this->userService->getUserList($request->all());
         return $this->jsonResponse($response['message'], $response['status'], $response['data']);
@@ -45,9 +45,9 @@ class UserController extends Controller
     /**
      * Register a user and send OTP.
      */
-    public function createUser(CreateNewAgenRequest $request)
+    public function store(CreateNewAgenRequest $request)
     {
-       return $response = $this->userService->createUser($request->validated());
+        $response = $this->userService->createUser($request->validated());
         return $this->passwordjsonResponse($response['message'], $response['status'], $response['password']);
         // return $this->jsonResponse($response['message'], $response['status']);
     }
@@ -120,7 +120,7 @@ class UserController extends Controller
     /**
      * Show User
      */
-    public function getUserById(User $user)
+    public function show(User $user)
     {
         $response = $this->userService->getUserById($user);
         return $this->jsonResponse($response['message'], $response['status'], $response['data']);
@@ -129,17 +129,22 @@ class UserController extends Controller
     /**
      * Update User
      */
-    public function updateUserProfile(UpdateUserProfileRequest $request, User $user)
+    public function update(UpdateUserProfileRequest $request, User $user)
     {
-        dd($request->all());
-        $response = $this->userService->updateUserProfile($user, $request->validated());
-        return $this->jsonResponse($response['message'], $response['status']);
+        if (!$user) {
+            return $this->jsonResponse('User not found', false);
+        }
+
+        $data     = $request->validated(); // ensures $data is an array of only validated inputs
+        $response = $this->userService->updateUserProfile($data, $user);
+
+        return $this->jsonResponse($response['message'], $response['status'], $response['data'] ?? null);
     }
 
     /**
      * Delete User
      */
-    public function deleteUser(User $user)
+    public function destroy(User $user)
     {
         $response = $this->userService->deleteUser($user);
         return $this->jsonResponse($response['message'], $response['status']);

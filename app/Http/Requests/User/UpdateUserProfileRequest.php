@@ -16,7 +16,7 @@ class UpdateUserProfileRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->check(); // Only authenticated users can update
+        return true; // Only authenticated users can update
     }
 
     /**
@@ -29,17 +29,18 @@ class UpdateUserProfileRequest extends FormRequest
         $userType = auth()->user()->type ?? null;
 
         $rules = [
-            'name'            => ['required', 'string', 'max:255'],
-            'mobile'          => ['required', 'string', 'regex:/^01[3-9][0-9]{8}$/', Rule::unique('users')->ignore($this->user()->id ?? null)],
-            'profile_picture' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'name'            => ['sometimes', 'string', 'max:255'],
+            'mobile'          => ['sometimes', 'string', 'regex:/^01[3-9][0-9]{8}$/', Rule::unique('users')->ignore($this->user()->id ?? null)],
+            'profile_picture' => ['sometimes', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ];
 
         // Only admins or supervisors can update these fields
-        if (in_array($userType, ['admin', 'supervisor'])) {
+        if (in_array($userType, ['System Admin', 'Admin', 'Supervisor'])) {
             $rules['email']         = ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($this->user()->id ?? null)];
             $rules['employee_id']   = ['required', 'string', 'max:255', Rule::unique('users')->ignore($this->user()->id ?? null)];
             $rules['max_limit']     = ['required', 'integer', 'min:1'];
-            $rules['role']          = ['required', 'string', 'max:255'];
+            $rules['role_id']       = ['required', 'string', 'max:255'];
+            $rules['category_id']   = ['required', 'string', 'max:255'];
         }
 
         return $rules;
