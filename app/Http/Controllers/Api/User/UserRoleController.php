@@ -79,7 +79,7 @@ class UserRoleController extends Controller
 
         try {
             $data = $request->validated();
-            $role->update(['name' => $data['name']]);
+            $role->update(['name' => $data['name'], 'status' => $data['status']]);
 
             // If there are child roles, prepare data for insertion
             if (!empty($data['role_ids'])) {
@@ -100,11 +100,31 @@ class UserRoleController extends Controller
 
             DB::commit(); // Commit the transaction
 
+            // $role->load()
             // Return success response
             return jsonResponse('Role updated successfully', true, new UserRoleResource($role));
         } catch (\Exception $e) {
             DB::rollBack();  // Rollback the transaction in case of error
             return jsonResponse('Failed to update role. Please try again later.', false, $e->getMessage());
+        }
+    }
+
+    public function destroy(Role $role)
+    {
+        if(empty($role)) {
+            return jsonResponse('Role not found', false);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            RoleHierarchy::where('parent_role_id', $role->id)->delete();
+            $role->delete();
+            DB::commit();
+            return jsonResponse('Role deleted successfully', true);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return jsonResponse('Failed to delete role. Please try again later.', false, $e->getMessage());
         }
     }
 }
