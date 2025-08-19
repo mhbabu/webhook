@@ -108,9 +108,12 @@ class UserRoleController extends Controller
 
             // Update child roles
             if (!empty($data['role_ids'])) {
+                // Remove existing hierarchy
                 RoleHierarchy::where('parent_role_id', $role->id)->delete();
+
+                // Insert new hierarchy
                 $roleHierarchyData = [];
-                foreach ($data['role_ids'] as $childRoleId) {
+                foreach (array_unique($data['role_ids']) as $childRoleId) {
                     $roleHierarchyData[] = [
                         'parent_role_id' => $role->id,
                         'child_role_id'  => $childRoleId,
@@ -118,8 +121,13 @@ class UserRoleController extends Controller
                         'updated_at'     => now(),
                     ];
                 }
-                RoleHierarchy::insert($roleHierarchyData);
+                if (!empty($roleHierarchyData)) {
+                    RoleHierarchy::insert($roleHierarchyData);
+                }
             }
+
+            // Clear Spatie cache
+            app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
             DB::commit();
             return jsonResponse('Role updated successfully', true, new UserRoleResource($role));
@@ -130,36 +138,15 @@ class UserRoleController extends Controller
     }
 
 
-
     public function destroy($roleId)
     {
         $role = Role::find($roleId);
+
         if (!$role) {
             return jsonResponse('Role not found', false);
         }
 
-        DB::beginTransaction();
-
-        try {
-            // Remove hierarchy
-            RoleHierarchy::where('parent_role_id', $role->id)
-                ->orWhere('child_role_id', $role->id)
-                ->delete();
-
-            // Detach from all models
-            $role->users()->detach(); // ensures foreign keys in model_has_roles won't block
-
-            // Delete role
-            $role->delete();
-
-            // Clear Spatie cache
-            app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
-
-            DB::commit();
-            return jsonResponse('Role deleted successfully', true);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return jsonResponse('Failed to delete role. Please try again later.', false, $e->getMessage());
-        }
+        $role->delete();
+        return jsonResponse('Role deleted successfully', true);
     }
 }

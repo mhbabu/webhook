@@ -307,8 +307,8 @@ class UserService
             return ['message' => 'You cannot delete your own account', 'status' => false];
         }
 
-        if ($user->type === 'supervisor') {
-            return ['message' => 'You cannot delete a supervisor', 'status' => false];
+        if ($user->role_id != 1) {
+            return ['message' => 'You have no permission to take this action', 'status' => false];
         }
 
         $user->delete();
