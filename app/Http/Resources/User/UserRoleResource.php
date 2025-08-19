@@ -9,24 +9,16 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class UserRoleResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
-        $childRoles = Role::whereIn('id', RoleHierarchy::where('parent_role_id', $this->id)->pluck('child_role_id'))->get();
+        // Get child roles via RoleHierarchy
+        $childRoleIds = RoleHierarchy::where('parent_role_id', $this->id)->pluck('child_role_id');
+        $childRoles   = Role::whereIn('id', $childRoleIds)->orderBy('id')->get(['id', 'name']);
 
         return [
-            'id'            => $this->id,
-            'name'          => $this->name,
-            'child_roles'   => $childRoles->map(function ($role) {
-                return [
-                    'id'   => $role->id,
-                    'name' => $role->name
-                ];
-            }),
+            'id'          => $this->id,
+            'name'        => $this->name,
+            'child_roles' => $childRoles
         ];
     }
 }

@@ -7,7 +7,6 @@ use App\Http\Requests\Role\StoreRoleRequest;
 use App\Http\Requests\Role\UpdateRoleRequest;
 use App\Http\Resources\User\UserRoleResource;
 use App\Models\RoleHierarchy;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 
@@ -23,44 +22,69 @@ class UserRoleController extends Controller
 
     public function store(StoreRoleRequest $request)
     {
-        DB::beginTransaction();  // Start the transaction
+        DB::beginTransaction();
 
         try {
-            // Validate and process the data
             $data = $request->validated();
 
             // Create the role
-            $role = Role::create(['name' => $data['name'], 'guard_name' => 'sanctum']);
+            $role = Role::create([
+                'name'       => $data['name'],
+                'guard_name' => 'sanctum',
+            ]);
 
-            // If there are child roles, prepare data for insertion
+            $roleHierarchyData = [];
+
+            // 1️⃣ Assign child roles provided by request
             if (!empty($data['role_ids'])) {
-                $roleHierarchyData = [];
-                foreach ($data['role_ids'] as $childRoleId) {
+                foreach (array_unique($data['role_ids']) as $childRoleId) {
                     $roleHierarchyData[] = [
-                        'parent_role_id' => $role->id,   // Link the child to the parent role
-                        'child_role_id'  => $childRoleId,  // Assign the child role
+                        'parent_role_id' => $role->id,
+                        'child_role_id'  => $childRoleId,
                         'created_at'     => now(),
                         'updated_at'     => now(),
                     ];
                 }
-
-                // Bulk insert child roles
-                RoleHierarchy::insert($roleHierarchyData);
             }
 
-            DB::commit(); // Commit the transaction
+            // 2️⃣ Assign this new role under its parent(s) automatically
+            $currentUserRoleId = auth()->user()->role->id;
 
-            // Return success response
+            $roleHierarchyData[] = [
+                'parent_role_id' => $currentUserRoleId,
+                'child_role_id'  => $role->id,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ];
+
+            // 3️⃣ Optional: assign to all higher-level ancestors (recursive)
+            $parentIds = RoleHierarchy::where('child_role_id', $currentUserRoleId)->pluck('parent_role_id');
+            foreach ($parentIds as $parentId) {
+                $roleHierarchyData[] = [
+                    'parent_role_id' => $parentId,
+                    'child_role_id'  => $role->id,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                ];
+            }
+
+            // Bulk insert all hierarchy relationships
+            RoleHierarchy::insert($roleHierarchyData);
+
+            DB::commit();
+
             return jsonResponse('Role created successfully', true, new UserRoleResource($role));
         } catch (\Exception $e) {
-            DB::rollBack();  // Rollback the transaction in case of error
+            DB::rollBack();
             return jsonResponse('Failed to create role. Please try again later.', false, $e->getMessage());
         }
     }
 
 
-    public function show(Role $role)
+
+    public function show($roleId)
     {
+        $role = Role::find($roleId);
         if (!$role) {
             return jsonResponse('Role not found', false);
         }
@@ -70,7 +94,7 @@ class UserRoleController extends Controller
 
     public function update(UpdateRoleRequest $request, $roleId)
     {
-        $role = Role::findOrFail($roleId);
+        $role = Role::find($roleId);
         if (!$role) {
             return jsonResponse('Role not found', false);
         }
@@ -78,48 +102,59 @@ class UserRoleController extends Controller
         DB::beginTransaction();
 
         try {
-            $data = $request->validated();
-            $role->update(['name' => $data['name'], 'status' => $data['status']]);
+            $data       = $request->validated();
+            $role->name = $data['name'];
+            $role->save();
 
-            // If there are child roles, prepare data for insertion
+            // Update child roles
             if (!empty($data['role_ids'])) {
-                RoleHierarchy::where('parent_role_id', $role->id)->delete(); // Clear existing child roles
+                RoleHierarchy::where('parent_role_id', $role->id)->delete();
                 $roleHierarchyData = [];
                 foreach ($data['role_ids'] as $childRoleId) {
                     $roleHierarchyData[] = [
-                        'parent_role_id' => $role->id,   // Link the child to the parent role
-                        'child_role_id'  => $childRoleId,  // Assign the child role
+                        'parent_role_id' => $role->id,
+                        'child_role_id'  => $childRoleId,
                         'created_at'     => now(),
                         'updated_at'     => now(),
                     ];
                 }
-
-                // Bulk insert child roles
                 RoleHierarchy::insert($roleHierarchyData);
             }
 
-            DB::commit(); // Commit the transaction
-
-            // $role->load()
-            // Return success response
+            DB::commit();
             return jsonResponse('Role updated successfully', true, new UserRoleResource($role));
         } catch (\Exception $e) {
-            DB::rollBack();  // Rollback the transaction in case of error
+            DB::rollBack();
             return jsonResponse('Failed to update role. Please try again later.', false, $e->getMessage());
         }
     }
 
-    public function destroy(Role $role)
+
+
+    public function destroy($roleId)
     {
-        if(empty($role)) {
+        $role = Role::find($roleId);
+        if (!$role) {
             return jsonResponse('Role not found', false);
         }
 
         DB::beginTransaction();
 
         try {
-            RoleHierarchy::where('parent_role_id', $role->id)->delete();
+            // Remove hierarchy
+            RoleHierarchy::where('parent_role_id', $role->id)
+                ->orWhere('child_role_id', $role->id)
+                ->delete();
+
+            // Detach from all models
+            $role->users()->detach(); // ensures foreign keys in model_has_roles won't block
+
+            // Delete role
             $role->delete();
+
+            // Clear Spatie cache
+            app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
             DB::commit();
             return jsonResponse('Role deleted successfully', true);
         } catch (\Exception $e) {

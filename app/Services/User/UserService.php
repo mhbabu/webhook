@@ -236,8 +236,13 @@ class UserService
     /**
      * Update User
      */
-    public function updateUserProfile(array $data, User $user): array
+    public function updateUserProfile(array $data, $userId): array
     {
+        $user = User::find($userId);
+        if (!$user) {
+            return ['message' => 'User not found', 'status' => false];
+        }
+
         DB::beginTransaction();
 
         try {
@@ -291,8 +296,9 @@ class UserService
     /**
      * Delete User
      */
-    public function deleteUser(User $user): array
+    public function deleteUser($userId): array
     {
+        $user = User::find($userId);
         if (!$user) {
             return ['message' => 'User not found', 'status' => false];
         }

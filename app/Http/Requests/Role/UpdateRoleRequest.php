@@ -7,6 +7,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 use App\Models\Role;
+use App\Models\RoleHierarchy;
 
 class UpdateRoleRequest extends FormRequest
 {
@@ -15,35 +16,28 @@ class UpdateRoleRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;  // You can add custom logic here to check if the user is authorized
+        return true; // You can add custom logic here if needed
     }
 
     /**
      * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
-        // Get the authenticated user's role
         $userRole         = auth()->user()->role;
-        $userChildRoleIds = $userRole->childRoles()->pluck('child_role_id'); // Get allowed child roles for the user
+        $roleId           = $this->route('role'); // Use the route parameter directly
+        $userChildRoleIds = RoleHierarchy::where('parent_role_id', $userRole->id)->pluck('child_role_id');
 
         return [
-            'name'     => ['required', 'string', 'max:255', Rule::unique('roles')->ignore($this->route('role')->id ?? null)],
-            'status'   => 'required|integer|in:0,1',
+            'name'     => ['required', 'string', 'max:255', Rule::unique('roles')->ignore($roleId)],
             'role_ids' => [
                 'nullable',
                 'array',
-                function ($attribute, $value, $fail) use ($userChildRoleIds, $userRole) {
-                    // Check if the role being updated is allowed to be modified based on user role permissions
-                    $roleBeingUpdated = Role::find($this->route('role')->id);
+                function ($attribute, $value, $fail) use ($userChildRoleIds, $userRole, $roleId) {
+                    $roleBeingUpdated = Role::find($roleId);
 
-                    if ($roleBeingUpdated) {
-                        // Check if the user is authorized to update this role
-                        if (!$userChildRoleIds->contains($roleBeingUpdated->id)) {
-                            $fail("You are not authorized to update the '{$roleBeingUpdated->name}' role because your role is '{$userRole->name}'.");
-                        }
+                    if ($roleBeingUpdated && !$userChildRoleIds->contains($roleBeingUpdated->id)) {
+                        $fail("You are not authorized to update the '{$roleBeingUpdated->name}' role because your role is '{$userRole->name}'.");
                     }
                 },
             ],
@@ -51,26 +45,7 @@ class UpdateRoleRequest extends FormRequest
     }
 
     /**
-     * Get the custom error messages for the validation rules.
-     *
-     * @return array<string, string>
-     */
-    public function messages(): array
-    {
-        return [
-            'status.integer'  => 'The status field must be an integer.',
-            'status.in'       => 'The status field must be 0 or 1.',
-            'status.required' => 'The status field is required.',
-        ];
-    }
-
-    /**
      * Handle a failed validation attempt.
-     *
-     * @param  \Illuminate\Contracts\Validation\Validator  $validator
-     * @return void
-     *
-     * @throws \Illuminate\Http\Exceptions\HttpResponseException
      */
     protected function failedValidation(Validator $validator)
     {

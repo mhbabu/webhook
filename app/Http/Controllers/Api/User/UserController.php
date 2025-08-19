@@ -129,14 +129,10 @@ class UserController extends Controller
     /**
      * Update User
      */
-    public function update(UpdateUserProfileRequest $request, User $user)
+    public function update(UpdateUserProfileRequest $request, $userId)
     {
-        if (!$user) {
-            return $this->jsonResponse('User not found', false);
-        }
-
         $data     = $request->validated(); // ensures $data is an array of only validated inputs
-        $response = $this->userService->updateUserProfile($data, $user);
+        $response = $this->userService->updateUserProfile($data, $userId);
 
         return $this->jsonResponse($response['message'], $response['status'], $response['data'] ?? null);
     }
@@ -144,9 +140,9 @@ class UserController extends Controller
     /**
      * Delete User
      */
-    public function destroy(User $user)
+    public function destroy($userId)
     {
-        $response = $this->userService->deleteUser($user);
+        $response = $this->userService->deleteUser($userId);
         return $this->jsonResponse($response['message'], $response['status']);
     }
 

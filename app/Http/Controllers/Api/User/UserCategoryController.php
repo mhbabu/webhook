@@ -7,8 +7,6 @@ use App\Http\Requests\User\Category\StoreUserCategoryRequest;
 use App\Http\Requests\User\Category\UpdateUserCategoryRequest;
 use App\Http\Resources\UserCategoryResource;
 use App\Models\UserCategory;
-use Illuminate\Contracts\Cache\Store;
-use Illuminate\Http\Request;
 
 class UserCategoryController extends Controller
 {
@@ -24,25 +22,27 @@ class UserCategoryController extends Controller
         return jsonResponse('User category created successfully', true, new UserCategoryResource($category));
     }
 
-    public function show(UserCategory $category)
+    public function show($categoryId)
     {
+        $category = UserCategory::find($categoryId);
         if (empty($category))
             return jsonResponse('User category not found', false);
 
         return jsonResponse('User category retrieved successfully', true, new UserCategoryResource($category));
     }
 
-    public function update(UpdateUserCategoryRequest $request, UserCategory $category)
+    public function update(UpdateUserCategoryRequest $request, $categoryId)
     {
-        $category->update($request->validated());
+        $category = UserCategory::find($categoryId);
         if (empty($category))
             return jsonResponse('User category not found', false);
-
+        $category->update($request->validated());
         return jsonResponse('User category updated successfully', true, new UserCategoryResource($category));
     }
 
-    public function destroy(UserCategory $category)
+    public function destroy($categoryId)
     {
+        $category = UserCategory::find($categoryId);
         if (empty($category)) {
             return jsonResponse('User category not found', false);
         }
