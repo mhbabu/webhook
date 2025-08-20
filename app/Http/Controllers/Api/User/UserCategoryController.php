@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api\User;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\Category\StoreUserCategoryRequest;
 use App\Http\Requests\User\Category\UpdateUserCategoryRequest;
-use App\Http\Resources\UserCategoryResource;
+use App\Http\Resources\User\UserCategoryResource;
 use App\Models\UserCategory;
 
 class UserCategoryController extends Controller
