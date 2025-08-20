@@ -30,8 +30,9 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $response = $this->userService->getUserList($request->all());
-        return $this->jsonResponse($response['message'], $response['status'], $response['data']);
+        return jsonResponseWithPagination('User list retrieved successfully', true, $response);
     }
+
 
     /**
      * Get a list of former users.
@@ -39,7 +40,7 @@ class UserController extends Controller
     public function getFormerUserList(Request $request)
     {
         $response = $this->userService->getFormerUserList($request->all());
-        return $this->jsonResponse($response['message'], $response['status'], $response['data']);
+        return jsonResponseWithPagination('Former user list retrieved successfully', true, $response);
     }
 
     /**
@@ -120,10 +121,10 @@ class UserController extends Controller
     /**
      * Show User
      */
-    public function show(User $user)
+    public function show($userId)
     {
-        $response = $this->userService->getUserById($user);
-        return $this->jsonResponse($response['message'], $response['status'], $response['data']);
+        $response = $this->userService->getUserById($userId);
+        return $this->jsonResponse($response['message'], $response['status'], $response['data']  ?? null);
     }
 
     /**

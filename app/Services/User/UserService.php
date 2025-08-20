@@ -28,8 +28,7 @@ class UserService
         $page    = $data['page'] ?? 1;
         $perPage = $data['per_page'] ?? 10;
         $users   = User::paginate($perPage, ['*'], 'page', $page);
-
-        return ['message' => 'User list retrieved successfully', 'status' => true, 'data' => UserResource::collection($users)->response()->getData(true)];
+        return UserResource::collection($users)->response()->getData(true);
     }
 
     /**
@@ -40,8 +39,7 @@ class UserService
         $page    = $data['page'] ?? 1;
         $perPage = $data['per_page'] ?? 10;
         $users   = User::onlyTrashed()->paginate($perPage, ['*'], 'page', $page);
-
-        return ['message' => 'Former user list retrieved successfully', 'status' => true, 'data' => UserResource::collection($users)->response()->getData(true)];
+        return UserResource::collection($users)->response()->getData(true);
     }
 
     /**
@@ -228,8 +226,13 @@ class UserService
     /**
      * Get User by ID
      */
-    public function getUserById(User $user): array
+    public function getUserById($userId): array
     {
+        $user = User::find($userId);
+        if (!$user) {
+            return ['message' => 'User not found', 'status' => false];
+        }
+
         return ['message' => 'User retrieved successfully', 'status' => true, 'data' => new UserResource($user)];
     }
 

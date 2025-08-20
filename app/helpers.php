@@ -3,13 +3,22 @@
 if (!function_exists('jsonResponse')) {
     function jsonResponse(string $message, bool $status, $data = null, int $statusCode = 200)
     {
-        return response()->json([
-            'status'  => $status,
-            'message' => $message,
-            'data'    => $data,
-        ], $statusCode);
+        return response()->json(['status' => $status, 'message' => $message, 'data' => $data], $statusCode);
     }
 }
+
+
+/**
+ * Helper function for returning a standardized paginated response.
+ */
+
+if (!function_exists('jsonResponseWithPagination')) {
+    function jsonResponseWithPagination(string $message, bool $status, $response, int $statusCode = 200)
+    {
+        return response()->json(['message' => $message, 'status'  => $status] + $response, $statusCode);
+    }
+}
+
 
 if (!function_exists('isRoleCreationAuthorized')) {
     /**
@@ -31,7 +40,7 @@ if (!function_exists('isRoleCreationAuthorized')) {
 
         // Check if the current role is authorized to create the target role
         $allowedRoles = $roleHierarchy[$currentRole] ?? [];
-        
+
         // Return true if the target role is in the allowed roles, otherwise false
         return in_array($targetRole, $allowedRoles);
     }
