@@ -29,8 +29,7 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $response = $this->userService->getUserList($request->all());
-        return jsonResponseWithPagination('User list retrieved successfully', true, $response);
+       return $this->userService->getUserList($request->all());
     }
 
 
@@ -88,7 +87,6 @@ class UserController extends Controller
     {
         $response = $this->userService->requestPasswordReset($request->email);
         return $this->otpjsonResponse($response['message'], $response['status'], $response['otp']);
-        // return $this->jsonResponse($response['message'], $response['status']);
     }
 
     /**
@@ -134,7 +132,6 @@ class UserController extends Controller
     {
         $data     = $request->validated(); // ensures $data is an array of only validated inputs
         $response = $this->userService->updateUserProfile($data, $userId);
-
         return $this->jsonResponse($response['message'], $response['status'], $response['data'] ?? null);
     }
 

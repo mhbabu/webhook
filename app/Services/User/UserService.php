@@ -25,11 +25,30 @@ class UserService
      */
     public function getUserList($data)
     {
-        $page    = $data['page'] ?? 1;
-        $perPage = $data['per_page'] ?? 10;
-        $users   = User::paginate($perPage, ['*'], 'page', $page);
-        return UserResource::collection($users)->response()->getData(true);
+        $pagination = isset($data['pagination']) && $data['pagination'] === 'true' ? true : false;
+        $page       = $data['page'] ?? 1;
+        $perPage    = $data['per_page'] ?? 10;
+        $searchText = $data['search'] ?? null;
+        $searchBy   = $data['search_by'] ?? 'name';
+        $sortBy     = $data['sort_by'] ?? 'id';
+        $sortOrder  = $data['sort_order'] ?? 'asc';
+
+        $query = User::query();
+
+        if ($searchText && $searchBy) {
+            $query->where($searchBy, 'like', "%{$searchText}%");
+        }
+
+        $query->orderBy($sortBy, $sortOrder);
+
+        if ($pagination) {
+            $users = $query->paginate($perPage, ['*'], 'page', $page);
+            return jsonResponseWithPagination('User list retrieved successfully', true, UserResource::collection($users)->response()->getData(true));
+        }
+
+        return jsonResponse('User list retrieved successfully', true, UserResource::collection($query->get()));
     }
+
 
     /**
      * Get a list of former users.
