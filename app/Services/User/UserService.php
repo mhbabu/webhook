@@ -25,7 +25,7 @@ class UserService
      */
     public function getUserList($data)
     {
-        $pagination = isset($data['pagination']) && $data['pagination'] === 'true' ? true : false;
+        $pagination = !isset($data['pagination']) || $data['pagination'] === 'true' ? true : false;
         $page       = $data['page'] ?? 1;
         $perPage    = $data['per_page'] ?? 10;
         $searchText = $data['search'] ?? null;
@@ -35,7 +35,7 @@ class UserService
 
         $query = User::query();
 
-        if (isset($searchText) && isset($searchBy)) {
+        if ($searchText && $searchBy) {
             $query->where($searchBy, 'like', "%{$searchText}%");
         }
 
@@ -48,7 +48,6 @@ class UserService
 
         return jsonResponse('User list retrieved successfully', true, UserResource::collection($query->get()));
     }
-
 
     /**
      * Get a list of former users.
