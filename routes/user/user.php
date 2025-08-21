@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Api\User\UserCategoryController;
 use App\Http\Controllers\Api\User\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,13 +12,6 @@ Route::prefix('user')->group(function () {
 
     // All authenticated routes
     Route::middleware('auth:sanctum')->group(function () {
-
-        // Routes only for Super Admin, Admin, Supervisor
-        Route::middleware('role:Super Admin,Admin,Supervisor')->group(function () {
-            Route::apiResource('categories', UserCategoryController::class)->except(['edit', 'create']);
-            Route::delete('categories/{category}', [UserCategoryController::class, 'destroy']);
-        });
-
         // Other routes for all authenticated users
         Route::get('me', [UserController::class, 'getMe']);
         Route::post('logout', [UserController::class, 'logout'])->name('user.logout');
