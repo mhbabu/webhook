@@ -35,7 +35,7 @@ class UserService
 
         $query = User::query();
 
-        if ($searchText && $searchBy) {
+        if (isset($searchText) && isset($searchBy)) {
             $query->where($searchBy, 'like', "%{$searchText}%");
         }
 
