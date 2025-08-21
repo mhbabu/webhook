@@ -5,6 +5,7 @@ namespace App\Http\Requests\Message;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\Rule;
 
 class UpdateUserQuickReplyRequest extends FormRequest
 {
@@ -15,12 +16,14 @@ class UpdateUserQuickReplyRequest extends FormRequest
 
     public function rules()
     {
-        $id = $this->route('id');
-        $userId = request()->user() ? request()->user()->id : null;
+        // If using apiResource, the parameter is "user_quick_reply"
+        $id     = $this->route('user_quick_reply');
+        $userId = auth()->id();
+
         return [
-            'title'   => ['sometimes', 'required', 'string', 'max:255', 'unique:user_quick_replies,title,' . $id . ',id,user_id,' . $userId],
-            'content' => ['sometimes', 'required', 'string'],
-            'status'  => ['sometimes', 'required', 'in:0,1'],
+            'title'   => ['required', 'string', 'max:255', Rule::unique('user_quick_replies')->where('user_id', $userId)->ignore($id)],
+            'content' => ['required', 'string'],
+            'status'  => ['required', 'in:0,1'],
         ];
     }
 
