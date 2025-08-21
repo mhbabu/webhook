@@ -25,7 +25,7 @@ return new class extends Migration
             $table->integer('current_limit')->default(0); // current customer response
             $table->string('account_status')->default('active');
             $table->tinyInteger('is_request')->default(0);
-            $table->foreignId('category_id')->nullable()->constrained('user_categories')->nullOnDelete();
+           $table->tinyInteger('is_password_updated')->default(0);
             $table->unsignedBigInteger('role_id')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();

@@ -8,13 +8,35 @@ use App\Models\QuickReply;
 use App\Http\Resources\Message\QuickReplyResource;
 use App\Http\Requests\Message\StoreQuickReplyRequest;
 use App\Http\Requests\Message\UpdateQuickReplyRequest;
+use Illuminate\Http\Request;
 
 class QuickReplyController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $quickReplies = QuickReply::all();
-        return jsonResponse('Quick replies retrieved successfully', true, QuickReplyResource::collection($quickReplies));
+        $data       = $request->all();
+        $pagination = !isset($data['pagination']) || $data['pagination'] === 'true' ? true : false;
+        $page       = $data['page'] ?? 1;
+        $perPage    = $data['per_page'] ?? 10;
+        $searchText = $data['search'] ?? null;
+        $searchBy   = $data['search_by'] ?? 'name';
+        $sortBy     = $data['sort_by'] ?? 'id';
+        $sortOrder  = $data['sort_order'] ?? 'asc';
+
+        $query = QuickReply::query();
+
+        if ($searchText && $searchBy) {
+            $query->where($searchBy, 'like', "%{$searchText}%");
+        }
+
+        $query->orderBy($sortBy, $sortOrder);
+
+        if ($pagination) {
+            $quickReplies = $query->paginate($perPage, ['*'], 'page', $page);
+            return jsonResponseWithPagination('Quick replies retrieved successfully', true, QuickReplyResource::collection($quickReplies)->response()->getData(true));
+        }
+
+        return jsonResponse('Quick replies retrieved successfully', true, QuickReplyResource::collection($query->get()));
     }
 
     public function store(StoreQuickReplyRequest $request)

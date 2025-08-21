@@ -9,17 +9,17 @@ class UserResource extends JsonResource
     public function toArray($request)
     {
         return [
-            'id'              => $this->id,
-            'name'            => $this->name,
-            'email'           => $this->email,
-            'employee_id'     => $this->employee_id,
-            'role_id'         => $this->role_id,
-            'category_id'     => $this->category_id,
-            'role'            => $this->role->name ?? null,
-            'category'        => $this->category->name ?? null,
-            'max_limit'       => $this->max_limit,
-            'mobile'          => $this->mobile,
-            'profile_picture' => $this->getFirstMediaUrl('profile_pictures') ?: null,
+            'id'                  => $this->id,
+            'name'                => $this->name,
+            'email'               => $this->email,
+            'employee_id'         => $this->employee_id,
+            'role_id'             => $this->role_id,
+            'role'                => $this->role->name ?? null,
+            'max_limit'           => $this->max_limit,
+            'mobile'              => $this->mobile,
+            'is_password_updated' => boolval($this->is_password_updated),
+            'permissions'         => [], //$this->getAllPermissions(),
+            'profile_picture'     => $this->getFirstMediaUrl('profile_pictures') ?: null,
         ];
     }
 }

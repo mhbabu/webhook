@@ -25,8 +25,8 @@ class UpdatePlatformRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'   => ['required', 'string', 'max:255', Rule::unique('platforms')->ignore($this->route('platform')->id ?? null)],
-            'status' => 'required|integer|in:0,1',
+            'name'   => ['required', 'string', 'max:255', Rule::unique('platforms')->ignore($this->route('platform'))],
+            'status' => ['required', 'integer', 'in:0,1'],
         ];
     }
 

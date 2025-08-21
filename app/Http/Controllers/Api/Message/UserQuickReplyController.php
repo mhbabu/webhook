@@ -15,9 +15,30 @@ class UserQuickReplyController extends Controller
 
     public function index(Request $request)
     {
-        $userId = $request->user()->id;
-        $quickReplies = UserQuickReply::where('user_id', $userId)->get();
-        return jsonResponse('User quick replies retrieved successfully', true, UserQuickReplyResource::collection($quickReplies));
+        $data       = $request->all();
+        $pagination = !isset($data['pagination']) || $data['pagination'] === 'true' ? true : false;
+        $page       = $data['page'] ?? 1;
+        $perPage    = $data['per_page'] ?? 10;
+        $searchText = $data['search'] ?? null;
+        $searchBy   = $data['search_by'] ?? 'name';
+        $sortBy     = $data['sort_by'] ?? 'id';
+        $sortOrder  = $data['sort_order'] ?? 'asc';
+        $userId     = $request->user()->id;
+
+        $query = UserQuickReply::where('user_id', $userId);
+
+        if ($searchText && $searchBy) {
+            $query->where($searchBy, 'like', "%{$searchText}%");
+        }
+
+        $query->orderBy($sortBy, $sortOrder);
+
+        if ($pagination) {
+            $quickReplies = $query->paginate($perPage, ['*'], 'page', $page);
+            return jsonResponseWithPagination('User quick replies retrieved successfully', true, UserQuickReplyResource::collection($quickReplies)->response()->getData(true));
+        }
+
+        return jsonResponse('User quick replies retrieved successfully', true, UserQuickReplyResource::collection($query->get()));
     }
 
     public function store(StoreUserQuickReplyRequest $request)

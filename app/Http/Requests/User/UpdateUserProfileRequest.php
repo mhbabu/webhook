@@ -40,7 +40,6 @@ class UpdateUserProfileRequest extends FormRequest
             $rules['employee_id']   = ['required', 'string', 'max:255', Rule::unique('users')->ignore($this->user()->id ?? null)];
             $rules['max_limit']     = ['required', 'integer', 'min:1'];
             $rules['role_id']       = ['required', 'string', 'max:255'];
-            $rules['category_id']   = ['required', 'string', 'max:255'];
         }
 
         return $rules;
