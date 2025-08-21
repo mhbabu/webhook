@@ -19,7 +19,7 @@ class QuickReplyController extends Controller
         $page       = $data['page'] ?? 1;
         $perPage    = $data['per_page'] ?? 10;
         $searchText = $data['search'] ?? null;
-        $searchBy   = $data['search_by'] ?? 'name';
+        $searchBy   = $data['search_by'] ?? 'title';
         $sortBy     = $data['sort_by'] ?? 'id';
         $sortOrder  = $data['sort_order'] ?? 'asc';
 
