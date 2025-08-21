@@ -117,14 +117,6 @@ class User extends Authenticatable implements HasMedia
     }
 
     /**
-     * Get the user's category.
-     */
-    public function category()
-    {
-        return $this->belongsTo(UserCategory::class, 'category_id');
-    }
-
-    /**
      * Get the user's role.
      */
     public function role()
