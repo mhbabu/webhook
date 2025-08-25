@@ -304,7 +304,6 @@ class UserService
                 $user->employee_id = $data['employee_id'] ?? $user->employee_id;
                 $user->max_limit   = $data['max_limit'] ?? $user->max_limit;
                 $user->role_id     = $data['role_id'] ?? $user->role_id;
-                $user->category_id = $data['category_id'] ?? $user->category_id;
             }
 
             // Save changes
