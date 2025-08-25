@@ -39,7 +39,6 @@ class User extends Authenticatable implements HasMedia
         'is_request',
         'created_by',
         'deleted_by',
-        'category_id',
         'role_id',
         'is_password_updated',
         'password_updated_at'
