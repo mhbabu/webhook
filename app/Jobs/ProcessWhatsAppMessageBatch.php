@@ -35,14 +35,14 @@ class ProcessWhatsAppMessageBatch implements ShouldQueue
         $finalMessage = implode("\n", $batch['texts']) ?: 'No text message';
 
         $response = [
-            "Source"       => "WHATSAPP",
-            "TraceId"      => uniqid(),
-            "Sender"       => $this->waId,
-            "Timestamp"    => $batch['lastTimestamp'],
-            "Message"      => $finalMessage,
-            "AttachmentId" => $batch['attachmentIds'],
-            "Attachments"  => $batch['attachments'],
-            "Subject"      => "Final WhatsApp Batch",
+            "source"       => "whatsapp",
+            "traceId"      => uniqid(),
+            "sender"       => $this->waId,
+            "timestamp"    => $batch['lastTimestamp'],
+            "message"      => $finalMessage,
+            "attachmentId" => $batch['attachmentIds'],
+            "attachments"  => $batch['attachments'],
+            "subject"      => "Final WhatsApp Batch",
         ];
 
         // Replace this with your logic: notify, save to DB, send to API, etc.

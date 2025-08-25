@@ -299,7 +299,6 @@ class UserService
 
             // Only Super Admin, Admin, Supervisor can update these fields
             if (in_array($role, ['Super Admin', 'Admin', 'Supervisor'])) {
-                info(1);
                 $user->email       = $data['email'] ?? $user->email;
                 $user->employee_id = $data['employee_id'] ?? $user->employee_id;
                 $user->max_limit   = $data['max_limit'] ?? $user->max_limit;
