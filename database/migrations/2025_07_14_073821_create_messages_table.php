@@ -12,13 +12,31 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('messages', function (Blueprint $table) {
+            // $table->id();
+            // $table->foreignId('conversation_id')->constrained()->onDelete('cascade');
+            // $table->string('sender_id')->nullable();
+            // $table->string('receiver_id')->nullable();
+            // $table->string('type')->default('text');
+            // $table->text('content')->nullable();
+            // $table->enum('direction', ['incoming', 'outgoing']);
+            // $table->timestamps();
+
             $table->id();
             $table->foreignId('conversation_id')->constrained()->onDelete('cascade');
-            $table->string('sender_id')->nullable();
-            $table->string('receiver_id')->nullable();
+
+            // Sender (polymorphic: User or Customer)
+            $table->unsignedBigInteger('sender_id');
+            $table->string('sender_type'); // App\Models\User or App\Models\Customer
+
+            // Optional receiver (only for multi-agent/group chat)
+            $table->unsignedBigInteger('receiver_id')->nullable();
+            $table->string('receiver_type')->nullable(); // App\Models\User or App\Models\Customer
+
             $table->string('type')->default('text');
             $table->text('content')->nullable();
-            $table->enum('direction', ['incoming', 'outgoing']);
+
+            $table->enum('direction', ['incoming', 'outgoing']); // incoming = customer → agent
+            $table->timestamp('read_at')->nullable();
             $table->timestamps();
         });
 

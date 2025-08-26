@@ -14,12 +14,11 @@ return new class extends Migration
             $table->foreignId('agent_id')->nullable()->constrained('users')->onDelete('set null');
             $table->string('platform')->nullable();
             $table->uuid('trace_id');
-            $table->enum('status', ['open', 'closed'])->default('open');
             $table->timestamp('started_at')->useCurrent();
             $table->timestamp('closed_at')->nullable();
             $table->timestamps();
 
-            $table->index(['customer_id', 'platform', 'status']);
+            $table->index(['customer_id', 'platform']);
         });
     }
 
