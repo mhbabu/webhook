@@ -1,4 +1,4 @@
-version: "3.9"
+version: '3.8'
 
 services:
   app:
@@ -7,7 +7,6 @@ services:
       dockerfile: Dockerfile
     image: webhook-app
     container_name: webhook-app
-    command: ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
     restart: unless-stopped
     working_dir: /var/www/html/webhook
     volumes:
@@ -16,11 +15,7 @@ services:
       - laravel
     depends_on:
       - db
-      - kafka
-      - redis
-    ports:
-      - "6001:6001"   # expose Laravel Reverb WebSocket port
-      - "9000:9000"   # PHP-FPM port (optional, useful for debugging)
+      - kafka  # ensure kafka is available before app boots
 
   webserver:
     image: nginx:alpine
@@ -49,9 +44,8 @@ services:
       - dbdata:/var/lib/mysql
     networks:
       - laravel
-    ports:
-      - "3306:3306"
 
+  # New Service: Zookeeper (Kafka dependency)
   zookeeper:
     image: bitnami/zookeeper:latest
     container_name: webhook-zookeeper
@@ -63,6 +57,7 @@ services:
     networks:
       - laravel
 
+  # New Service: Kafka Broker
   kafka:
     image: bitnami/kafka:latest
     container_name: webhook-kafka
@@ -76,15 +71,6 @@ services:
       - "9092:9092"
     depends_on:
       - zookeeper
-    networks:
-      - laravel
-
-  redis:
-    image: redis:7-alpine
-    container_name: webhook-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
     networks:
       - laravel
 
