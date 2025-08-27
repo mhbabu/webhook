@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.9"
 
 services:
   app:
@@ -92,8 +92,8 @@ services:
     networks:
       - laravel
     environment:
-      REVERB_APP_KEY: your_app_key_here
-      REVERB_APP_SECRET: your_app_secret_here
+      REVERB_APP_KEY: ${REVERB_APP_KEY}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET}
       REVERB_PORT: 6001
 
 volumes:
