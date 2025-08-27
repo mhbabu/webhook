@@ -17,7 +17,9 @@ services:
       - db
       - kafka
       - redis
-      - websocket
+    ports:
+      - "6001:6001"   # expose Laravel Reverb WebSocket port
+      - "9000:9000"   # PHP-FPM port (optional, useful for debugging)
 
   webserver:
     image: nginx:alpine
@@ -46,6 +48,8 @@ services:
       - dbdata:/var/lib/mysql
     networks:
       - laravel
+    ports:
+      - "3306:3306"
 
   zookeeper:
     image: bitnami/zookeeper:latest
@@ -82,19 +86,6 @@ services:
       - "6379:6379"
     networks:
       - laravel
-
-  websocket:
-    image: gianarb/reverb:latest
-    container_name: webhook-websocket
-    restart: unless-stopped
-    ports:
-      - "6001:6001"  # default WebSocket port
-    networks:
-      - laravel
-    environment:
-      REVERB_APP_KEY: ${REVERB_APP_KEY}
-      REVERB_APP_SECRET: ${REVERB_APP_SECRET}
-      REVERB_PORT: 6001
 
 volumes:
   dbdata:
