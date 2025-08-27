@@ -7,6 +7,7 @@ services:
       dockerfile: Dockerfile
     image: webhook-app
     container_name: webhook-app
+    command: ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
     restart: unless-stopped
     working_dir: /var/www/html/webhook
     volumes:
