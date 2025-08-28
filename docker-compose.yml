@@ -15,7 +15,10 @@ services:
       - laravel
     depends_on:
       - db
-      - kafka  # ensure kafka is available before app boots
+      - kafka
+      - redis   # <-- ensure redis starts before app
+    ports:
+      - "8080:8080"  # <-- expose Reverb WebSocket server
 
   webserver:
     image: nginx:alpine
@@ -45,7 +48,7 @@ services:
     networks:
       - laravel
 
-  # New Service: Zookeeper (Kafka dependency)
+  # Zookeeper (Kafka dependency)
   zookeeper:
     image: bitnami/zookeeper:latest
     container_name: webhook-zookeeper
@@ -57,7 +60,7 @@ services:
     networks:
       - laravel
 
-  # New Service: Kafka Broker
+  # Kafka Broker
   kafka:
     image: bitnami/kafka:latest
     container_name: webhook-kafka
@@ -71,6 +74,16 @@ services:
       - "9092:9092"
     depends_on:
       - zookeeper
+    networks:
+      - laravel
+
+  # Redis (for cache, sessions, queues, broadcasting)
+  redis:
+    image: redis:alpine
+    container_name: webhook-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
     networks:
       - laravel
 
