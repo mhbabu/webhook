@@ -49,3 +49,4 @@ EXPOSE 9000 8080
 
 # Start Supervisor (which will manage php-fpm, reverb, queue)
 CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]
+
