@@ -33,16 +33,19 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html/webhook
 
-# Copy Supervisor configuration
-COPY docker/supervisor/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
+# Copy Laravel code
+COPY . .
 
 # Ensure proper permissions for Laravel storage & cache
 RUN mkdir -p storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
+# Copy full supervisord configuration (main config file)
+COPY docker/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
+
 # Expose ports
 EXPOSE 9000 8080
 
 # Start Supervisor (which will manage php-fpm, reverb, queue)
-CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisor.conf", "-n"]
+CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]
