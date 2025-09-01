@@ -28,6 +28,111 @@ class WebhookController extends Controller
         return response('Verification token mismatch', 403);
     }
 
+     public function whatsapp(Request $request)
+    {
+        $data = $request->all();
+
+        // Debug raw payload only in development
+        if (config('app.debug')) {
+            Log::debug('Raw WhatsApp Webhook:', $data);
+        }
+
+        $entry     = $data['entry'][0]['changes'][0]['value'] ?? [];
+        $statuses  = $entry['statuses'] ?? [];
+        $messages  = $entry['messages'] ?? [];
+        $contacts  = $entry['contacts'][0] ?? null;
+        $to        = $entry['metadata']['display_phone_number'] ?? null;
+
+        // -------------------------
+        // ✅ Case 1: Status updates
+        // -------------------------
+        if (!empty($statuses)) {
+            foreach ($statuses as $status) {
+                $response = [
+                    "source"       => "whatsapp",
+                    "traceId"      => 'wa_' . uniqid(),
+                    "messageId"    => $status['id'] ?? null,
+                    "sender"       => null,
+                    "sentTo"       => $status['recipient_id'] ?? null,
+                    "parentId"     => null,
+                    "timestamp"    => $status['timestamp'] ?? null,
+                    "message"      => $status['status'] ?? '',
+                    "attachmentId" => [],
+                    "attachments"  => [],
+                    "subject"      => "WhatsApp Status Update",
+                ];
+
+                Log::info('[WHATSAPP STATUS]', $response);
+            }
+            return response()->json(['status' => 'status_received']);
+        }
+
+        // ---------------------------------------
+        // ✅ Case 2: Incoming customer messages
+        // ---------------------------------------
+        if (!empty($messages)) {
+            // fallback if contacts not present
+            $sender     = $contacts['wa_id'] ?? ($messages[0]['from'] ?? null);
+            $senderName = $contacts['profile']['name'] ?? ($messages[0]['from'] ?? 'Unknown');
+
+            foreach ($messages as $msg) {
+                $type        = $msg['type'] ?? '';
+                $from        = $msg['from'] ?? $sender;
+                $messageId   = $msg['id'] ?? null;
+                $timestamp   = $msg['timestamp'] ?? null;
+                $parentId    = $msg['context']['id'] ?? null;
+                $caption     = null;
+                $mediaIds    = [];
+                $attachments = [];
+
+                // Handle text messages
+                if ($type === 'text') {
+                    $caption = $msg['text']['body'] ?? '';
+                }
+                // Handle media messages
+                elseif (in_array($type, ['image', 'video', 'document'])) {
+                    $mediaId = $msg[$type]['id'] ?? null;
+                    if ($mediaId) {
+                        $mediaIds[] = $mediaId;
+                        $attachments[] = [
+                            "type" => $type,
+                            "id"   => $mediaId,
+                            "url"  => $this->getMediaUrl($mediaId)
+                        ];
+                    }
+                    if (!$caption && !empty($msg[$type]['caption'])) {
+                        $caption = $msg[$type]['caption'];
+                    }
+                }
+
+                // Normalized payload
+                $response = [
+                    "source"       => "whatsapp",
+                    "traceId"      => 'wa_' . uniqid(),
+                    "messageId"    => $messageId,
+                    "sender"       => $from,
+                    "sentTo"       => $to,
+                    "parentId"     => $parentId,
+                    "timestamp"    => $timestamp,
+                    "message"      => $caption ?? 'No message content',
+                    "attachmentId" => $mediaIds,
+                    "attachments"  => $attachments,
+                    "subject"      => "Customer Message from $senderName",
+                ];
+
+                Log::info('[CUSTOMER MESSAGE]', $response);
+            }
+
+            return response()->json(['status' => 'message_received']);
+        }
+
+        // -------------------------
+        // ✅ Case 3: No relevant payload
+        // -------------------------
+        return response()->json(['status' => 'ignored']);
+    }
+
+
     // ✅ Webhook message receiver
     public function whatsapp2(Request $request)
     {
@@ -90,7 +195,7 @@ class WebhookController extends Controller
         return response()->json($response);
     }
 
-    public function whatsapp(Request $request)
+    public function whatsapp3(Request $request)
     {
         $data = $request->all();
         Log::info('Received WhatsApp message:', $data);
