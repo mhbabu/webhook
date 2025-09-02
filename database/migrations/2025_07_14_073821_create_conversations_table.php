@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::create('conversations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('customer_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('customer_id')->nullable()->constrained('customers')->onDelete('cascade');
             $table->foreignId('agent_id')->nullable()->constrained('users')->onDelete('set null');
             $table->string('platform')->nullable();
-            $table->uuid('trace_id');
+            $table->string('trace_id')->nullable();
             $table->timestamp('started_at')->useCurrent();
             $table->timestamp('closed_at')->nullable();
             $table->timestamps();

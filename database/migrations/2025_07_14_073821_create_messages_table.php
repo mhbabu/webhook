@@ -12,31 +12,23 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('messages', function (Blueprint $table) {
-            // $table->id();
-            // $table->foreignId('conversation_id')->constrained()->onDelete('cascade');
-            // $table->string('sender_id')->nullable();
-            // $table->string('receiver_id')->nullable();
-            // $table->string('type')->default('text');
-            // $table->text('content')->nullable();
-            // $table->enum('direction', ['incoming', 'outgoing']);
-            // $table->timestamps();
 
             $table->id();
-            $table->foreignId('conversation_id')->constrained()->onDelete('cascade');
+            $table->foreignId('conversation_id')->constrained('conversations')->onDelete('cascade');
 
-            // Sender (polymorphic: User or Customer)
-            $table->unsignedBigInteger('sender_id');
-            $table->string('sender_type'); // App\Models\User or App\Models\Customer
+            // Polymorphic sender
+            $table->unsignedBigInteger('sender_id')->nullable();
+            $table->string('sender_type')->nullable();
 
-            // Optional receiver (only for multi-agent/group chat)
+            // Optional receiver
             $table->unsignedBigInteger('receiver_id')->nullable();
-            $table->string('receiver_type')->nullable(); // App\Models\User or App\Models\Customer
+            $table->string('receiver_type')->nullable();
 
             $table->string('type')->default('text');
-            $table->text('content')->nullable();
-
-            $table->enum('direction', ['incoming', 'outgoing']); // incoming = customer → agent
+            $table->string('content')->nullable();
+            $table->enum('direction', ['incoming', 'outgoing']);
             $table->timestamp('read_at')->nullable();
+            $table->string('read_by')->nullable();
             $table->timestamps();
         });
 

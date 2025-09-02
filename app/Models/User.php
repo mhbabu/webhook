@@ -123,4 +123,14 @@ class User extends Authenticatable implements HasMedia
         return $this->belongsTo(Role::class, 'role_id');
     }
 
+    public function messagesSent()
+    {
+        return $this->morphMany(Message::class, 'sender');
+    }
+
+    public function messagesReceived()
+    {
+        return $this->morphMany(Message::class, 'receiver');
+    }
+
 }

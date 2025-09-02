@@ -3,12 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ProcessWhatsAppMessageBatch;
+use App\Models\Conversation;
+use App\Models\Customer;
+use App\Models\Message;
+use App\Models\Platform;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use ProcessIncomingMessageJob;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use GuzzleHttp\Exception\RequestException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class WebhookController extends Controller
 {
@@ -28,7 +35,269 @@ class WebhookController extends Controller
         return response('Verification token mismatch', 403);
     }
 
-     public function whatsapp(Request $request)
+    public function whatsapp(Request $request)
+    {
+        $data      = $request->all();
+        $entry     = $data['entry'][0]['changes'][0]['value'] ?? [];
+        $statuses  = $entry['statuses'] ?? [];
+        $messages  = $entry['messages'] ?? [];
+        $contacts  = $entry['contacts'][0] ?? null;
+
+        // Authenticate Token
+        $token = $this->getAuthToken();
+        if (!$token) {
+            return response()->json(['status' => 'Dispatcher authentication failed'], 500);
+        }
+
+        // Get platform
+        $platform   = Platform::whereRaw('LOWER(name) = ?', [strtolower('WhatsApp')])->first();
+        if (!$platform) {
+            return response()->json(['status' => 'platform_not_found'], 500);
+        }
+        $platformId   = $platform->id;
+        $platformName = $platform->name;
+
+        // Prepare phone & customer
+        $rawPhone   = $contacts['wa_id'] ?? ($messages[0]['from'] ?? null);
+        $phone      = substr($rawPhone, -11); // last 11 digits
+        $senderName = $contacts['profile']['name'] ?? 'Unknown';
+
+        DB::transaction(function () use ($token, $statuses, $messages, $phone, $senderName, $platformId, $platformName) {
+
+            // Get or create customer
+            $customer = Customer::where('phone', $phone)->where('platform_id', $platformId)->first();
+
+            if (!$customer) {
+                $customer              = new Customer();
+                $customer->phone       = $phone;
+                $customer->platform_id = $platformId;
+                $customer->name        = $senderName;
+                $customer->save(); // <-- actually insert into DB
+            }
+
+            // Check for existing conversation (last 6 hours) or create new
+            $conversation      = Conversation::where('customer_id', $customer->id)->where('platform', $platformName)->latest()->first();
+            $isNewConversation = false;
+
+            if (!$conversation) {
+                $conversation              = new Conversation();
+                $conversation->customer_id = $customer->id;
+                $conversation->platform    = $platformName;
+                $conversation->trace_id    = "WA-" . now()->format('YmdHis') . '-' . uniqid();
+                $conversation->agent_id    = null;
+                $conversation->save();
+
+                $isNewConversation = true;
+            }
+
+            // Step 1: Handle status updates
+            foreach ($statuses as $status) {
+                $payload = [
+                    "source"           => "whatsapp",
+                    "traceId"          => "WA-" . now()->format('YmdHis') . '-' . uniqid(),
+                    "conversationId"   => $conversation->id,
+                    "conversationType" => $isNewConversation ? "new" : "old",
+                    "sender"           => null,
+                    "timestamp"        => $status['timestamp'] ?? time(),
+                    "message"          => $status['status'] ?? '',
+                    "attachmentId"     => [],
+                    "attachments"      => [],
+                    "subject"          => "WhatsApp Status Update",
+                ];
+                app()->call([$this, 'sendToHandler'], ['token' => $token, 'payload' => $payload]);
+            }
+
+            // Step 2: Process customer messages
+            foreach ($messages as $msg) {
+                $type        = $msg['type'] ?? '';
+                $caption     = null;
+                $mediaIds    = [];
+                $attachments = [];
+                $timestamp   = $msg['timestamp'] ?? time();
+
+                if ($type === 'text') {
+                    $caption = $msg['text']['body'] ?? '';
+                } elseif (in_array($type, ['image', 'video', 'document'])) {
+                    $mediaId = $msg[$type]['id'] ?? null;
+                    if ($mediaId) {
+                        $mediaIds[] = $mediaId;
+                        $attachments[] = [
+                            'attachment_id' => $mediaId,
+                            'path'          => $this->getMediaUrl($mediaId),
+                            'is_download'   => 0,
+                        ];
+                    }
+                    if (!$caption && !empty($msg[$type]['caption'])) {
+                        $caption = $msg[$type]['caption'];
+                    }
+                }
+
+                // Insert message
+                $message = Message::create([
+                    'conversation_id' => $conversation->id,
+                    'sender_id'       => $customer->id,
+                    'sender_type'     => Customer::class,
+                    'receiver_type'   => User::class,
+                    'type'            => $type,
+                    'content'         => $caption ?? null,
+                    'direction'       => 'incoming',
+                ]);
+
+                // Insert attachments
+                foreach ($attachments as $att) {
+                    $message->attachments()->create([
+                        'attachment_id' => $att['attachment_id'],
+                        'path'          => $att['path'],
+                        'is_available'  => $att['is_download'],
+                    ]);
+                }
+
+                // Update conversation last_message_id
+                $conversation->update(['last_message_id' => $message->id]);
+
+                // Forward payload
+                $payload = [
+                    "source"           => "whatsapp",
+                    "traceId"          => 'wa_' . uniqid(),
+                    "conversationId"   => $conversation->trace_id,
+                    "conversationType" => $isNewConversation ? "new" : "old",
+                    "sender"           => $phone,
+                    "timestamp"        => $timestamp,
+                    "message"          => $caption ?? 'No text message',
+                    "attachmentId"     => $mediaIds,
+                    "attachments"      => array_column($attachments, 'path'),
+                    "subject"          => "Customer Message from $senderName",
+                ];
+                $this->sendToHandler($token, $payload);
+            }
+        });
+
+        return response()->json(['status' => !empty($messages) ? 'message_received' : 'status_received']);
+    }
+
+
+    public function whatsapp22(Request $request)
+    {
+        $data      = $request->all();
+        $entry     = $data['entry'][0]['changes'][0]['value'] ?? [];
+        $statuses  = $entry['statuses'] ?? [];
+        $messages  = $entry['messages'] ?? [];
+        $contacts  = $entry['contacts'][0] ?? null;
+        $to        = $entry['metadata']['display_phone_number'] ?? null;
+
+        // Step 1: Authenticate Token generate 
+        $token = $this->getAuthToken();
+        if (!$token) {
+            return response()->json(['status' => 'auth_failed'], 500);
+        }
+
+        // Generate conversationId once
+        $conversationId = "WA-" . now()->format('YmdHis') . '-' . uniqid();
+
+        // Case 1: Status updates
+        if (!empty($statuses)) {
+            foreach ($statuses as $status) {
+                $payload = [
+                    "source"           => "whatsapp",
+                    "traceId"          => 'wa_' . uniqid(),
+                    "conversationId"   => $conversationId,
+                    "conversationType" => "status",
+                    "sender"           => null,
+                    "timestamp"        => $status['timestamp'] ?? time(),
+                    "message"          => $status['status'] ?? '',
+                    "attachmentId"     => [],
+                    "attachments"      => [],
+                    "subject"          => "WhatsApp Status Update",
+                ];
+
+                $this->sendToHandler($token, $payload, '[WHATSAPP STATUS FORWARDED]');
+            }
+            return response()->json(['status' => 'status_received']);
+        }
+
+        // Case 2: Customer messages
+        if (!empty($messages)) {
+            $sender     = $contacts['wa_id'] ?? ($messages[0]['from'] ?? null);
+            $senderName = $contacts['profile']['name'] ?? ($messages[0]['from'] ?? 'Unknown');
+
+            foreach ($messages as $msg) {
+                $type        = $msg['type'] ?? '';
+                $from        = $msg['from'] ?? $sender;
+                $timestamp   = $msg['timestamp'] ?? time();
+                $caption     = null;
+                $mediaIds    = [];
+                $attachments = [];
+
+                if ($type === 'text') {
+                    $caption = $msg['text']['body'] ?? '';
+                } elseif (in_array($type, ['image', 'video', 'document'])) {
+                    $mediaId = $msg[$type]['id'] ?? null;
+                    if ($mediaId) {
+                        $mediaIds[]    = $mediaId;
+                        $attachments[] = $this->getMediaUrl($mediaId);
+                    }
+                    if (!$caption && !empty($msg[$type]['caption'])) {
+                        $caption = $msg[$type]['caption'];
+                    }
+                }
+
+                $payload = [
+                    "source"           => "whatsapp",
+                    "traceId"          => 'wa_' . uniqid(),
+                    "conversationId"   => $conversationId,
+                    "conversationType" => "new",
+                    "sender"           => $from,
+                    "timestamp"        => $timestamp,
+                    "message"          => $caption ?? 'No text message',
+                    "attachmentId"     => $mediaIds,
+                    "attachments"      => $attachments,
+                    "subject"          => "Customer Message from $senderName",
+                ];
+
+                $this->sendToHandler($token, $payload, '[CUSTOMER MESSAGE FORWARDED]');
+            }
+
+            return response()->json(['status' => 'message_received']);
+        }
+
+        return response()->json(['status' => 'ignored']);
+    }
+
+    /**
+     * Authenticate and get API token for DISPATCHER 
+     */
+    private function getAuthToken(): ?string
+    {
+        $authResponse = Http::post(config('dispatcher.url') . config('dispatcher.endpoints.authenticate'), ['api_key' => config('dispatcher.api_key')]);
+
+        if (!$authResponse->ok()) {
+            Log::error('[WHATSAPP ERROR] Authentication failed', ['response' => $authResponse->body()]);
+            return null;
+        }
+
+        return $authResponse->json('token');
+    }
+
+    /**
+     * Send payload to handler API
+     */
+    private function sendToHandler(string $token, array $payload): void
+    {
+        info($payload);
+        try {
+            $response = Http::withToken($token)->acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
+
+            if (!$response->ok()) {
+                Log::error("'[CUSTOMER MESSAGE FORWARDED]' FAILED", ['payload'  => $payload, 'response' => $response->body()]);
+            } else {
+                Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
+            }
+        } catch (\Exception $e) {
+            Log::error("[CUSTOMER MESSAGE FORWARDED] ERROR", ['exception' => $e->getMessage()]);
+        }
+    }
+
+    public function whatsapp11(Request $request)
     {
         $data = $request->all();
 
@@ -303,7 +572,6 @@ class WebhookController extends Controller
             }
 
             return $mediaUrl;
-
         } catch (RequestException $e) {
             Log::error("Error fetching media URL for mediaId {$mediaId}: " . $e->getMessage());
             return null;
@@ -342,7 +610,6 @@ class WebhookController extends Controller
             return response($mediaResponse->getBody(), 200)
                 ->header('Content-Type', $mediaResponse->getHeaderLine('Content-Type'))
                 ->header('Content-Disposition', $mediaResponse->getHeaderLine('Content-Disposition'));
-
         } catch (\Exception $e) {
             Log::error("Error fetching WhatsApp media: " . $e->getMessage());
             return response()->json(['error' => 'Failed to fetch media'], 500);
