@@ -26,3 +26,4 @@ Route::middleware(['auth:sanctum', 'role:Super Admin,Admin,Supervisor'])->group(
 });
 
 require __DIR__ .'/role.php';
+require __DIR__ .'/user-status.php';

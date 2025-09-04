@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -20,7 +21,7 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->tinyInteger('is_verified')->default(0); // 1 = verified, 0 = not verified
             $table->string('password')->nullable();
-            $table->string('current_status')->default('offline'); // online ,offline, busy , occupied
+            $table->string('current_status')->default(UserStatus::OFFLINE); 
             $table->integer('max_limit')->default(1); // total customer response
             $table->integer('current_limit')->default(0); // current customer response
             $table->string('account_status')->default('active');

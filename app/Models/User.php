@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+use App\Enums\UserStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -54,6 +56,10 @@ class User extends Authenticatable implements HasMedia
         'remember_token',
     ];
 
+    protected $casts = [
+        'status' => UserStatus::class,
+    ];
+
     /**
      * Boot the model.
      *
@@ -103,7 +109,8 @@ class User extends Authenticatable implements HasMedia
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'password'          => 'hashed',
+            'status'            => UserStatus::class
         ];
     }
 
