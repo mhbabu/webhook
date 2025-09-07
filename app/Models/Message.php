@@ -14,7 +14,7 @@ class Message extends Model
     }
     
     public function attachments() { 
-        return $this->hasMany(Attachment::class); 
+        return $this->hasMany(MessageAttachment::class); 
     }
 
      // Polymorphic relationship for sender
