@@ -6,6 +6,7 @@ use App\Jobs\ProcessWhatsAppMessageBatch;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
+use App\Models\MessageAttachment;
 use App\Models\Platform;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -104,7 +105,7 @@ class WebhookController extends Controller
                     "attachments"      => [],
                     "subject"          => "WhatsApp Status Update",
                 ];
-                app()->call([$this, 'sendToHandler'], ['token' => $token, 'payload' => $payload]);
+                $this->sendToHandler($token, $payload);
             }
 
             // Step 2: Process customer messages
@@ -144,12 +145,19 @@ class WebhookController extends Controller
                 ]);
 
                 // Insert attachments
-                foreach ($attachments as $att) {
-                    $message->attachments()->create([
-                        'attachment_id' => $att['attachment_id'],
-                        'path'          => $att['path'],
-                        'is_available'  => $att['is_download'],
-                    ]);
+                if (!empty($attachments)) {
+                    $bulkInsert = [];
+                    foreach ($attachments as $att) {
+                        $bulkInsert[] = [
+                            'message_id'    => $message->id,
+                            'attachment_id' => $att['attachment_id'],
+                            'path'          => $att['path'],
+                            'is_available'  => $att['is_download'],
+                            'created_at'    => now(),
+                            'updated_at'    => now(),
+                        ];
+                    }
+                    MessageAttachment::insert($bulkInsert);
                 }
 
                 // Update conversation last_message_id
@@ -172,7 +180,7 @@ class WebhookController extends Controller
             }
         });
 
-        return response()->json(['status' => !empty($messages) ? 'message_received' : 'status_received']);
+        return jsonResponse(!empty($messages) ? 'Message received' : 'Status received',  true);
     }
 
 
@@ -283,7 +291,6 @@ class WebhookController extends Controller
      */
     private function sendToHandler(string $token, array $payload): void
     {
-        info($payload);
         try {
             $response = Http::withToken($token)->acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
 

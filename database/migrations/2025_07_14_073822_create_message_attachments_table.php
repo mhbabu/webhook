@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::create('message_attachments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('message_id')->constrained('messages')->onDelete('cascade'); // optional, auto-delete attachments if message is deleted
-            $table->string('type', 255)->nullable();
-            $table->string('path', 1024)->nullable();
-            $table->string('mime', 255)->nullable();
-            $table->string('size');
+            $table->foreignId('message_id')->constrained('messages')->onDelete('cascade');
+            $table->string('type')->nullable();
+            $table->string('path')->nullable();
+            $table->string('mime')->nullable();
+            $table->string('size')->nullable(); // 👈 make nullable or add default
             $table->string('attachment_id')->nullable();
             $table->tinyInteger('is_available')->default(0);
             $table->timestamps();

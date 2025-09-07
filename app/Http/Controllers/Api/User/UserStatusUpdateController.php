@@ -10,6 +10,7 @@ use App\Models\UserStatusUpdate;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
 
+
 class UserStatusUpdateController extends Controller
 {
     /**
