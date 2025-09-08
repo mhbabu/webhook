@@ -98,7 +98,7 @@ class WebhookController extends Controller
                     "source"           => "whatsapp",
                     "traceId"          => "WA-" . now()->format('YmdHis') . '-' . uniqid(),
                     "conversationId"   => $conversation->id,
-                    "conversationType" => $isNewConversation ? "new" : "old",
+                    "conversationType" => $isNewConversation ? "new" : "new",
                     "sender"           => null,
                     "timestamp"        => $status['timestamp'] ?? time(),
                     "message"          => $status['status'] ?? '',
