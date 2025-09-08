@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\SocketIncomingMessage;
 use App\Jobs\ProcessWhatsAppMessageBatch;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -741,5 +742,20 @@ class WebhookController extends Controller
         ]);
 
         Log::info('Sent message response', ['response' => $response->json()]);
+    }
+
+    public function websocketTestMethod(Request $request)
+    {
+
+        $data = [
+            'message_id' => 1,
+            'agent_id'   => 2,
+            'status'     => 'Processed'
+        ];
+
+        SocketIncomingMessage::dispatch($data);
+
+        return jsonResponse('Data dispated the channel', 200);
+        
     }
 }

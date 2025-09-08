@@ -11,4 +11,6 @@ Route::prefix('v1')->group(function () {
     require base_path('routes/user/user.php');
     require base_path('routes/webhook/webhook.php');
     require base_path('routes/message/message.php');
+
+    Route::post('channel-test',[WebhookController::class, 'websocketTestMethod']);
 });
