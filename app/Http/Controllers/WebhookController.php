@@ -98,7 +98,7 @@ class WebhookController extends Controller
                     "source"           => "whatsapp",
                     "traceId"          => "WA-" . now()->format('YmdHis') . '-' . uniqid(),
                     "conversationId"   => $conversation->id,
-                    "conversationType" => $isNewConversation ? "new" : "new",
+                    "conversationType" => $isNewConversation ? "new" : "old",
                     "sender"           => null,
                     "timestamp"        => $status['timestamp'] ?? time(),
                     "message"          => $status['status'] ?? '',
@@ -162,8 +162,8 @@ class WebhookController extends Controller
                 }
 
                 // Update conversation last_message_id
-                $conversation->update(['last_message_id' => $message->id]);
-
+                $conversation->last_message_id = $message->id;
+                $conversation->save();
                 // Forward payload
                 $payload = [
                     "source"           => "whatsapp",
@@ -746,7 +746,6 @@ class WebhookController extends Controller
 
     public function websocketTestMethod(Request $request)
     {
-
         $data = [
             'message_id' => 1,
             'agent_id'   => 2,
@@ -754,8 +753,6 @@ class WebhookController extends Controller
         ];
 
         SocketIncomingMessage::dispatch($data);
-
         return jsonResponse('Data dispated the channel', 200);
-        
     }
 }
