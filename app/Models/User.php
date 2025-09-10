@@ -140,4 +140,9 @@ class User extends Authenticatable implements HasMedia
         return $this->morphMany(Message::class, 'receiver');
     }
 
+    public function userStatusInfo()
+    {
+        return $this->hasOne(UserStatusUpdate::class, 'user_id')->latest()->select('id', 'user_id', 'status', 'break_request_status', 'reason', 'request_at', 'changed_at');
+    }
+
 }

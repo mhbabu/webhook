@@ -19,17 +19,22 @@ class UserStatusUpdateController extends Controller
     public function updateUserStatus(StatusUpdateRequest $request)
     {
         $user   = Auth::user();
-        $status = UserStatus::from($request->status);
+        $status = UserStatus::tryFrom($request->status)->value;
 
-        if ($status === UserStatus::AVAILABLE) {
+        if ($user->current_status === $status) {
+            $breakRequest = $status === 'BREAK REQUEST' && $user->userStatusInfo->break_request_status === 'PENDING' ? ' and your request is PENDING.' : '';
+            return jsonResponse("You are already in {$status} status" . $breakRequest, false, null, 400);
+        }
+
+        if ($status === UserStatus::AVAILABLE->value) {
             $this->saveStatus($user, $status);
-        } elseif ($status === UserStatus::BREAK_REQUEST) {
-            if (empty($request->reason)) return jsonResponse('Reason is required for break request', false, null, 422);
-
+        } elseif ($status === UserStatus::BREAK_REQUEST->value) {
             $this->saveStatus($user, $status, ['reason' => $request->reason, 'request_at' => now()]);
-        } elseif ($status === UserStatus::OFFLINE || $status === UserStatus::BREAK) {
-            if ($user->limit !== 0) return jsonResponse('You cannot switch to this status unless your current limit is zero (0)', false, null, 403);
+        } elseif ($status === UserStatus::OFFLINE->value) {
+            if ($user->current_limit !== 0) return jsonResponse('You cannot switch to this status unless your current limit is zero (0)', false, null, 403);
 
+            $this->saveStatus($user, $status);
+        } elseif ($user->current_limit === 0 && $status === UserStatus::BREAK->value) {
             $this->saveStatus($user, $status);
         } else {
             return jsonResponse('Invalid status update request', false, null, 400);
@@ -72,13 +77,14 @@ class UserStatusUpdateController extends Controller
     /**
      * Save status both in users table and tracking table
      */
-    private function saveStatus($user, UserStatus $status, array $extra = [])
+    private function saveStatus($user, $status, array $extra = [])
     {
-        $user->update(['status' => $status, 'changed_at' => now()]);
+        $user->update(['current_status' => $status]);
 
         return UserStatusUpdate::create(array_merge([
             'user_id'    => $user->id,
             'status'     => $status,
+            'break_request_status' => $status === UserStatus::BREAK_REQUEST->value ? 'PENDING' : null,
             'changed_at' => now()
         ], $extra));
     }
@@ -88,7 +94,7 @@ class UserStatusUpdateController extends Controller
      */
     private function updateUserInRedis($user)
     {
-        $redisKey = 'omnitrix_agents_list';
+        $redisKey = "agent:{$user->id}";
 
         // Get existing agents from Redis
         $existing = Redis::get($redisKey);
@@ -97,7 +103,7 @@ class UserStatusUpdateController extends Controller
         // Prepare user data for Redis
         $userData = [
             "AGENT_ID"         => (string) $user->id,
-            "Status"           => $user->status,
+            "Status"           => $user->current_status,
             "AVAILABLE_SCOPE"  => $user->max_limit,
             "CURRENT_CONTACTS" => $user->current_limit ?? 0,
             // "CONTACT_TYPE"     => $user->contact_type ?? [], // If multiple, make it array

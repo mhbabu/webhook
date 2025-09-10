@@ -16,9 +16,12 @@ class UserResource extends JsonResource
             'role_id'             => $this->role_id,
             'role'                => $this->role->name ?? null,
             'max_limit'           => $this->max_limit,
+            'current_limit'       => $this->current_limit,
             'mobile'              => $this->mobile,
             'is_password_updated' => boolval($this->is_password_updated),
             'permissions'         => [], //$this->getAllPermissions(),
+            'current_status'      => $this->current_status,
+            'status_info'         => $this->userStatusInfo ?? null,
             'profile_picture'     => $this->getFirstMediaUrl('profile_pictures') ?: null,
         ];
     }
