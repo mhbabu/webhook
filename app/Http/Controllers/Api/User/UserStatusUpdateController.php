@@ -112,33 +112,20 @@ class UserStatusUpdateController extends Controller
     {
         $redisKey = "agent:{$user->id}";
 
-        // Get existing agents from Redis
-        $existing = Redis::get($redisKey);
-        $agents = $existing ? json_decode($existing, true) : [];
-
-        // Prepare user data for Redis
-        $userData = [
+        // Prepare agent data in the new pattern
+        $agentData = [
             "AGENT_ID"         => (string) $user->id,
-            "Status"           => $user->current_status,
-            "AVAILABLE_SCOPE"  => $user->max_limit,
-            "CURRENT_CONTACTS" => $user->current_limit ?? 0,
-            // "CONTACT_TYPE"     => $user->contact_type ?? [], // If multiple, make it array
-            "SKILL"            => $user->platforms()->pluck('name')->toArray(), // Fetch all platforms
-            // "BUSYSINCE"        => $user->changed_at->format('Y-m-d H:i:s'),
+            "AGENT_TYPE"       => $user->agent_type ?? 'NORMAL', // Default to NORMAL if not set
+            "STATUS"           => $user->current_status,
+            "MAX_SCOPE"        => $user->max_limit,
+            "AVAILABLE_SCOPE"  => $user->available_limit ?? $user->max_limit,
+            "CONTACT_TYPE"     => json_encode($user->contact_type ?? []),
+            "SKILL"            => json_encode($user->platforms()->pluck('name')->toArray()),
+            "BUSYSINCE"        => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
         ];
 
-        // Update existing agent or add new
-        $found = false;
-        foreach ($agents as &$agent) {
-            if ($agent['AGENT_ID'] === $userData['AGENT_ID']) {
-                $agent = $userData;
-                $found = true;
-                break;
-            }
-        }
-        if (!$found) $agents[] = $userData;
-
-        // Save back to Redis
-        Redis::set($redisKey, json_encode($agents));
+        // Save as Redis Hash (one key per agent)
+        Redis::hMSet($redisKey, $agentData);
     }
+
 }
