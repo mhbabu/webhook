@@ -77,27 +77,27 @@ class UserStatusUpdateController extends Controller
     /**
      * Save status both in users table and tracking table
      */
-    private function saveStatus($user, $status, array $extra = [])
+    public function getAllStatuses()
     {
-        $user->update(['current_status' => $status]);
+        $statuses = array_map(function ($status) {
+            return [
+                'key'   => $status->value,
+                'value' => $status->value,
+            ];
+        }, UserStatus::cases());
 
-        return UserStatusUpdate::create(array_merge([
-            'user_id'    => $user->id,
-            'status'     => $status,
-            'break_request_status' => $status === UserStatus::BREAK_REQUEST->value ? 'PENDING' : null,
-            'changed_at' => now()
-        ], $extra));
+        return jsonResponse('All user statuses fetched successfully', true, $statuses, 200);
     }
 
     public function getStatuses()
     {
         $statuses = array_map(function ($status) {
             return [
-                'key' => $status->name,
+                'key'   => $status->value,
                 'value' => $status->value,
             ];
         }, UserStatus::cases());
-        
+
         return jsonResponse('User status history fetched successfully', true, $statuses, 200);
     }
 
