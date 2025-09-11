@@ -124,8 +124,6 @@ class UserStatusUpdateController extends Controller
             "BUSYSINCE"        => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
         ];
 
-        info(json_encode($user->platforms()->pluck('name')->toArray()));
-
         // Save as Redis Hash (one key per agent)
         Redis::hMSet($redisKey, $agentData);
     }
