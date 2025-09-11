@@ -91,13 +91,17 @@ class UserStatusUpdateController extends Controller
 
     public function getStatuses()
     {
+        $statuses = array_filter(UserStatus::cases(), function ($status) {
+            return !in_array($status->value, ['OFFLINE', 'OCCUPIED']);
+        });
+
         $statuses = array_map(function ($status) {
             return [
                 'key'   => $status->value,
                 'value' => $status->value,
             ];
-        }, UserStatus::cases());
-        
+        }, $statuses);
+
         return jsonResponse('User status history fetched successfully', true, $statuses, 200);
     }
 
