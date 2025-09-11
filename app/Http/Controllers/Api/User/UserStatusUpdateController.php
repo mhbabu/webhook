@@ -59,14 +59,14 @@ class UserStatusUpdateController extends Controller
 
         // Update tracking table
         $statusUpdate->update([
-            'status'      => UserStatus::BREAK,
+            'status'      => UserStatus::BREAK->value,
             'approved_by' => Auth::id(),
             'approved_at' => now(),
             'changed_at'  => now(),
         ]);
 
         // Update main user status
-        $statusUpdate->user->update(['status' => UserStatus::BREAK]);
+        $statusUpdate->user->update(['status' => UserStatus::BREAK->value]);
 
         // --- Redis Update ---
         $this->updateUserInRedis($statusUpdate->user);
@@ -77,16 +77,16 @@ class UserStatusUpdateController extends Controller
     /**
      * Save status both in users table and tracking table
      */
-    public function getAllStatuses()
+    public function saveStatus($user, $status)
     {
-        $statuses = array_map(function ($status) {
-            return [
-                'key'   => $status->value,
-                'value' => $status->value,
-            ];
-        }, UserStatus::cases());
+        $user->update(['current_status' => $status]);
 
-        return jsonResponse('All user statuses fetched successfully', true, $statuses, 200);
+        return UserStatusUpdate::create([
+            'user_id'    => $user->id,
+            'status'     => $status,
+            'break_request_status' => $status === UserStatus::BREAK_REQUEST->value ? 'PENDING' : null,
+            'changed_at' => now()
+        ]);
     }
 
     public function getStatuses()
@@ -97,7 +97,7 @@ class UserStatusUpdateController extends Controller
                 'value' => $status->value,
             ];
         }, UserStatus::cases());
-
+        
         return jsonResponse('User status history fetched successfully', true, $statuses, 200);
     }
 
