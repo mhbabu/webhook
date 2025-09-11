@@ -89,6 +89,18 @@ class UserStatusUpdateController extends Controller
         ], $extra));
     }
 
+    public function getStatuses()
+    {
+        $statuses = array_map(function ($status) {
+            return [
+                'key' => $status->name,
+                'value' => $status->value,
+            ];
+        }, UserStatus::cases());
+        
+        return jsonResponse('User status history fetched successfully', true, $statuses, 200);
+    }
+
     /**
      * Update or add user data in Redis
      */
