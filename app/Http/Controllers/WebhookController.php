@@ -206,10 +206,10 @@ class WebhookController extends Controller
         try {
             $response = Http::withToken($token)->acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
 
-            if (!$response->ok()) {
-                Log::error("'[CUSTOMER MESSAGE FORWARDED]' FAILED", ['payload'  => $payload, 'response' => $response->body()]);
-            } else {
+            if ($response->ok()) {
                 Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
+            } else {
+                Log::error("'[CUSTOMER MESSAGE FORWARDED]' FAILED", ['payload'  => $payload, 'response' => $response->body()]);
             }
         } catch (\Exception $e) {
             Log::error("[CUSTOMER MESSAGE FORWARDED] ERROR", ['exception' => $e->getMessage()]);
