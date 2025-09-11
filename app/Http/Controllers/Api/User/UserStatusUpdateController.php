@@ -114,7 +114,7 @@ class UserStatusUpdateController extends Controller
 
         // Prepare agent data in the new pattern
         $agentData = [
-            "AGENT_ID"         => (string) $user->id,
+            "AGENT_ID"         => $user->id,
             "AGENT_TYPE"       => $user->agent_type ?? 'NORMAL', // Default to NORMAL if not set
             "STATUS"           => $user->current_status,
             "MAX_SCOPE"        => $user->max_limit,

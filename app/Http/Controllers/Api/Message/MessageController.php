@@ -17,6 +17,7 @@ class MessageController extends Controller
     public function incomingMsg(Request $request)
     {
         $data = $request->all();
+        Log::info('Incoming request data: ' . json_encode($request->all()));
 
         // Extract required fields
         $agentId        = $data['agentId'] ?? null;
@@ -41,12 +42,6 @@ class MessageController extends Controller
         // Fetch Customer
         $customer = Customer::where('platform_id', $platformId)->where('phone', $normalizedMobile)->first();
 
-        // Log info
-        Log::info("Normalized Phone: {$normalizedMobile}");
-        Log::info("Matched User ID: " . ($user->id ?? 'Not Found'));
-        Log::info("Matched Platform ID: " . ($platformId ?? 'Not Found'));
-        Log::info("Matched Customer ID: " . ($customer->id ?? 'Not Found'));
-
         // Build response data
         $data = [
             'user'     => $user ? new UserResource($user) : null,
@@ -55,7 +50,6 @@ class MessageController extends Controller
         ];
 
         SocketIncomingMessage::dispatch($data);
-        // Return as structured jsonResponse
         return jsonResponse('Message received successfully.', true, null);
     }
 }
