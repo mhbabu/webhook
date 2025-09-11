@@ -26,20 +26,21 @@ class UpdateUserProfileRequest extends FormRequest
      */
     public function rules(): array
     {
-        $userType = auth()->user()->type ?? null;
+        $currentUserRoleId = auth()->user()->role_id ?? null;
+        $updatingUserId = $this->route('userId'); // from route: /users/{userId}
 
         $rules = [
             'name'            => ['sometimes', 'string', 'max:255'],
-            'mobile'          => ['sometimes', 'string', 'regex:/^01[3-9][0-9]{8}$/', Rule::unique('users')->ignore($this->user()->id ?? null)],
+            'mobile'          => ['sometimes', 'string', 'regex:/^01[3-9][0-9]{8}$/', Rule::unique('users')->ignore($updatingUserId)],
             'profile_picture' => ['sometimes', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ];
 
-        // Only admins or supervisors can update these fields
-        if (in_array($userType, ['System Admin', 'Admin', 'Supervisor'])) {
-            $rules['email']         = ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($this->user()->id ?? null)];
-            $rules['employee_id']   = ['required', 'string', 'max:255', Rule::unique('users')->ignore($this->user()->id ?? null)];
-            $rules['max_limit']     = ['required', 'integer', 'min:1'];
-            $rules['role_id']       = ['required', 'string', 'max:255'];
+        // Only Admin/Supervisor roles can update these fields
+        if (in_array($currentUserRoleId, [1, 2, 3])) {
+            $rules['email']       = ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($updatingUserId)];
+            $rules['employee_id'] = ['required', 'string', 'max:255', Rule::unique('users')->ignore($updatingUserId)];
+            $rules['max_limit']   = ['required', 'integer', 'min:1'];
+            $rules['role_id']     = ['required', 'string', 'max:255'];
         }
 
         return $rules;
@@ -68,13 +69,11 @@ class UpdateUserProfileRequest extends FormRequest
      */
     protected function failedValidation(Validator $validator): void
     {
-        $errors = $validator->errors();
-
         throw new HttpResponseException(
             response()->json([
                 'status'  => false,
-                'message' => $errors->first(),
-                'errors'  => $errors,
+                'message' => $validator->errors()->first(),
+                'errors'  => $validator->errors(),
             ], 422)
         );
     }

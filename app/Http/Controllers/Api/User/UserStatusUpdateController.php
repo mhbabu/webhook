@@ -120,12 +120,13 @@ class UserStatusUpdateController extends Controller
             "MAX_SCOPE"        => $user->max_limit,
             "AVAILABLE_SCOPE"  => $user->available_limit ?? $user->max_limit,
             "CONTACT_TYPE"     => json_encode($user->contact_type ?? []),
-            "SKILL"            => json_encode($user->platforms()->pluck('name')->toArray()),
+            "SKILL"            => json_encode($user->platforms()->pluck('name')->map(fn($name) => strtolower($name))->toArray()),
             "BUSYSINCE"        => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
         ];
+
+        info(json_encode($user->platforms()->pluck('name')->toArray()));
 
         // Save as Redis Hash (one key per agent)
         Redis::hMSet($redisKey, $agentData);
     }
-
 }
