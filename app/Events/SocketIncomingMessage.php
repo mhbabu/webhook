@@ -2,11 +2,7 @@
 
 namespace App\Events;
 
-use App\Http\Resources\MessageResource;
-use App\Models\Message;
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -18,9 +14,6 @@ class SocketIncomingMessage implements ShouldBroadcast
 
     public $data;
 
-    /**
-     * Create a new event instance.
-     */
     public function __construct($data)
     {
         $this->data = $data;
@@ -33,13 +26,11 @@ class SocketIncomingMessage implements ShouldBroadcast
         ];
     }
 
-    /**
-     * Get the channels the event should broadcast on.
-     *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
-     */
     public function broadcastOn()
     {
-        return new Channel('ack.incoming');
+        $platform = strtolower($this->data['platform']);
+        $agentId  = $this->data['agentId'];
+
+        return new PrivateChannel("platform.{$platform}.{$agentId}");
     }
 }

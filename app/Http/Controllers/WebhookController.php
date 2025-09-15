@@ -209,7 +209,7 @@ class WebhookController extends Controller
             if ($response->ok()) {
                 Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
             } else {
-                Log::error("'[CUSTOMER MESSAGE FORWARDED]' FAILED", ['payload'  => $payload, 'response' => $response->body()]);
+                Log::error("[CUSTOMER MESSAGE FORWARDED] FAILED", ['payload' => $payload, 'response' => $response->body()]);
             }
         } catch (\Exception $e) {
             Log::error("[CUSTOMER MESSAGE FORWARDED] ERROR", ['exception' => $e->getMessage()]);

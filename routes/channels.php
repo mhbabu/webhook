@@ -7,8 +7,9 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 });
 
 
-Broadcast::channel('{source}.{agentId}', function ($user, $id) {    
-    return (int) $user->id === (int) $id;
+Broadcast::channel('platform.{source}.{agentId}', function ($user, $agentId) {    
+    info("Authorizing user ID {$user->id} for agentId {$agentId}");
+    return (int) $user->id === (int) $agentId;
 });
 
 Broadcast::channel('ack.incoming', function ($user, $id) {
