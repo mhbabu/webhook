@@ -12,7 +12,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('quick-replies', QuickReplyController::class);
     Route::delete('quick-replies/{id}', [QuickReplyController::class, 'destroy']);
-    Route::post('incoming/messages', [MessageController::class, 'incomingMsg']);
+    // Route::post('incoming/messages', [MessageController::class, 'incomingMsg']);
 });
 
 // Route::post('incoming/messages', [MessageController::class, 'incomingMsg']);
@@ -52,3 +52,5 @@ Route::post('/broadcasting/auth', function (Request $request) {
 //         'auth' => $appKey . ':' . $signature
 //     ]);
 // })->middleware('auth:sanctum');
+
+    Route::post('incoming/messages', [MessageController::class, 'incomingMsg']);
