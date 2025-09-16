@@ -35,10 +35,13 @@ class MessageController extends Controller
         $customer   = Customer::where('platform_id', $platformId)->where('phone', $normalizedMobile)->first();
 
         $payload = [
-            'user'        => $user ? new UserResource($user) : null,
-            'customer'    => $customer ? new CustomerResource($customer) : null,
-            'platform'    => $source,
-            'agentId'     => $agentId, // 👈 needed for dynamic channel
+            'user'           => $user ? new UserResource($user) : null,
+            'customer'       => $customer ? new CustomerResource($customer) : null,
+            'platform'       => $source,
+            'agentId'        => $agentId, // 👈 needed for dynamic channel
+            'conversationId' => $conversationId,
+            'sender'         => $normalizedMobile,
+            'message'        => $data['messageData']['message'] ?? null,
         ];
 
         Log::info('Dispatching SocketIncomingMessage with payload: ' . json_encode($payload));

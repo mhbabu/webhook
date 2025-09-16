@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -21,9 +22,7 @@ class SocketIncomingMessage implements ShouldBroadcast
 
     public function broadcastWith(): array
     {
-        return [
-            'data' => $this->data
-        ];
+        return $this->data;
     }
 
     public function broadcastOn()
@@ -31,6 +30,8 @@ class SocketIncomingMessage implements ShouldBroadcast
         $platform = strtolower($this->data['platform']);
         $agentId  = $this->data['agentId'];
 
-        return new PrivateChannel("platform.{$platform}.{$agentId}");
+        // return new PrivateChannel("platform.{$platform}.{$agentId}"); //Channel
+        return new Channel("platform.{$platform}.{$agentId}");
+
     }
 }

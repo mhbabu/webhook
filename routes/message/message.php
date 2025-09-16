@@ -19,25 +19,36 @@ Route::middleware('auth:sanctum')->group(function () {
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Broadcast;
 
 Route::post('/broadcasting/auth', function (Request $request) {
-    // Here you must authenticate the user first (e.g., via Sanctum token)
-    $user = Auth::guard('sanctum')->user();
-    if (!$user) {
+    // Sanctum automatically checks the token via middleware
+    if (!Auth::guard('sanctum')->check()) {
         return response()->json(['message' => 'Unauthenticated.'], 401);
     }
 
-    $socketId = $request->input('socket_id');
-    $channelName = $request->input('channel_name');
-
-    // Generate the signature with your Reverb app secret
-    $appKey = env('REVERB_APP_KEY');
-    $appSecret = env('REVERB_APP_SECRET');
-
-    $stringToSign = $socketId . ':' . $channelName;
-    $signature = hash_hmac('sha256', $stringToSign, $appSecret);
-
-    return response()->json([
-        'auth' => $appKey . ':' . $signature
-    ]);
+    // Let Laravel handle the complex signature generation
+    return Broadcast::auth($request);
 })->middleware('auth:sanctum');
+
+// Route::post('/broadcasting/auth', function (Request $request) {
+//     // Here you must authenticate the user first (e.g., via Sanctum token)
+//     $user = Auth::guard('sanctum')->user();
+//     if (!$user) {
+//         return response()->json(['message' => 'Unauthenticated.'], 401);
+//     }
+
+//     $socketId = $request->input('socket_id');
+//     $channelName = $request->input('channel_name');
+
+//     // Generate the signature with your Reverb app secret
+//     $appKey = env('REVERB_APP_KEY');
+//     $appSecret = env('REVERB_APP_SECRET');
+
+//     $stringToSign = $socketId . ':' . $channelName;
+//     $signature = hash_hmac('sha256', $stringToSign, $appSecret);
+
+//     return response()->json([
+//         'auth' => $appKey . ':' . $signature
+//     ]);
+// })->middleware('auth:sanctum');

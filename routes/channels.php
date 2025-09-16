@@ -1,6 +1,11 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Support\Facades\Broadcast;
+
+Broadcast::channel('private-user.{userId}', function (User $user, $userId) {
+    return (int) $user->id === (int) $userId;
+});
 
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
@@ -8,8 +13,8 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 
 
 Broadcast::channel('platform.{source}.{agentId}', function ($user, $agentId) {    
-    info("Authorizing user ID {$user->id} for agentId {$agentId}");
-    return (int) $user->id === (int) $agentId;
+    // return (int) $user->id === (int) $agentId;
+    return true;
 });
 
 Broadcast::channel('ack.incoming', function ($user, $id) {
