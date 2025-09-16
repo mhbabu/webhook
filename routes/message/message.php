@@ -53,4 +53,4 @@ Route::post('/broadcasting/auth', function (Request $request) {
 //     ]);
 // })->middleware('auth:sanctum');
 
-    Route::post('incoming/messages', [MessageController::class, 'incomingMsg']);
+Route::post('incoming/messages', [MessageController::class, 'incomingMsg']);
