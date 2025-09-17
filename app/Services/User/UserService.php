@@ -2,6 +2,7 @@
 
 namespace App\Services\User;
 
+use App\Enums\UserStatus;
 use App\Http\Resources\User\UserResource;
 use App\Models\User;
 use App\Services\OtpService;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Exception;
+use Illuminate\Support\Facades\Redis;
 
 class UserService
 {
@@ -357,13 +359,42 @@ class UserService
      */
     public function logoutUser(): array
     {
-        // request()->user()->currentAccessToken()->delete();
-        request()->user()->tokens()->delete();
+        $user = Auth::user();
+
+        // Update user status
+        $user->current_status = UserStatus::OFFLINE->value;
+        $user->save();
+
+        // --- Redis Update using helper ---
+        $this->updateUserInRedis($user);
+
+        // Revoke all tokens
+        $user->tokens()->delete();
         return ['message' => 'Logged out successfully', 'status' => true];
     }
 
     public function validRequest($userId): bool
     {
         return User::where('id', $userId)->where('is_request', 1)->exists();
+    }
+
+    private function updateUserInRedis($user): void
+    {
+        $redisKey = "agent:{$user->id}";
+
+        $agentData = [
+            "AGENT_ID"        => $user->id,
+            "AGENT_TYPE"      => $user->agent_type ?? 'NORMAL',
+            "STATUS"          => $user->current_status ?? 'inactive',
+            "MAX_SCOPE"       => $user->max_limit ?? 0,
+            "AVAILABLE_SCOPE" => $user->available_limit ?? ($user->max_limit ?? 0),
+            "CONTACT_TYPE"    => json_encode($user->contact_type ?? []),
+            "SKILL"           => json_encode(
+                $user->platforms()->pluck('name')->map(fn($name) => strtolower($name))->toArray()
+            )
+        ];
+
+        // Save as Redis Hash
+        Redis::hMSet($redisKey, $agentData);
     }
 }
