@@ -42,7 +42,7 @@ class ProcessIncomingMessageJob implements ShouldQueue
         // Check for existing open conversation for this user & platform
         $conversation = Conversation::where('user_id', $user->id)
             ->where('platform_id', $platform->id)
-            ->whereNull('closed_at') // Add closed_at if you want to close conversations
+            ->whereNull('end_at') // Add end_at if you want to close conversations
             ->first();
 
         if (!$conversation) {

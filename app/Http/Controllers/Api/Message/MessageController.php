@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api\Message;
 
 use App\Events\SocketIncomingMessage;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Message\EndConversationRequest;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\User\UserResource;
+use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Platform;
 use App\Models\User;
+use Illuminate\Container\Attributes\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -47,5 +50,23 @@ class MessageController extends Controller
         SocketIncomingMessage::dispatch($payload);
 
         return jsonResponse('Message received successfully.', true, null);
+    }
+
+    public function endConversation(EndConversationRequest $request)
+    {
+        $user = Auth::user();
+        $data = $request->validated();
+        $conversation = Conversation::find($data['conversation_id']);
+
+        if ($user->id !== $conversation->agent_id) {
+            return jsonResponse('You are not authorized to end this conversation.', false, null, 403);
+        }
+
+        $conversation->end_at = now();
+        $conversation->reason = $data['reason'] ?? null;
+        $conversation->ended_by = $user->id;
+        $conversation->save();
+
+        return jsonResponse('Conversation ended successfully.', true, null);
     }
 }

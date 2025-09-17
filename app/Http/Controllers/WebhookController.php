@@ -62,7 +62,7 @@ class WebhookController extends Controller
         // Prepare phone & customer
         $rawPhone   = $contacts['wa_id'] ?? ($messages[0]['from'] ?? null);
         $phone      = substr($rawPhone, -11); // last 11 digits
-        $senderName = $contacts['profile']['name'] ?? 'Unknown';
+        $senderName = $contacts['profile']['name'] ?? 'WhatsApp Customer';
 
         DB::transaction(function () use ($token, $statuses, $messages, $phone, $senderName, $platformId, $platformName) {
 
@@ -78,7 +78,12 @@ class WebhookController extends Controller
             }
 
             // Check for existing conversation (last 6 hours) or create new
-            $conversation      = Conversation::where('customer_id', $customer->id)->where('platform', $platformName)->latest()->first();
+            $conversation = Conversation::where('customer_id', $customer->id)->where('platform', $platformName)
+                ->where(function ($q) {
+                    $q->whereNull('ended_at')->orWhere('created_at', '>=', now()->subHours(6));
+                })
+                ->latest()
+                ->first();
             $isNewConversation = false;
 
             if (!$conversation) {

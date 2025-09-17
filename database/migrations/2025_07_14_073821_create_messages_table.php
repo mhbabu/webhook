@@ -33,7 +33,7 @@ return new class extends Migration
         });
 
         Schema::table('conversations', function (Blueprint $table) {
-            $table->foreignId('last_message_id')->after('closed_at')->nullable()->constrained('messages');
+            $table->foreignId('last_message_id')->after('end_at')->nullable()->constrained('messages');
         });
     }
 

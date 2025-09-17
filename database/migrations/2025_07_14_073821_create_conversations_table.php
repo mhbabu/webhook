@@ -15,7 +15,9 @@ return new class extends Migration
             $table->string('platform')->nullable();
             $table->string('trace_id')->nullable();
             $table->timestamp('started_at')->useCurrent();
-            $table->timestamp('closed_at')->nullable();
+            $table->timestamp('end_at')->nullable();
+            $table->foreignId('ended_by')->nullable()->constrained('users')->onDelete('set null');
+             $table->string('reason')->nullable(); 
             $table->timestamps();
 
             $table->index(['customer_id', 'platform']);

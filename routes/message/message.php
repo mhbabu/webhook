@@ -13,4 +13,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('quick-replies', QuickReplyController::class);
     Route::delete('quick-replies/{id}', [QuickReplyController::class, 'destroy']);
     Route::post('incoming/messages', [MessageController::class, 'incomingMsg']);
+    Route::post('end-conversation', [MessageController::class, 'endConversation']);
 });
