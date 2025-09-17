@@ -17,7 +17,6 @@ class MessageController extends Controller
     public function incomingMsg(Request $request)
     {
         $data = $request->all();
-        Log::info('Incoming request data: ' . json_encode($data));
 
         $agentId        = $data['agentId'] ?? null;
         $source         = $data['source'] ?? null;
@@ -30,21 +29,20 @@ class MessageController extends Controller
 
         $normalizedMobile = substr($mobile, -11);
 
-        $user       = User::find($agentId);
+        $user       = $request->user(); // 👈 the authenticated user
         $platformId = Platform::whereRaw('LOWER(name) = ?', [strtolower($source)])->value('id');
         $customer   = Customer::where('platform_id', $platformId)->where('phone', $normalizedMobile)->first();
 
         $payload = [
-            'user'           => $user ? new UserResource($user) : null,
+            'auth_user_id'   => $user->id,
+            'user'           => $agentId ? new UserResource(User::find($agentId)) : null,
             'customer'       => $customer ? new CustomerResource($customer) : null,
             'platform'       => $source,
-            'agentId'        => $agentId, // 👈 needed for dynamic channel
+            'agentId'        => $agentId,
             'conversationId' => $conversationId,
             'sender'         => $normalizedMobile,
             'message'        => $data['messageData']['message'] ?? null,
         ];
-
-        Log::info('Dispatching SocketIncomingMessage with payload: ' . json_encode($payload));
 
         SocketIncomingMessage::dispatch($payload);
 

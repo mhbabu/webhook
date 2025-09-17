@@ -30,8 +30,8 @@ class SocketIncomingMessage implements ShouldBroadcast
         $platform = strtolower($this->data['platform']);
         $agentId  = $this->data['agentId'];
 
-        // return new PrivateChannel("platform.{$platform}.{$agentId}"); //Channel
-        return new Channel("platform.{$platform}.{$agentId}");
+        return new PrivateChannel("platform.{$platform}.{$agentId}");
+        // return new Channel("platform.{$platform}.{$agentId}");
 
     }
 }
