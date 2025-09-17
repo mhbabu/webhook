@@ -80,13 +80,15 @@ class WebhookController extends Controller
             // Check for existing conversation (last 6 hours) or create new
             $conversation = Conversation::where('customer_id', $customer->id)->where('platform', $platformName)
                 ->where(function ($q) {
-                    $q->whereNull('ended_at')->orWhere('created_at', '>=', now()->subHours(6));
+                    $q->whereNull('end_at')->orWhere('created_at', '>=', now()->subHours(6));
                 })
                 ->latest()
                 ->first();
+
+
             $isNewConversation = false;
 
-            if (!$conversation) {
+            if (!$conversation || $conversation->end_at !== null || $conversation->created_at < now()->subHours(6)) {
                 $conversation              = new Conversation();
                 $conversation->customer_id = $customer->id;
                 $conversation->platform    = $platformName;

@@ -54,7 +54,7 @@ class MessageController extends Controller
 
     public function endConversation(EndConversationRequest $request)
     {
-        $user = Auth::user();
+        $user = User::find(auth()->id());
         $data = $request->validated();
         $conversation = Conversation::find($data['conversation_id']);
 
