@@ -64,7 +64,7 @@ class WebhookController extends Controller
         $phone      = substr($rawPhone, -11); // last 11 digits
         $senderName = $contacts['profile']['name'] ?? 'WhatsApp Customer';
 
-        DB::transaction(function () use ($statuses, $messages, $phone, $senderName, $platformId, $platformName) {
+        DB::transaction(function () use ($token, $statuses, $messages, $phone, $senderName, $platformId, $platformName) {
 
             // Get or create customer
             $customer = Customer::where('phone', $phone)->where('platform_id', $platformId)->first();
