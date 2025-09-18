@@ -13,9 +13,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('quick-replies', QuickReplyController::class);
     Route::delete('quick-replies/{id}', [QuickReplyController::class, 'destroy']);
-    Route::post('incoming/messages', [MessageController::class, 'incomingMsg']);
     Route::post('end-conversation', [MessageController::class, 'endConversation']);
 
     Route::delete('wrap-up-conversations/{id}', [WrapUpConversationController::class, 'destroy']);
     Route::apiResource('wrap-up-conversations', WrapUpConversationController::class);
 });
+
+  Route::post('incoming/messages', [MessageController::class, 'incomingMsg']);
