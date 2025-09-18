@@ -24,7 +24,7 @@ class MessageController extends Controller
         Log::info('Incoming message data: ' . json_encode($data));
 
         $agentId        = $data['agentId'] ?? null;
-        $source         = $data['source'] ?? null;
+        $source         = $data['messageData']['source'] ?? null;
         $mobile         = $data['messageData']['sender'] ?? null;
         $conversationId = $data['messageData']['conversationId'] ?? null;
 
@@ -33,13 +33,11 @@ class MessageController extends Controller
         }
 
         $normalizedMobile = substr($mobile, -11);
-
-        $user       = $request->user(); // 👈 the authenticated user
+        info("Normalized Mobile: $normalizedMobile");
         $platformId = Platform::whereRaw('LOWER(name) = ?', [strtolower($source)])->value('id');
         $customer   = Customer::where('platform_id', $platformId)->where('phone', $normalizedMobile)->first();
 
         $payload = [
-            'auth_user_id'   => $user->id,
             'user'           => $agentId ? new UserResource(User::find($agentId)) : null,
             'customer'       => $customer ? new CustomerResource($customer) : null,
             'platform'       => $source,
@@ -49,6 +47,7 @@ class MessageController extends Controller
             'message'        => $data['messageData']['message'] ?? null,
         ];
 
+        Log::info('Payload: ' . json_encode($payload));
         SocketIncomingMessage::dispatch($payload);
 
         return jsonResponse('Message received successfully.', true, null);
