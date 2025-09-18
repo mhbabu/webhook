@@ -46,10 +46,10 @@ class WebhookController extends Controller
         $contacts  = $entry['contacts'][0] ?? null;
 
         // Authenticate Token
-        $token = $this->getAuthToken();
-        if (!$token) {
-            return response()->json(['status' => 'Dispatcher authentication failed'], 500);
-        }
+        // $token = $this->getAuthToken();
+        // if (!$token) {
+        //     return response()->json(['status' => 'Dispatcher authentication failed'], 500);
+        // }
 
         // Get platform
         $platform   = Platform::whereRaw('LOWER(name) = ?', [strtolower('WhatsApp')])->first();
@@ -64,7 +64,7 @@ class WebhookController extends Controller
         $phone      = substr($rawPhone, -11); // last 11 digits
         $senderName = $contacts['profile']['name'] ?? 'WhatsApp Customer';
 
-        DB::transaction(function () use ($token, $statuses, $messages, $phone, $senderName, $platformId, $platformName) {
+        DB::transaction(function () use ($statuses, $messages, $phone, $senderName, $platformId, $platformName) {
 
             // Get or create customer
             $customer = Customer::where('phone', $phone)->where('platform_id', $platformId)->first();
@@ -113,7 +113,7 @@ class WebhookController extends Controller
                     "attachments"      => [],
                     "subject"          => "WhatsApp Status Update",
                 ];
-                $this->sendToHandler($token, $payload);
+                // $this->sendToHandler($token, $payload);
             }
 
             // Step 2: Process customer messages
@@ -184,7 +184,7 @@ class WebhookController extends Controller
                     "attachments"      => array_column($attachments, 'path'),
                     "subject"          => "Customer Message from $senderName",
                 ];
-                $this->sendToHandler($token, $payload);
+                // $this->sendToHandler($token, $payload);
             }
         });
 
