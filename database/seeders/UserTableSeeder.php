@@ -23,6 +23,7 @@ class UserTableSeeder extends Seeder
             'email_verified_at'   => now(),
             'is_verified'         => 1,
             'is_password_updated' => 1,
+            'max_limit'           => 5
         ]);
         $superAdmin->platforms()->sync([1, 2]); // Attach platforms
 
@@ -37,6 +38,7 @@ class UserTableSeeder extends Seeder
             'email_verified_at'   => now(),
             'is_verified'         => 1,
             'is_password_updated' => 1,
+            'max_limit'           => 5
         ]);
         $admin->platforms()->sync([1, 2, 3]);
 
@@ -51,6 +53,7 @@ class UserTableSeeder extends Seeder
             'email_verified_at'   => now(),
             'is_verified'         => 1,
             'is_password_updated' => 1,
+            'max_limit'           => 5
         ]);
         $supervisor->platforms()->sync([1, 2, 3]);
 
@@ -65,6 +68,7 @@ class UserTableSeeder extends Seeder
             'email_verified_at'   => now(),
             'is_verified'         => 1,
             'is_password_updated' => 1,
+            'max_limit'           => 5
         ]);
         $agent->platforms()->sync([1, 2, 3]);
     }
