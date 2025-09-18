@@ -3,19 +3,16 @@
 namespace App\Http\Requests\Message;
 
 use Illuminate\Foundation\Http\FormRequest;
-
-
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\Rule;
 
-class EndConversationRequest extends FormRequest
+class UpdateWrapUpConversation extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
-     *
-     * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
         return true;
     }
@@ -23,30 +20,15 @@ class EndConversationRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, mixed>
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
-    public function rules()
+    public function rules(): array
     {
         return [
-            'conversation_id' => ['required', 'exists:conversations,id'],
-            'wrap_up_id'      => ['required', 'exists:wrap_up_conversations,id'],
+            'name' => ['required', 'string', 'max:255', Rule::unique('wrap_up_conversations', 'name')->ignore($this->route('wrap_up_conversation'))],
         ];
     }
 
-    /**
-     * Get the custom error messages for the validator.
-     *
-     * @return array<string, string>
-     */
-    public function messages()
-    {
-        return [
-            'conversation_id.required' => 'The conversation ID field is required.',
-            'conversation_id.exists'   => 'The selected conversation ID is invalid.',
-            'wrap_up_id.required'      => 'The wrap up ID field is required.',
-            'wrap_up_id.exists'        => 'The selected wrap up ID is invalid.',
-        ];
-    }
     /**
      * Handle a failed validation attempt.
      *

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Message\MessageController;
 use App\Http\Controllers\Api\Message\QuickReplyController;
 use App\Http\Controllers\Api\Message\UserQuickReplyController;
+use App\Http\Controllers\Api\Message\WrapUpConversationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -14,4 +15,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('quick-replies/{id}', [QuickReplyController::class, 'destroy']);
     Route::post('incoming/messages', [MessageController::class, 'incomingMsg']);
     Route::post('end-conversation', [MessageController::class, 'endConversation']);
+
+    Route::delete('wrap-up-conversations/{id}', [WrapUpConversationController::class, 'destroy']);
+    Route::apiResource('wrap-up-conversations', WrapUpConversationController::class);
 });

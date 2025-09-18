@@ -17,7 +17,7 @@ return new class extends Migration
             $table->timestamp('started_at')->useCurrent();
             $table->timestamp('end_at')->nullable();
             $table->foreignId('ended_by')->nullable()->constrained('users')->onDelete('set null');
-             $table->string('reason')->nullable(); 
+            $table->foreignId('wrap_up_id')->nullable()->constrained('wrap_up_conversations')->onDelete('set null');
             $table->timestamps();
 
             $table->index(['customer_id', 'platform']);

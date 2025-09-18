@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             PlatformTableSeeder::class,
             UserTableSeeder::class,
             QuickReplyTableSeeder::class,
+            WrapUpConversationTableSeeder::class,
         ]);
     }
 }

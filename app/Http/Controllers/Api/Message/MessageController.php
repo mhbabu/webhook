@@ -63,7 +63,7 @@ class MessageController extends Controller
         }
 
         $conversation->end_at = now();
-        $conversation->reason = $data['reason'] ?? null;
+        $conversation->wrap_up_id = $data['wrap_up_id'];
         $conversation->ended_by = $user->id;
         $conversation->save();
 

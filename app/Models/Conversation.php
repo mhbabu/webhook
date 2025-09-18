@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Conversation extends Model
 {
-    protected $fillable = ['user_id', 'platform_id', 'agent_id', 'external_conversation_id', 'ended_by', 'reason', 'end_at'];
+    protected $fillable = ['user_id', 'platform_id', 'agent_id', 'external_conversation_id', 'ended_by', 'wrap_up_conversation_id', 'end_at'];
 
     public function messages()
     {
@@ -26,5 +26,10 @@ class Conversation extends Model
     public function lastMessage()
     {
         return $this->belongsTo(Message::class, 'last_message_id');
+    }
+     
+    public function endWrapup()
+    {
+        return $this->belongsTo(WrapUpConversation::class, 'wrap_id', 'id');
     }
 }
