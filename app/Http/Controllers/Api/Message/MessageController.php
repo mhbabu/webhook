@@ -62,6 +62,10 @@ class MessageController extends Controller
             return jsonResponse('You are not authorized to end this conversation.', false, null, 403);
         }
 
+        if($conversation->end_at) {
+            return jsonResponse('Conversation already ended.', false, null, 400);
+        }
+
         $conversation->end_at = now();
         $conversation->wrap_up_id = $data['wrap_up_id'];
         $conversation->ended_by = $user->id;
