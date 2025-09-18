@@ -21,6 +21,8 @@ class MessageController extends Controller
     {
         $data = $request->all();
 
+        Log::info('Incoming message data: ' . json_encode($data));
+
         $agentId        = $data['agentId'] ?? null;
         $source         = $data['source'] ?? null;
         $mobile         = $data['messageData']['sender'] ?? null;
