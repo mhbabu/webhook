@@ -19,4 +19,4 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('wrap-up-conversations', WrapUpConversationController::class);
 });
 
-  Route::post('incoming/messages', [MessageController::class, 'incomingMsg']);
+  Route::post('incoming/messages', [MessageController::class, 'incomingMsg'])->withoutMiddleware('auth:sanctum');
