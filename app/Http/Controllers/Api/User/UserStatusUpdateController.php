@@ -121,7 +121,7 @@ class UserStatusUpdateController extends Controller
             "AVAILABLE_SCOPE"  => $user->available_limit ?? $user->max_limit,
             "CONTACT_TYPE"     => json_encode($user->contact_type ?? []),
             "SKILL"            => json_encode($user->platforms()->pluck('name')->map(fn($name) => strtolower($name))->toArray()),
-            // "BUSYSINCE"        => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
+            "BUSYSINCE"        => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
         ];
 
         // Save as Redis Hash (one key per agent)
