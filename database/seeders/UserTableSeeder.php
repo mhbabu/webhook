@@ -38,7 +38,7 @@ class UserTableSeeder extends Seeder
             'is_verified'         => 1,
             'is_password_updated' => 1,
         ]);
-        $admin->platforms()->sync([1]);
+        $admin->platforms()->sync([1, 2, 3]);
 
         // Supervisor
         $supervisor = User::create([
@@ -52,7 +52,7 @@ class UserTableSeeder extends Seeder
             'is_verified'         => 1,
             'is_password_updated' => 1,
         ]);
-        $supervisor->platforms()->sync([2]);
+        $supervisor->platforms()->sync([1, 2, 3]);
 
         // Agent
         $agent = User::create([
@@ -66,5 +66,6 @@ class UserTableSeeder extends Seeder
             'is_verified'         => 1,
             'is_password_updated' => 1,
         ]);
+        $agent->platforms()->sync([1, 2, 3]);
     }
 }
