@@ -1,16 +1,23 @@
 <?php
-
 namespace App\Models;
 
+use App\Http\Resources\CustomerResource;
+use App\Http\Resources\User\UserResource;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Conversation extends Model
 {
-    protected $fillable = ['user_id', 'platform_id', 'agent_id', 'external_conversation_id', 'ended_by', 'wrap_up_conversation_id', 'end_at'];
+    use HasFactory;
 
-    public function messages()
+    protected $fillable = [
+        'customer_id', 'agent_id', 'platform', 'trace_id',
+        'started_at', 'end_at', 'ended_by', 'wrap_up_id', 'last_message_id'
+    ];
+
+    public function customer()
     {
-        return $this->hasMany(Message::class);
+        return $this->belongsTo(Customer::class, 'customer_id');
     }
 
     public function agent()
@@ -18,18 +25,13 @@ class Conversation extends Model
         return $this->belongsTo(User::class, 'agent_id');
     }
 
-    public function user()
+    public function messages()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->hasMany(Message::class, 'conversation_id');
     }
 
     public function lastMessage()
     {
         return $this->belongsTo(Message::class, 'last_message_id');
-    }
-     
-    public function endWrapup()
-    {
-        return $this->belongsTo(WrapUpConversation::class, 'wrap_id', 'id');
     }
 }

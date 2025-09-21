@@ -2,14 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Customer extends Model implements HasMedia
 {
-    use InteractsWithMedia;
-    
+    use HasFactory, InteractsWithMedia;
+
     protected $fillable = [
         'name',
         'email',
@@ -36,7 +37,7 @@ class Customer extends Model implements HasMedia
      */
     public function conversations()
     {
-        return $this->hasMany(Conversation::class);
+        return $this->hasMany(Conversation::class, 'customer_id');
     }
 
     public function messagesSent()
@@ -47,5 +48,17 @@ class Customer extends Model implements HasMedia
     public function messagesReceived()
     {
         return $this->morphMany(Message::class, 'receiver');
+    }
+
+    // One customer has one conversation
+    public function conversation()
+    {
+        return $this->hasOne(Conversation::class);
+    }
+
+    // Optional: if you want all messages of this customer
+    public function messages()
+    {
+        return $this->hasManyThrough(Message::class, Conversation::class);
     }
 }

@@ -6,9 +6,12 @@ use App\Events\SocketIncomingMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Message\EndConversationRequest;
 use App\Http\Resources\CustomerResource;
+use App\Http\Resources\Message\ConversationResource;
+use App\Http\Resources\Message\MessageResource;
 use App\Http\Resources\User\UserResource;
 use App\Models\Conversation;
 use App\Models\Customer;
+use App\Models\Message;
 use App\Models\Platform;
 use App\Models\User;
 use Illuminate\Container\Attributes\Auth;
@@ -17,6 +20,67 @@ use Illuminate\Support\Facades\Log;
 
 class MessageController extends Controller
 {
+
+    public function agentConversationList(Request $request)
+    {
+        $agentId = auth()->id(); // authenticated agent
+        $data = $request->all();
+
+        $pagination = !isset($data['pagination']) || $data['pagination'] === 'true';
+        $page       = $data['page'] ?? 1;
+        $perPage    = $data['per_page'] ?? 10;
+        $query      = Conversation::with(['customer', 'agent', 'lastMessage'])->where('agent_id', $agentId)->latest();
+
+        if ($pagination) {
+            $conversations = $query->paginate($perPage, ['*'], 'page', $page);
+            return jsonResponseWithPagination('Conversations retrieved successfully', true, ConversationResource::collection($conversations)->response()->getData(true));
+        }
+
+        $conversations = $query->get();
+
+        return jsonResponse('Conversations retrieved successfully', true, ConversationResource::collection($conversations));
+    }
+
+    public function getConversationWiseMessages(Request $request, $conversationId)
+    {
+        $data         = $request->all();
+        $pagination   = !isset($data['pagination']) || $data['pagination'] === 'true';
+        $page         = $data['page'] ?? 1;
+        $perPage      = $data['per_page'] ?? 10;
+        $conversation = Conversation::with(['customer', 'agent', 'lastMessage'])->findOrFail($conversationId);
+        $query = Message::with(['sender', 'receiver'])->where('conversation_id', $conversation->id)->where(function ($q) {
+            $q->where('sender_id', auth()->id())->orWhere('receiver_id', auth()->id());
+        })->latest();
+
+
+        if ($pagination) {
+            $messages = $query->paginate($perPage, ['*'], 'page', $page);
+
+            // Reverse for UI if needed
+            $reversed = $messages->getCollection()->reverse()->values();
+            $messages->setCollection($reversed);
+
+            return jsonResponseWithPagination(
+                'Conversation messages retrieved successfully',
+                true,
+                [
+                    'conversation' => new ConversationResource($conversation),
+                    'messages'     => MessageResource::collection($messages),
+                    'pagination'   => [
+                        'current_page' => $messages->currentPage(),
+                        'per_page'     => $messages->perPage(),
+                        'total'        => $messages->total(),
+                        'last_page'    => $messages->lastPage(),
+                    ]
+                ]
+            );
+        }
+
+        $allMessages = $query->get()->reverse()->values();
+
+        return jsonResponse('Conversation messages retrieved successfully', true, ['conversation' => new ConversationResource($conversation), 'messages' => MessageResource::collection($allMessages)]);
+    }
+
     public function incomingMsg(Request $request)
     {
         $data = $request->all();
@@ -63,7 +127,7 @@ class MessageController extends Controller
             return jsonResponse('You are not authorized to end this conversation.', false, null, 403);
         }
 
-        if($conversation->end_at) {
+        if ($conversation->end_at) {
             return jsonResponse('Conversation already ended.', false, null, 400);
         }
 
