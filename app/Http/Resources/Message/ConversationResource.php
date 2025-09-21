@@ -19,9 +19,6 @@ class ConversationResource extends JsonResource
             'customer'        => $this->whenLoaded('customer', function () {
                 return new CustomerResource($this->customer);
             }),
-            'agent'           => $this->whenLoaded('agent', function () {
-                return $this->agent ? new UserUserResource($this->agent) : null;
-            }),
             'last_message'    => $this->lastMessage?->content ?? null,
             'last_message_at' => $this->lastMessage?->created_at ? $this->lastMessage->created_at->toDateTimeString() . ' UTC' : null,
             'started_at'      => $this->started_at,
