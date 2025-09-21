@@ -25,7 +25,8 @@ class ChatSeeder extends Seeder
             $agentId = $conversation->agent_id;
             $customerId = $conversation->customer_id;
 
-            Message::factory(rand(3, 10))->create([
+            // Create messages and capture them
+            $messages = Message::factory(rand(3, 10))->create([
                 'conversation_id' => $conversation->id,
                 'sender_id' => function () use ($agentId, $customerId) {
                     return rand(0, 1) ? $agentId : $customerId;
@@ -45,6 +46,11 @@ class ChatSeeder extends Seeder
                         ? 'App\Models\Customer'
                         : 'App\Models\User';
                 },
+            ]);
+
+            // ✅ Update conversation with last message ID
+            $conversation->update([
+                'last_message_id' => $messages->last()->id,
             ]);
         });
     }
