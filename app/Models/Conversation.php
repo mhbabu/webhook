@@ -34,4 +34,9 @@ class Conversation extends Model
     {
         return $this->belongsTo(Message::class, 'last_message_id');
     }
+
+    public function wrapUp()
+    {
+        return $this->belongsTo(WrapUpConversation::class, 'wrap_up_id', 'id');
+    }
 }

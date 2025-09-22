@@ -47,7 +47,7 @@ class MessageController extends Controller
         $pagination   = !isset($data['pagination']) || $data['pagination'] === 'true';
         $page         = $data['page'] ?? 1;
         $perPage      = $data['per_page'] ?? 10;
-        $conversation = Conversation::with(['customer', 'agent', 'lastMessage'])->findOrFail($conversationId);
+        $conversation = Conversation::with(['customer', 'agent', 'lastMessage', 'wrapUp'])->findOrFail($conversationId);
         $query = Message::with(['sender', 'receiver'])->where('conversation_id', $conversation->id)->where(function ($q) {
             $q->where('sender_id', auth()->id())->orWhere('receiver_id', auth()->id());
         })->latest();
