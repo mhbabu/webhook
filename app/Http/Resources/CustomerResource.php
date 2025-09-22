@@ -14,11 +14,12 @@ class CustomerResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return    [
+        return [
             'id'             => $this->id,
             'name'           => $this->name ?? null,
             'email'          => $this->email ?? null,
             'phone'          => $this->phone ?? null,
+            'type'           => 'customer',
             'profile_photo'  => $this->getFirstMediaUrl('profile_photo') ?: null,
         ];
     }

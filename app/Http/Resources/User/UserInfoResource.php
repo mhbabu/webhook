@@ -11,6 +11,8 @@ class UserInfoResource extends JsonResource
         return [
             'id'                  => $this->id,
             'name'                => $this->name,
+            'email'               => $this->email ?? null,
+            'type'                => 'agent',
             'profile_picture'     => $this->getFirstMediaUrl('profile_pictures') ?: null,
         ];
     }
