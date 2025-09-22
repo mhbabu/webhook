@@ -87,35 +87,36 @@ class MessageController extends Controller
 
         Log::info('Incoming message data: ' . json_encode($data));
 
-        $agentId        = $data['agentId'] ?? null;
-        $source         = $data['messageData']['source'] ?? null;
-        $mobile         = $data['messageData']['sender'] ?? null;
+        $agentId        = $data['agentId'];
+        $source         = strtolower($data['messageData']['source'] ?? 'unknown'); // always lowercase, default to 'unknown'
         $conversationId = $data['messageData']['conversationId'] ?? null;
 
-        if (!$agentId || !$source || !$mobile) {
-            return jsonResponse('Missing required fields: agentId, source, or sender phone.', false, null, 400);
+        if (!$conversationId) {
+            return jsonResponse('Missing required field: conversationId.', false, null, 400);
         }
 
-        $normalizedMobile = substr($mobile, -11);
-        info("Normalized Mobile: $normalizedMobile");
-        $platformId = Platform::whereRaw('LOWER(name) = ?', [strtolower($source)])->value('id');
-        $customer   = Customer::where('platform_id', $platformId)->where('phone', $normalizedMobile)->first();
+        $conversation = Conversation::find($conversationId);
+        $conversation->agent_id = $agentId;
+        $conversation->save();
 
+        $message              = Message::find($conversation->last_message_id);
+        $message->receiver_id = $agentId;
+        $message->save();
+
+        // Broadcast payload
         $payload = [
-            'user'           => $agentId ? new UserResource(User::find($agentId)) : null,
-            'customer'       => $customer ? new CustomerResource($customer) : null,
-            'platform'       => $source,
-            'agentId'        => $agentId,
-            'conversationId' => $conversationId,
-            'sender'         => $normalizedMobile,
-            'message'        => $data['messageData']['message'] ?? null,
+            'conversation' => new ConversationResource($conversation),
+            'messages'     => new MessageResource($message),
         ];
 
+        $channelData =  ['platform' => strtolower($source),  'agentId'      => $agentId];
         Log::info('Payload: ' . json_encode($payload));
-        SocketIncomingMessage::dispatch($payload);
+
+        SocketIncomingMessage::dispatch($payload, $channelData);
 
         return jsonResponse('Message received successfully.', true, null);
     }
+
 
     public function endConversation(EndConversationRequest $request)
     {

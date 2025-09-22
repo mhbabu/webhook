@@ -14,23 +14,24 @@ class SocketIncomingMessage implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $data;
+    public $channelData;
 
-    public function __construct($data)
+    public function __construct($data, $channelData)
     {
         $this->data = $data;
+        $this->channelData = $channelData;
     }
 
     public function broadcastWith(): array
     {
-        return $this->data;
+        info('Broadcasting on channel with data: ' . json_encode(['data' => $this->data]));
+        return ['data' => $this->data];
     }
 
     public function broadcastOn()
     {
-        $platform = strtolower($this->data['platform']);
-        $agentId  = $this->data['agentId'];
+        $platform = strtolower($this->channelData['platform']);
+        $agentId  = $this->channelData['agentId'];
         return new PrivateChannel("platform.{$platform}.{$agentId}");
-        // return new Channel("platform.{$platform}.{$agentId}");
-
     }
 }
