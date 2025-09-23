@@ -88,7 +88,7 @@ class MessageController extends Controller
         Log::info('Incoming message data: ' . json_encode($data));
 
         $agentId             = $data['agentId'] ?? null;
-        $agentAvailableScope = $data['agentAvailableScope'] ?? null;
+        $agentAvailableScope = $data['availableScope'] ?? null;
         $source              = strtolower($data['messageData']['source'] ?? 'unknown');
         $conversationId      = $data['messageData']['conversationId'] ?? null;
 
