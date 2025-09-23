@@ -169,6 +169,7 @@ class WebhookController extends Controller
                 }
 
                 // Update conversation last_message_id
+                $conversation = Conversation::find($conversation->id);
                 $conversation->last_message_id = $message->id;
                 $conversation->save();
                 // Forward payload
