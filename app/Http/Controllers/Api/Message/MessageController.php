@@ -16,6 +16,7 @@ use App\Models\Platform;
 use App\Models\User;
 use Illuminate\Container\Attributes\Auth;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class MessageController extends Controller
@@ -84,37 +85,55 @@ class MessageController extends Controller
     public function incomingMsg(Request $request)
     {
         $data = $request->all();
-
         Log::info('Incoming message data: ' . json_encode($data));
 
-        $agentId        = $data['agentId'];
-        $source         = strtolower($data['messageData']['source'] ?? 'unknown'); // always lowercase, default to 'unknown'
-        $conversationId = $data['messageData']['conversationId'] ?? null;
+        $agentId             = $data['agentId'] ?? null;
+        $agentAvailableScope = $data['agentAvailableScope'] ?? null;
+        $source              = strtolower($data['messageData']['source'] ?? 'unknown');
+        $conversationId      = $data['messageData']['conversationId'] ?? null;
 
         if (!$conversationId) {
             return jsonResponse('Missing required field: conversationId.', false, null, 400);
         }
 
-        $conversation = Conversation::find($conversationId);
-        $conversation->agent_id = $agentId;
-        $conversation->save();
+        DB::beginTransaction();
+        try {
+            $conversation = Conversation::findOrFail($conversationId);
+            $conversation->agent_id = $agentId;
+            $conversation->save();
 
-        $message              = Message::find($conversation->last_message_id);
-        $message->receiver_id = $agentId;
-        $message->save();
+            $message = Message::findOrFail($conversation->last_message_id);
+            $message->receiver_id = $agentId;
+            $message->save();
 
-        // Broadcast payload
-        $payload = [
-            'conversation' => new ConversationResource($conversation),
-            'messages'     => new MessageResource($message),
-        ];
+            $user = User::findOrFail($agentId);
+            $user->current_limit = $agentAvailableScope;
+            $user->save();
 
-        $channelData =  ['platform' => strtolower($source),  'agentId'      => $agentId];
-        Log::info('Payload: ' . json_encode($payload));
+            // Broadcast payload
+            $payload = [
+                'conversation' => new ConversationResource($conversation),
+                'messages'     => new MessageResource($message),
+            ];
 
-        SocketIncomingMessage::dispatch($payload, $channelData);
+            $channelData = [
+                'platform' => $source,
+                'agentId'  => $agentId,
+            ];
 
-        return jsonResponse('Message received successfully.', true, null);
+            Log::info('Payload: ' . json_encode($payload));
+
+            SocketIncomingMessage::dispatch($payload, $channelData);
+
+            DB::commit();
+            return jsonResponse('Message received successfully.', true, null);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Incoming message error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return jsonResponse('Something went wrong while processing the message.', false, null, 500);
+        }
     }
 
 

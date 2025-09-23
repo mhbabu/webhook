@@ -22,19 +22,18 @@ class UserStatusUpdateController extends Controller
         $status = UserStatus::tryFrom($request->status)->value;
 
         if ($user->current_status === $status) {
-            $breakRequest = $status === 'BREAK REQUEST' && $user->userStatusInfo->break_request_status === 'PENDING' ? ' and your request is PENDING.' : '';
+            $breakRequest = $status === 'BREAK_REQUEST' && $user->userStatusInfo->break_request_status === 'PENDING' ? ' and your request is PENDING.' : '';
             return jsonResponse("You are already in {$status} status" . $breakRequest, false, null, 400);
         }
 
         if ($status === UserStatus::AVAILABLE->value) {
             $this->saveStatus($user, $status);
         } elseif ($status === UserStatus::BREAK_REQUEST->value) {
+            if ($user->current_limit !== $user->max_limit) {
+                return jsonResponse("Complete all the tasks and then you can request a {$status}.", false, null, 400);
+            }
             $this->saveStatus($user, $status, ['reason' => $request->reason, 'request_at' => now()]);
-        } elseif ($status === UserStatus::OFFLINE->value) {
-            if ($user->current_limit !== 0) return jsonResponse('You cannot switch to this status unless your current limit is zero (0)', false, null, 403);
-
-            $this->saveStatus($user, $status);
-        } elseif ($user->current_limit === 0 && $status === UserStatus::BREAK->value) {
+        } elseif ($user->current_limit === $user->max_limit && $status === UserStatus::BREAK->value) {
             $this->saveStatus($user, $status);
         } else {
             return jsonResponse('Invalid status update request', false, null, 400);
@@ -118,7 +117,7 @@ class UserStatusUpdateController extends Controller
             "AGENT_TYPE"       => $user->agent_type ?? 'NORMAL', // Default to NORMAL if not set
             "STATUS"           => $user->current_status,
             "MAX_SCOPE"        => $user->max_limit,
-            "AVAILABLE_SCOPE"  => $user->available_limit ?? $user->max_limit,
+            "AVAILABLE_SCOPE"  => $user->current_limit,
             "CONTACT_TYPE"     => json_encode($user->contact_type ?? []),
             "SKILL"            => json_encode($user->platforms()->pluck('name')->map(fn($name) => strtolower($name))->toArray()),
             "BUSYSINCE"        => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',

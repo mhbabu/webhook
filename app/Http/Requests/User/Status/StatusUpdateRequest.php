@@ -26,7 +26,7 @@ class StatusUpdateRequest extends FormRequest
 
         return [
             'status' => ['required', Rule::in($allowedStatuses)],
-            'reason' => ['nullable', 'string', 'max:255', 'required_if:status,' . UserStatus::BREAK_REQUEST->value],
+            'reason' => ['nullable', 'string', 'max:255']
         ];
     }
 
@@ -36,9 +36,7 @@ class StatusUpdateRequest extends FormRequest
 
         return [
             'status.required'    => 'The status field is required.',
-            'status.in'          => 'Invalid status. Allowed values are: ' . $allowedStatuses,
-            'reason.required_if' => 'Reason is required when status is BREAK REQUEST.',
-            'reason.max'         => 'The reason must not exceed 255 characters.',
+            'status.in'          => 'Invalid status. Allowed values are: ' . $allowedStatuses
         ];
     }
 
