@@ -12,7 +12,7 @@ services:
     volumes:
       - /var/www/html/webhook:/var/www/html/webhook
     networks:
-      - laravel
+      - automatrix
     depends_on:
       - db
       - kafka
@@ -32,7 +32,7 @@ services:
     depends_on:
       - app
     networks:
-      - laravel
+      - automatrix
 
   db:
     image: mysql:8.0
@@ -46,7 +46,9 @@ services:
     volumes:
       - dbdata:/var/lib/mysql
     networks:
-      - laravel
+      - automatrix
+    ports:
+      - "3306:3306"   
 
   zookeeper:
     image: bitnami/zookeeper:latest
@@ -57,7 +59,7 @@ services:
     ports:
       - "2181:2181"
     networks:
-      - laravel
+      - automatrix
 
   kafka:
     image: bitnami/kafka:latest
@@ -73,7 +75,7 @@ services:
     depends_on:
       - zookeeper
     networks:
-      - laravel
+      - automatrix
 
   redis:
     image: redis:alpine
@@ -85,10 +87,10 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - laravel
+      - automatrix
 
 volumes:
   dbdata:
 
 networks:
-  laravel:
+  automatrix:
