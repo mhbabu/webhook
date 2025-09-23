@@ -90,7 +90,7 @@ class MessageController extends Controller
         $agentId             = $data['agentId'];
         $agentAvailableScope = $data['availableScope'];
         $source              = strtolower($data['source']);
-        $conversationId      = $data['messageData']['conversationId'] ?? null;
+        $conversationId      = $data['messageData']['conversationId'];
 
         if (!$conversationId) {
             return jsonResponse('Missing required field: conversationId.', false, null, 400);
@@ -98,9 +98,11 @@ class MessageController extends Controller
 
         DB::beginTransaction();
         try {
-            $conversation = Conversation::findOrFail($conversationId);
+            $conversation = Conversation::findOrFail((int)$conversationId);
             $conversation->agent_id = $agentId;
             $conversation->save();
+
+             Log::info('Conversation Record ' . json_encode($conversation));
 
             $message = Message::findOrFail($conversation->last_message_id);
             $message->receiver_id = $agentId;
