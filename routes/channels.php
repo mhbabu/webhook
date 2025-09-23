@@ -15,7 +15,3 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 Broadcast::channel('platform.{source}.{agentId}', function ($user, $source, $agentId) {    
     return (int) $user->id === (int) $agentId;
 });
-
-Broadcast::channel('ack.incoming', function ($user, $id) {
-    return true;
-});
