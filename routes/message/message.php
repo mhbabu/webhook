@@ -20,6 +20,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('conversations', [MessageController::class, 'agentConversationList']);
     Route::get('conversation/{conversation}/messages', [MessageController::class, 'getConversationWiseMessages']);
+    Route::post('whatsapp/message/send', [MessageController::class, 'sendWhatsAppMessage']);
     // Route::post('conversations/{conversation}/messages', [MessageController::class, 'store']);
     // Route::post('conversations/{conversation}/messages/mark-read', [MessageController::class, 'markAsRead']);
 });

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Message;
 use App\Events\SocketIncomingMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Message\EndConversationRequest;
+use App\Http\Requests\Message\SendWhatsAppMessageRequest;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\Message\ConversationResource;
 use App\Http\Resources\Message\MessageResource;
@@ -14,6 +15,7 @@ use App\Models\Customer;
 use App\Models\Message;
 use App\Models\Platform;
 use App\Models\User;
+use App\Services\Platforms\WhatsAppService;
 use Illuminate\Container\Attributes\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -154,5 +156,36 @@ class MessageController extends Controller
         $conversation->save();
 
         return jsonResponse('Conversation ended successfully.', true, null);
+    }
+
+    public function sendWhatsAppMessage(SendWhatsAppMessageRequest $request)
+    {
+        $data = $request->validated();
+        $conversation = Conversation::findOrFail($data['conversation_id']);
+
+        // Save message in DB
+        $message = new Message();
+        $message->conversation_id = $conversation->id;
+        $message->sender_id       = auth()->id();
+        $message->sender_type     = User::class;
+        $message->receiver_type   = Customer::class;
+        $message->receiver_id     = $conversation->customer_id;
+        $message->type            = 'text';
+        $message->content         = $data['content']; // optional, can store template context if needed
+        $message->direction       = 'outgoing';
+        $message->save();
+
+        // Send WhatsApp default template
+        $service = new WhatsAppService();
+        $response = $service->sendTemplateMessage(
+            to: Customer::where('id', $conversation->customer_id)->value('phone'),
+            template: 'hello_world', // your default template name
+            language: 'en_US'
+        );
+
+        return jsonResponse('WhatsApp message sent successfully.', true, [
+            'message' => new MessageResource($message),
+            'whatsapp_response' => $response
+        ]);
     }
 }
