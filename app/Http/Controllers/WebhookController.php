@@ -61,7 +61,7 @@ class WebhookController extends Controller
 
         // Prepare phone & customer
         $rawPhone   = $contacts['wa_id'] ?? ($messages[0]['from'] ?? null);
-        $phone      = substr($rawPhone, -11); // last 11 digits
+        $phone      = '+88' . substr($rawPhone, -11); // last 11 digits
         $senderName = $contacts['profile']['name'] ?? 'WhatsApp Customer';
 
         DB::transaction(function () use ($token, $statuses, $messages, $phone, $senderName, $platformId, $platformName) {
@@ -71,7 +71,7 @@ class WebhookController extends Controller
 
             if (!$customer) {
                 $customer              = new Customer();
-                $customer->phone       = '+88' . $phone;
+                $customer->phone       = $phone;
                 $customer->platform_id = $platformId;
                 $customer->name        = $senderName;
                 $customer->save(); // <-- actually insert into DB
