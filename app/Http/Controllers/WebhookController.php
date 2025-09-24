@@ -149,6 +149,8 @@ class WebhookController extends Controller
                     'type'            => $type,
                     'content'         => $caption ?? null,
                     'direction'       => 'incoming',
+                    'receiver_type'   => User::class,
+                    'receiver_id'     => $conversation->agent_id,
                 ]);
 
                 // Insert attachments
