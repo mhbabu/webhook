@@ -112,7 +112,7 @@ class MessageController extends Controller
 
             // Update last message receiver
             $message = Message::find($conversation->last_message_id);
-            $message->receiver_id = $conversation->agent_id;
+            $message->receiver_id = $agentId;
             $message->save();
 
             // Broadcast payload
