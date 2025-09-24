@@ -87,7 +87,10 @@ class MessageController extends Controller
         $data = $request->all();
         Log::info('Incoming message data: ' . json_encode($data));
 
-        $agentId             = (int)$data['agentId'];
+          Log::info('1st type of agentId: ' . gettype($data['agentId']));
+        $agentId = (int)$data['agentId'];
+        Log::info('2nd type of agentId: ' . gettype($agentId));
+
         $agentAvailableScope = $data['availableScope'];
         $source              = strtolower($data['source']);
         $conversationId      = $data['messageData']['conversationId'];
