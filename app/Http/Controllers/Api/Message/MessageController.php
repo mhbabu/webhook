@@ -85,77 +85,59 @@ class MessageController extends Controller
     public function incomingMsg(Request $request)
     {
         $data = $request->all();
-        $agentId             = isset($data['agentId']) ? (int)$data['agentId'] : null;
-        $agentAvailableScope = $data['availableScope'] ?? null;
-        $source              = strtolower($data['source'] ?? '');
-        $conversationId      = $data['messageData']['conversationId'] ?? null;
+        Log::info('Incoming message data: ' . json_encode($data));
 
-        // Validate required fields
-        if (!$conversationId || !$agentId) {
-            return jsonResponse('Missing required fields: conversationId or agentId.', false, null, 400);
+        $agentId             = $data['agentId'];
+        $agentAvailableScope = $data['availableScope'];
+        $source              = strtolower($data['source']);
+        $conversationId      = $data['messageData']['conversationId'];
+
+        if (!$conversationId) {
+            return jsonResponse('Missing required field: conversationId.', false, null, 400);
         }
 
         DB::beginTransaction();
         try {
-            // Fetch conversation
-
-            $conversation = Conversation::find((int)$conversationId);
+            $conversation = Conversation::findOrFail((int)$conversationId);
             $conversation->agent_id = $agentId;
             $conversation->save();
 
-            // Update agent's current limit
-            $user = User::find($agentId);
+             Log::info('Conversation Record ' . json_encode($conversation));
+
+            $message = Message::findOrFail($conversation->last_message_id);
+            $message->receiver_id = $agentId;
+            $message->save();
+
+            $user = User::findOrFail($agentId);
             $user->current_limit = $agentAvailableScope;
             $user->save();
-
-            // Fetch last message safely
-            $message = $conversation->lastMessage;
-
-            // Fallback to latest message if last_message_id is null
-            if (!$message) {
-                $message = $conversation->messages()->latest()->first();
-            }
-
-            // Update receiver_id for last message
-            if ($message) {
-                $message->update([
-                    'receiver_id'   => $agentId,
-                    'receiver_type' => User::class,
-                ]);
-
-                Log::info('[IncomingMsg] Last message receiver updated', [
-                    'messageId'       => $message->id,
-                    'receiverId'      => $agentId,
-                    'receiverType'    => User::class,
-                    'updatedMessage'  => $message->fresh(),
-                ]);
-            }
-
-            DB::commit();
 
             // Broadcast payload
             $payload = [
                 'conversation' => new ConversationResource($conversation),
-                'messages'     => $message ? new MessageResource($conversation->lastMessage) : null,
+                'messages'     => new MessageResource($message),
             ];
+
             $channelData = [
                 'platform' => $source,
                 'agentId'  => $agentId,
             ];
 
-            SocketIncomingMessage::dispatch($payload, $channelData);
-            Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
+            Log::info('Payload: ' . json_encode($payload));
 
+            SocketIncomingMessage::dispatch($payload, $channelData);
+
+            DB::commit();
             return jsonResponse('Message received successfully.', true, null);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('[IncomingMsg] Exception occurred', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+            Log::error('Incoming message error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
             ]);
             return jsonResponse('Something went wrong while processing the message.', false, null, 500);
         }
     }
+
 
     public function endConversation(EndConversationRequest $request)
     {
