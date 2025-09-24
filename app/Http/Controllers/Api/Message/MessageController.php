@@ -105,7 +105,7 @@ class MessageController extends Controller
              Log::info('Conversation Record ' . json_encode($conversation));
 
             $message = Message::find($conversation->last_message_id);
-            $message->receiver_id = $agentId;
+            $message->receiver_id = $conversation->agent_id;
             $message->save();
 
             $user = User::find($agentId);
