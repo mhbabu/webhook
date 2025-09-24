@@ -71,7 +71,7 @@ class WebhookController extends Controller
 
             if (!$customer) {
                 $customer              = new Customer();
-                $customer->phone       = $phone;
+                $customer->phone       = '+88' . $phone;
                 $customer->platform_id = $platformId;
                 $customer->name        = $senderName;
                 $customer->save(); // <-- actually insert into DB
