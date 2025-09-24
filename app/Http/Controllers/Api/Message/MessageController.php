@@ -102,6 +102,7 @@ class MessageController extends Controller
             // Fetch conversation
 
             $conversation = Conversation::find((int)$conversationId);
+            Log::info('[IncomingMsg] Fetched conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
             $conversation->agent_id = $agentId;
             $conversation->save();
 
@@ -109,6 +110,14 @@ class MessageController extends Controller
             $user = User::find($agentId);
             $user->current_limit = $agentAvailableScope;
             $user->save();
+
+
+            $message = Message::find($conversation->last_message_id);
+            $message->receiver_id  = $agentId;
+            $message->receiver_type = User::class;
+            $message->save();
+
+            Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
 
             DB::commit();
 
