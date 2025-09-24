@@ -87,7 +87,7 @@ class MessageController extends Controller
         $data = $request->all();
         Log::info('Incoming message data: ' . json_encode($data));
 
-        $agentId             = $data['agentId'];
+        $agentId             = (int)$data['agentId'];
         $agentAvailableScope = $data['availableScope'];
         $source              = strtolower($data['source']);
         $conversationId      = $data['messageData']['conversationId'];
@@ -98,17 +98,17 @@ class MessageController extends Controller
 
         DB::beginTransaction();
         try {
-            $conversation = Conversation::findOrFail((int)$conversationId);
+            $conversation = Conversation::find((int)$conversationId);
             $conversation->agent_id = $agentId;
             $conversation->save();
 
              Log::info('Conversation Record ' . json_encode($conversation));
 
-            $message = Message::findOrFail($conversation->last_message_id);
+            $message = Message::find($conversation->last_message_id);
             $message->receiver_id = $agentId;
             $message->save();
 
-            $user = User::findOrFail($agentId);
+            $user = User::find($agentId);
             $user->current_limit = $agentAvailableScope;
             $user->save();
 
@@ -123,17 +123,13 @@ class MessageController extends Controller
                 'agentId'  => $agentId,
             ];
 
-            Log::info('Payload: ' . json_encode($payload));
-
             SocketIncomingMessage::dispatch($payload, $channelData);
 
             DB::commit();
             return jsonResponse('Message received successfully.', true, null);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Incoming message error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('Incoming message error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return jsonResponse('Something went wrong while processing the message.', false, null, 500);
         }
     }
