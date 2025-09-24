@@ -100,8 +100,8 @@ class MessageController extends Controller
         try {
             // Update conversation with agent assignment
             $conversation = Conversation::find((int)$conversationId);
-            info('conversationId ' . $conversationId);
-            info('ConversationData ' . json_encode($conversation));
+            // info('conversationId ' . $conversationId);
+            // info('ConversationData ' . json_encode($conversation));
             $conversation->agent_id = $agentId;
             $conversation->save();
 
@@ -110,13 +110,13 @@ class MessageController extends Controller
             $user->current_limit = $agentAvailableScope;
             $user->save();
 
-            DB::commit();
-
             // Update last message receiver
             $message = Message::find($conversation->last_message_id);
             $message->receiver_id = $agentId;
             $message->save();
 
+            DB::commit();
+            
             // Broadcast payload
             $payload = [
                 'conversation' => new ConversationResource($conversation),
