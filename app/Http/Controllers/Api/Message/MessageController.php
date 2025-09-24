@@ -85,59 +85,54 @@ class MessageController extends Controller
     public function incomingMsg(Request $request)
     {
         $data = $request->all();
-        Log::info('Incoming message data: ' . json_encode($data));
+        $agentId             = isset($data['agentId']) ? (int)$data['agentId'] : null;
+        $agentAvailableScope = $data['availableScope'] ?? null;
+        $source              = strtolower($data['source'] ?? '');
+        $conversationId      = $data['messageData']['conversationId'] ?? null;
 
-        $agentId             = $data['agentId'];
-        $agentAvailableScope = $data['availableScope'];
-        $source              = strtolower($data['source']);
-        $conversationId      = $data['messageData']['conversationId'];
-
-        if (!$conversationId) {
-            return jsonResponse('Missing required field: conversationId.', false, null, 400);
+        // Validate required fields
+        if (!$conversationId || !$agentId) {
+            return jsonResponse('Missing required fields: conversationId or agentId.', false, null, 400);
         }
 
         DB::beginTransaction();
         try {
-            $conversation = Conversation::findOrFail((int)$conversationId);
+            // Fetch conversation
+
+            $conversation = Conversation::find((int)$conversationId);
             $conversation->agent_id = $agentId;
             $conversation->save();
 
-             Log::info('Conversation Record ' . json_encode($conversation));
-
-            $message = Message::findOrFail($conversation->last_message_id);
-            $message->receiver_id = $agentId;
-            $message->save();
-
-            $user = User::findOrFail($agentId);
+            // Update agent's current limit
+            $user = User::find($agentId);
             $user->current_limit = $agentAvailableScope;
             $user->save();
+
+            DB::commit();
 
             // Broadcast payload
             $payload = [
                 'conversation' => new ConversationResource($conversation),
-                'messages'     => new MessageResource($message),
+                'messages'     => $conversation->lastMessage ? new MessageResource($conversation->lastMessage) : null,
             ];
-
             $channelData = [
                 'platform' => $source,
                 'agentId'  => $agentId,
             ];
 
-            Log::info('Payload: ' . json_encode($payload));
-
             SocketIncomingMessage::dispatch($payload, $channelData);
+            Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
 
-            DB::commit();
             return jsonResponse('Message received successfully.', true, null);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Incoming message error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            Log::error('[IncomingMsg] Exception occurred', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
             return jsonResponse('Something went wrong while processing the message.', false, null, 500);
         }
     }
-
 
     public function endConversation(EndConversationRequest $request)
     {
