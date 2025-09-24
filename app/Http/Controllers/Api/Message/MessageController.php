@@ -85,8 +85,6 @@ class MessageController extends Controller
     public function incomingMsg(Request $request)
     {
         $data = $request->all();
-        Log::info('[IncomingMsg] Request data', ['data' => $data]);
-
         $agentId             = isset($data['agentId']) ? (int)$data['agentId'] : null;
         $agentAvailableScope = $data['availableScope'] ?? null;
         $source              = strtolower($data['source'] ?? '');
@@ -94,7 +92,6 @@ class MessageController extends Controller
 
         // Validate required fields
         if (!$conversationId || !$agentId) {
-            Log::warning('[IncomingMsg] Missing required fields', ['conversationId' => $conversationId, 'agentId' => $agentId]);
             return jsonResponse('Missing required fields: conversationId or agentId.', false, null, 400);
         }
 
@@ -102,8 +99,6 @@ class MessageController extends Controller
         try {
             // Fetch conversation
             $conversation = Conversation::find((int)$conversationId);
-            Log::info('[IncomingMsg] Conversation fetched', ['conversation' => $conversation]);
-
             if (!$conversation) {
                 Log::warning('[IncomingMsg] Conversation not found', ['conversationId' => $conversationId]);
                 return jsonResponse('Conversation not found.', false, null, 404);
@@ -112,35 +107,18 @@ class MessageController extends Controller
             // Assign agent to conversation
             $conversation->agent_id = $agentId;
             $conversation->save();
-            Log::info('[IncomingMsg] Agent assigned to conversation', [
-                'conversationId' => $conversationId,
-                'agentId' => $agentId,
-                'conversation' => $conversation,
-            ]);
 
             // Update agent's current limit
             $user = User::find($agentId);
-            if ($user) {
-                $user->current_limit = $agentAvailableScope;
-                $user->save();
-
-                Log::info('[IncomingMsg] Agent current limit updated', [
-                    'agentId' => $agentId,
-                    'current_limit' => $agentAvailableScope,
-                    'user' => $user,
-                ]);
-            } else {
-                Log::warning('[IncomingMsg] Agent user not found', ['agentId' => $agentId]);
-            }
+            $user->current_limit = $agentAvailableScope;
+            $user->save();
 
             // Fetch last message safely
             $message = $conversation->lastMessage;
-            Log::info('[IncomingMsg] Last message before update', ['message' => $message]);
 
             // Fallback to latest message if last_message_id is null
             if (!$message) {
                 $message = $conversation->messages()->latest()->first();
-                Log::info('[IncomingMsg] Last message fallback used', ['message' => $message]);
             }
 
             // Update receiver_id for last message
@@ -154,8 +132,6 @@ class MessageController extends Controller
                     'receiverId' => $agentId,
                     'message_receiver_id' => $message->receiver_id
                 ]);
-            } else {
-                Log::warning('[IncomingMsg] No message found to update for conversation', ['conversationId' => $conversationId]);
             }
 
             DB::commit();
