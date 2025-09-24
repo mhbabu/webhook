@@ -147,6 +147,7 @@ class MessageController extends Controller
             if ($message) {
 
                 $message->receiver_id = $agentId;
+                $message->receiver_type = User::class;
                 $message->save();
                 Log::info('[IncomingMsg] Last message receiver updated', [
                     'messageId' => $message->id,
