@@ -145,11 +145,13 @@ class MessageController extends Controller
 
             // Update receiver_id for last message
             if ($message) {
+
                 $message->receiver_id = $agentId;
                 $message->save();
                 Log::info('[IncomingMsg] Last message receiver updated', [
                     'messageId' => $message->id,
                     'receiverId' => $agentId,
+                    'message_receiver_id' => $message->receiver_id
                 ]);
             } else {
                 Log::warning('[IncomingMsg] No message found to update for conversation', ['conversationId' => $conversationId]);
