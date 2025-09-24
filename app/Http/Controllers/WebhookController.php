@@ -106,7 +106,7 @@ class WebhookController extends Controller
                     "traceId"          => "WA-" . now()->format('YmdHis') . '-' . uniqid(),
                     "conversationId"   => $conversation->id,
                     "conversationType" => $isNewConversation ? "new" : "old",
-                    "sender"           => null,
+                    "sender"           => $phone,
                     "timestamp"        => $status['timestamp'] ?? time(),
                     "message"          => $status['status'] ?? '',
                     "attachmentId"     => [],
