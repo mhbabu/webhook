@@ -146,7 +146,6 @@ class WebhookController extends Controller
                     'conversation_id' => $conversation->id,
                     'sender_id'       => $customer->id,
                     'sender_type'     => Customer::class,
-                    'receiver_type'   => User::class,
                     'type'            => $type,
                     'content'         => $caption ?? null,
                     'direction'       => 'incoming',
