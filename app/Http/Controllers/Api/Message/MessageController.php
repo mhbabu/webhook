@@ -100,6 +100,7 @@ class MessageController extends Controller
         try {
             // Get conversation
             $conversation = Conversation::find((int)$conversationId);
+            Log::info('First Conversation found: ', json_encode($conversation));
             if (!$conversation) {
                 return jsonResponse('Conversation not found.', false, null, 404);
             }
@@ -107,9 +108,11 @@ class MessageController extends Controller
             // Assign agent
             $conversation->agent_id = $agentId;
             $conversation->save();
+            Log::info('2nd Conversation found: ', json_encode($conversation));
 
             // Update agent's current limit
             $user = User::find($agentId);
+            Log::info('Agent user found: ', json_encode($user));
             if ($user) {
                 $user->current_limit = $agentAvailableScope;
                 $user->save();
@@ -117,6 +120,7 @@ class MessageController extends Controller
 
             // Safely get last message
             $message = $conversation->lastMessage;
+            Log::info('Last message before update: ', json_encode($message));
 
             // Fallback to latest message if last_message_id is null
             if (!$message) {
