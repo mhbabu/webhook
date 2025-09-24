@@ -98,13 +98,8 @@ class MessageController extends Controller
         DB::beginTransaction();
         try {
             // Fetch conversation
+            
             $conversation = Conversation::find((int)$conversationId);
-            if (!$conversation) {
-                Log::warning('[IncomingMsg] Conversation not found', ['conversationId' => $conversationId]);
-                return jsonResponse('Conversation not found.', false, null, 404);
-            }
-
-            // Assign agent to conversation
             $conversation->agent_id = $agentId;
             $conversation->save();
 
@@ -124,7 +119,7 @@ class MessageController extends Controller
             // Update receiver_id for last message
             if ($message) {
 
-                $message->receiver_id = $agentId;
+                $message->receiver_id = $conversation->agent_id ?? $agentId;
                 $message->receiver_type = User::class;
                 $message->save();
                 Log::info('[IncomingMsg] Last message receiver updated', [
