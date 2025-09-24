@@ -87,44 +87,54 @@ class MessageController extends Controller
         $data = $request->all();
         Log::info('Incoming message data: ' . json_encode($data));
 
-        Log::info('1st type of agentId: ' . gettype($data['agentId']));
-        $agentId = (int)$data['agentId'];
-        Log::info('2nd type of agentId: ' . gettype($agentId));
+        $agentId = isset($data['agentId']) ? (int)$data['agentId'] : null;
+        $agentAvailableScope = $data['availableScope'] ?? null;
+        $source = strtolower($data['source'] ?? '');
+        $conversationId = $data['messageData']['conversationId'] ?? null;
 
-        $agentAvailableScope = $data['availableScope'];
-        $source              = strtolower($data['source']);
-        $conversationId      = $data['messageData']['conversationId'];
-
-        if (!$conversationId) {
-            return jsonResponse('Missing required field: conversationId.', false, null, 400);
+        if (!$conversationId || !$agentId) {
+            return jsonResponse('Missing required fields: conversationId or agentId.', false, null, 400);
         }
 
         DB::beginTransaction();
         try {
-            // Update conversation with agent assignment
-            $conversationId = (int)$conversationId;
-            $conversation   = Conversation::find($conversationId);
-            info('conversationId ' . $conversationId);
-            info('ConversationData ' . json_encode($conversation));
+            // Get conversation
+            $conversation = Conversation::find((int)$conversationId);
+            if (!$conversation) {
+                return jsonResponse('Conversation not found.', false, null, 404);
+            }
+
+            // Assign agent
             $conversation->agent_id = $agentId;
             $conversation->save();
 
             // Update agent's current limit
             $user = User::find($agentId);
-            $user->current_limit = $agentAvailableScope;
-            $user->save();
+            if ($user) {
+                $user->current_limit = $agentAvailableScope;
+                $user->save();
+            }
 
-            // Update last message receiver
-            $message = Message::find($conversation->last_message_id);
-            $message->receiver_id = $agentId;
-            $message->save();
+            // Safely get last message
+            $message = $conversation->lastMessage;
+
+            // Fallback to latest message if last_message_id is null
+            if (!$message) {
+                $message = $conversation->messages()->latest()->first();
+            }
+
+            // Update receiver and save
+            if ($message) {
+                $message->receiver_id = $agentId;
+                $message->save();
+            }
 
             DB::commit();
 
             // Broadcast payload
             $payload = [
                 'conversation' => new ConversationResource($conversation),
-                'messages'     => new MessageResource($message),
+                'messages'     => $message ? new MessageResource($message) : null,
             ];
 
             $channelData = [
@@ -133,6 +143,7 @@ class MessageController extends Controller
             ];
 
             SocketIncomingMessage::dispatch($payload, $channelData);
+
             return jsonResponse('Message received successfully.', true, null);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -140,6 +151,7 @@ class MessageController extends Controller
             return jsonResponse('Something went wrong while processing the message.', false, null, 500);
         }
     }
+
 
 
     public function endConversation(EndConversationRequest $request)
