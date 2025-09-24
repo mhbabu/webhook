@@ -172,6 +172,8 @@ class WebhookController extends Controller
                 $conversation = Conversation::find($conversation->id);
                 $conversation->last_message_id = $message->id;
                 $conversation->save();
+
+                info($conversation);
                 // Forward payload
                 $payload = [
                     "source"           => "whatsapp",

@@ -112,6 +112,8 @@ class MessageController extends Controller
             $user->current_limit = $agentAvailableScope;
             $user->save();
 
+            DB::commit();
+            
             // Broadcast payload
             $payload = [
                 'conversation' => new ConversationResource($conversation),
@@ -124,8 +126,6 @@ class MessageController extends Controller
             ];
 
             SocketIncomingMessage::dispatch($payload, $channelData);
-
-            DB::commit();
             return jsonResponse('Message received successfully.', true, null);
         } catch (\Exception $e) {
             DB::rollBack();
