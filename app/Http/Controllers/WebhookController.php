@@ -202,7 +202,7 @@ class WebhookController extends Controller
         $authResponse = Http::post(config('dispatcher.url') . config('dispatcher.endpoints.authenticate'), ['api_key' => config('dispatcher.api_key')]);
 
         if (!$authResponse->ok()) {
-            Log::error('[WHATSAPP ERROR] Authentication failed', ['response' => $authResponse->body()]);
+            // Log::error('[WHATSAPP ERROR] Authentication failed', ['response' => $authResponse->body()]);
             return null;
         }
 
@@ -218,9 +218,9 @@ class WebhookController extends Controller
             $response = Http::withToken($token)->acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
 
             if ($response->ok()) {
-                Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
+                // Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
             } else {
-                Log::error("[CUSTOMER MESSAGE FORWARDED] FAILED", ['payload' => $payload, 'response' => $response->body()]);
+                // Log::error("[CUSTOMER MESSAGE FORWARDED] FAILED", ['payload' => $payload, 'response' => $response->body()]);
             }
         } catch (\Exception $e) {
             Log::error("[CUSTOMER MESSAGE FORWARDED] ERROR", ['exception' => $e->getMessage()]);

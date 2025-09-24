@@ -8,6 +8,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class SocketIncomingMessage implements ShouldBroadcast
 {
@@ -25,6 +26,7 @@ class SocketIncomingMessage implements ShouldBroadcast
     public function broadcastWith(): array
     {
         // info('Broadcasting on channel with data: ' . json_encode(['data' => $this->data]));
+        Log::info('[IncomingMsg] BroadCasting', ['payload' => $this->data['message']]);
         return ['data' => $this->data];
     }
 

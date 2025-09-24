@@ -102,7 +102,7 @@ class MessageController extends Controller
             // Fetch conversation
 
             $conversation = Conversation::find((int)$conversationId);
-            Log::info('[IncomingMsg] Fetched conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
+            // Log::info('[IncomingMsg] Fetched conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
             $conversation->agent_id = $agentId;
             $conversation->save();
 
@@ -117,14 +117,14 @@ class MessageController extends Controller
             $message->receiver_type = User::class;
             $message->save();
 
-            Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
+            // Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
 
             // DB::commit();
 
             // Broadcast payload
             $payload = [
                 'conversation' => new ConversationResource($conversation),
-                'messages'     => $conversation->lastMessage ? new MessageResource($conversation->lastMessage) : null,
+                'message'     => $conversation->lastMessage ? new MessageResource($conversation->lastMessage) : null,
             ];
             $channelData = [
                 'platform' => $source,
@@ -132,7 +132,7 @@ class MessageController extends Controller
             ];
 
             SocketIncomingMessage::dispatch($payload, $channelData);
-            Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
+            // Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
 
             return jsonResponse('Message received successfully.', true, null);
         // } catch (\Exception $e) {
