@@ -24,7 +24,7 @@ class SocketIncomingMessage implements ShouldBroadcast
 
     public function broadcastWith(): array
     {
-        info('Broadcasting on channel with data: ' . json_encode(['data' => $this->data]));
+        // info('Broadcasting on channel with data: ' . json_encode(['data' => $this->data]));
         return ['data' => $this->data];
     }
 
