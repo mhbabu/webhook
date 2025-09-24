@@ -87,7 +87,7 @@ class MessageController extends Controller
         $data = $request->all();
         Log::info('Incoming message data: ' . json_encode($data));
 
-          Log::info('1st type of agentId: ' . gettype($data['agentId']));
+        Log::info('1st type of agentId: ' . gettype($data['agentId']));
         $agentId = (int)$data['agentId'];
         Log::info('2nd type of agentId: ' . gettype($agentId));
 
@@ -102,7 +102,8 @@ class MessageController extends Controller
         DB::beginTransaction();
         try {
             // Update conversation with agent assignment
-            $conversation = Conversation::find((int)$conversationId);
+            $conversationId = (int)$conversationId;
+            $conversation   = Conversation::find($conversationId);
             info('conversationId ' . $conversationId);
             info('ConversationData ' . json_encode($conversation));
             $conversation->agent_id = $agentId;
