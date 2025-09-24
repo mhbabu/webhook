@@ -98,7 +98,7 @@ class MessageController extends Controller
         DB::beginTransaction();
         try {
             // Fetch conversation
-            
+
             $conversation = Conversation::find((int)$conversationId);
             $conversation->agent_id = $agentId;
             $conversation->save();
@@ -118,14 +118,16 @@ class MessageController extends Controller
 
             // Update receiver_id for last message
             if ($message) {
+                $message->update([
+                    'receiver_id'   => $agentId,
+                    'receiver_type' => User::class,
+                ]);
 
-                $message->receiver_id = $conversation->agent_id ?? $agentId;
-                $message->receiver_type = User::class;
-                $message->save();
                 Log::info('[IncomingMsg] Last message receiver updated', [
-                    'messageId' => $message->id,
-                    'receiverId' => $agentId,
-                    'message_receiver_id' => $message->receiver_id
+                    'messageId'       => $message->id,
+                    'receiverId'      => $agentId,
+                    'receiverType'    => User::class,
+                    'updatedMessage'  => $message->fresh(),
                 ]);
             }
 
@@ -134,7 +136,7 @@ class MessageController extends Controller
             // Broadcast payload
             $payload = [
                 'conversation' => new ConversationResource($conversation),
-                'messages'     => $message ? new MessageResource($message) : null,
+                'messages'     => $message ? new MessageResource($conversation->lastMessage) : null,
             ];
             $channelData = [
                 'platform' => $source,
