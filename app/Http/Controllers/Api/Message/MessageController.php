@@ -47,7 +47,7 @@ class MessageController extends Controller
     public function getConversationWiseMessages(Request $request, $conversationId)
     {
         $data         = $request->all();
-        $isEnded      = $data['is_ended'] === 'true' ? true : false;
+        $isEnded      = isset($data['is_ended']) &&  $data['is_ended'] === 'true' ? true : false;
         $pagination   = !isset($data['pagination']) || $data['pagination'] === 'true';
         $page         = $data['page'] ?? 1;
         $perPage      = $data['per_page'] ?? 10;
@@ -56,7 +56,7 @@ class MessageController extends Controller
             $q->where('sender_id', auth()->id())->orWhere('receiver_id', auth()->id());
         });
 
-        if (isset($data['is_ended']))
+        if ($isEnded)
             $query->whereNotNull('end_at'); // end conversation
 
         $query->latest();
