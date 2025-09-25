@@ -56,8 +56,11 @@ class MessageController extends Controller
             $q->where('sender_id', auth()->id())->orWhere('receiver_id', auth()->id());
         });
 
-        if ($isEnded)
+        if ($isEnded) {
             $query->whereNotNull('end_at'); // end conversation
+        }else{
+            $query->whereNull('end_at');
+        }
 
         $query->latest();
 
