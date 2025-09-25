@@ -39,6 +39,7 @@ class WebhookController extends Controller
 
     public function whatsapp(Request $request)
     {
+        info(json_encode($request->all()));
         $data      = $request->all();
         $entry     = $data['entry'][0]['changes'][0]['value'] ?? [];
         $statuses  = $entry['statuses'] ?? [];
@@ -174,7 +175,6 @@ class WebhookController extends Controller
                 $conversation->last_message_id = $message->id;
                 $conversation->save();
 
-                info($conversation);
                 // Forward payload
                 $payload = [
                     "source"           => "whatsapp",
