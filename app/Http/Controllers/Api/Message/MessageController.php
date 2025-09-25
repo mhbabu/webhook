@@ -47,14 +47,19 @@ class MessageController extends Controller
     public function getConversationWiseMessages(Request $request, $conversationId)
     {
         $data         = $request->all();
+        $isEnded      = $data['is_ended'] === 'true' ? true : false;
         $pagination   = !isset($data['pagination']) || $data['pagination'] === 'true';
         $page         = $data['page'] ?? 1;
         $perPage      = $data['per_page'] ?? 10;
         $conversation = Conversation::with(['customer', 'agent', 'lastMessage', 'wrapUp'])->findOrFail($conversationId);
         $query = Message::with(['sender', 'receiver'])->where('conversation_id', $conversation->id)->where(function ($q) {
             $q->where('sender_id', auth()->id())->orWhere('receiver_id', auth()->id());
-        })->latest();
+        });
 
+        if (isset($data['is_ended']))
+            $query->whereNotNull('end_at'); // end conversation
+
+        $query->latest();
 
         if ($pagination) {
             $messages = $query->paginate($perPage, ['*'], 'page', $page);
@@ -99,42 +104,42 @@ class MessageController extends Controller
 
         // DB::beginTransaction();
         // try {
-            // Fetch conversation
+        // Fetch conversation
 
-            $conversation = Conversation::find((int)$conversationId);
-            // Log::info('[IncomingMsg] Fetched conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
-            $conversation->agent_id = $agentId;
-            $conversation->save();
+        $conversation = Conversation::find((int)$conversationId);
+        // Log::info('[IncomingMsg] Fetched conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
+        $conversation->agent_id = $agentId;
+        $conversation->save();
 
-            // Update agent's current limit
-            $user = User::find($agentId);
-            $user->current_limit = $agentAvailableScope;
-            $user->save();
+        // Update agent's current limit
+        $user = User::find($agentId);
+        $user->current_limit = $agentAvailableScope;
+        $user->save();
 
 
-            $message = Message::find($conversation->last_message_id);
-            $message->receiver_id  = $agentId;
-            $message->receiver_type = User::class;
-            $message->save();
+        $message = Message::find($conversation->last_message_id);
+        $message->receiver_id  = $agentId;
+        $message->receiver_type = User::class;
+        $message->save();
 
-            // Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
+        // Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
 
-            // DB::commit();
+        // DB::commit();
 
-            // Broadcast payload
-            $payload = [
-                'conversation' => new ConversationResource($conversation),
-                'message'     => $conversation->lastMessage ? new MessageResource($conversation->lastMessage) : null,
-            ];
-            $channelData = [
-                'platform' => $source,
-                'agentId'  => $agentId,
-            ];
+        // Broadcast payload
+        $payload = [
+            'conversation' => new ConversationResource($conversation),
+            'message'     => $conversation->lastMessage ? new MessageResource($conversation->lastMessage) : null,
+        ];
+        $channelData = [
+            'platform' => $source,
+            'agentId'  => $agentId,
+        ];
 
-            SocketIncomingMessage::dispatch($payload, $channelData);
-            // Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
+        SocketIncomingMessage::dispatch($payload, $channelData);
+        // Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
 
-            return jsonResponse('Message received successfully.', true, null);
+        return jsonResponse('Message received successfully.', true, null);
         // } catch (\Exception $e) {
         //     DB::rollBack();
         //     Log::error('[IncomingMsg] Exception occurred', [

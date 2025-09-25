@@ -39,7 +39,6 @@ class WebhookController extends Controller
 
     public function whatsapp(Request $request)
     {
-        info(json_encode($request->all()));
         $data      = $request->all();
         $entry     = $data['entry'][0]['changes'][0]['value'] ?? [];
         $statuses  = $entry['statuses'] ?? [];
