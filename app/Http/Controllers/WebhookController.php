@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Events\SocketIncomingMessage;
-use App\Jobs\ProcessWhatsAppMessageBatch;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
@@ -13,13 +12,10 @@ use App\Models\User;
 use App\Services\Platforms\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use ProcessIncomingMessageJob;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class WebhookController extends Controller
 {
@@ -134,7 +130,7 @@ class WebhookController extends Controller
 
                 if ($type === 'text') {
                     $caption = $msg['text']['body'] ?? '';
-                } elseif (in_array($type, ['image', 'video', 'document'])) {
+                } elseif (in_array($type, ['image', 'video', 'document', 'audio'])) {
                     $mediaId = $msg[$type]['id'] ?? null;
                     if ($mediaId) {
                         $mediaIds[] = $mediaId;
@@ -145,6 +141,8 @@ class WebhookController extends Controller
                                 'attachment_id' => $mediaId,
                                 'path'          => $mediaData['full_path'],  // Save storage-relative path
                                 'is_download'   => 1,
+                                'mime'          => $att['mime'] ?? null,
+                                'size'          => $att['size'] ?? null,
                                 'type'          => $mediaData['type'],       // Save media type
                             ];
                         } else {
@@ -178,6 +176,8 @@ class WebhookController extends Controller
                             'attachment_id' => $att['attachment_id'],
                             'path'          => $att['path'],
                             'type'          => $att['type'],
+                            'mime'          => $att['mime'] ?? null,
+                            'size'          => $att['size'] ?? null,
                             'is_available'  => $att['is_download'],
                             'created_at'    => now(),
                             'updated_at'    => now(),

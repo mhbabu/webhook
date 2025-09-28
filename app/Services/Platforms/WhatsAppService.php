@@ -13,7 +13,7 @@ class WhatsAppService
 
     public function __construct()
     {
-        $this->url = config('services.whatsapp.url');
+        $this->url   = config('services.whatsapp.url');
         $this->token = config('services.whatsapp.token');
     }
 
@@ -68,13 +68,30 @@ class WhatsAppService
     private function getExtensionFromMime(string $mime): string
     {
         $map = [
+            // Image
             'image/jpeg'               => 'jpg',
             'image/png'                => 'png',
             'image/webp'               => 'webp',
+
+            // Video
             'video/mp4'                => 'mp4',
+
+            // Document
             'application/pdf'          => 'pdf',
             'application/msword'       => 'doc',
             'application/vnd.ms-excel' => 'xls',
+
+            // ✅ Add audio MIME types below
+            'audio/ogg'                => 'ogg',
+            'audio/opus'               => 'ogg',   // WhatsApp voice notes often use Opus inside OGG
+            'audio/mpeg'               => 'mp3',
+            'audio/mp3'                => 'mp3',
+            'audio/mp4'                => 'm4a',
+            'audio/x-m4a'              => 'm4a',
+            'audio/aac'                => 'aac',
+            'audio/wav'                => 'wav',
+            'audio/x-wav'              => 'wav',
+            'audio/amr'                => 'amr',
         ];
 
         return $map[$mime] ?? 'bin';
