@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 Route::get('webhook/whatsapp', [WebhookController::class, 'verify']); // GET for webhook verification
 Route::post('webhook/whatsapp', [WebhookController::class, 'whatsapp']); // POST for message reception
@@ -15,3 +17,20 @@ Route::get('/whatsapp-media/{mediaId}', [WebhookController::class, 'fetchWhatsap
 // Route::post('webhook/messenger', [WebhookController::class, 'receiveMessengerMsg']); // POST for message reception
 
 require __DIR__ .'/platform.php';
+
+Route::post('/auth-user-broadcasting', function (Request $request) {
+    $user = Auth::user(); // Already authenticated via middleware
+
+    $socketId = $request->input('socket_id');
+    $channelName = $request->input('channel_name');
+
+    $appKey = env('REVERB_APP_KEY');
+    $appSecret = env('REVERB_APP_SECRET');
+
+    $stringToSign = $socketId . ':' . $channelName;
+    $signature = hash_hmac('sha256', $stringToSign, $appSecret);
+
+    return response()->json([
+        'auth' => $appKey . ':' . $signature
+    ]);
+})->middleware('auth:sanctum');
