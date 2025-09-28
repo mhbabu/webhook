@@ -96,7 +96,6 @@ class MessageController extends Controller
     public function incomingMsg(Request $request)
     {
         $data = $request->all();
-        info('incomming message data' . json_encode($data));
         $agentId             = isset($data['agentId']) ? (int)$data['agentId'] : null;
         $agentAvailableScope = $data['availableScope'] ?? null;
         $source              = strtolower($data['source'] ?? '');
@@ -128,7 +127,7 @@ class MessageController extends Controller
             $message->receiver_type = User::class;
             $message->save();
 
-            Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
+            // Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
 
             // DB::commit();
 
@@ -143,7 +142,7 @@ class MessageController extends Controller
             ];
 
             SocketIncomingMessage::dispatch($payload, $channelData);
-            Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
+            // Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
 
             return jsonResponse('Message received successfully.', true, null);
         // } catch (\Exception $e) {
