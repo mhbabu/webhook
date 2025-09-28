@@ -117,12 +117,16 @@ class MessageController extends Controller
             $user->current_limit = $agentAvailableScope;
             $user->save();
 
+             Log::info('[UserData]', $user);
+
 
             // Fetch conversation
             $conversation = Conversation::find((int)$conversationId);
-            Log::info('[IncomingMsg] Fetched conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
+            Log::info('[IncomingMsg] before conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
             $conversation->agent_id = $user->id;
             $conversation->save();
+
+            Log::info('[IncomingMsg] after conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
 
             $message = Message::find($conversation->last_message_id);
             $message->receiver_id  = $conversation->agent_id ?? $user->id;
