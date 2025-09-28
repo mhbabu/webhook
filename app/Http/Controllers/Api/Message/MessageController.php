@@ -104,6 +104,7 @@ class MessageController extends Controller
 
         // Validate required fields
         if (!$conversationId || !$agentId) {
+            info('yes your dout is true');
             return jsonResponse('Missing required fields: conversationId or agentId.', false, null, 400);
         }
 
