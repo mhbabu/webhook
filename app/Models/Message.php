@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -28,8 +29,8 @@ class Message extends Model
         return $this->morphTo();
     }
 
-    public function attachment()
+    public function attachments()
     {
-        return $this->hasOne(MessageAttachment::class, 'message_id');
+        return $this->hasMany(MessageAttachment::class);
     }
 }
