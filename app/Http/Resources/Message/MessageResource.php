@@ -8,6 +8,7 @@ use App\Http\Resources\CustomerResource;
 use App\Http\Resources\User\UserInfoResource;
 use App\Models\User;
 use App\Models\Customer;
+use App\Models\MessageAttachment;
 
 class MessageResource extends JsonResource
 {
@@ -45,6 +46,7 @@ class MessageResource extends JsonResource
                 return null;
             }),
 
+            'attachment' => $this->attachment ? new MessageAttachment($this->attachment) : null,
             'read_at'    => $this->read_at ? $this->read_at->toDateTimeString() . ' UTC' : null,
             'created_at' => $this->created_at->toDateTimeString() . ' UTC',
             'updated_at' => $this->updated_at->toDateTimeString() . ' UTC',

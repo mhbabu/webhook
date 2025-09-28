@@ -21,6 +21,7 @@ class ConversationResource extends JsonResource
             'last_message_info' => $this->lastMessage ? [
                 'last_message_sender' => $this->lastMessage->sender_type === 'App\Models\User' ? 'agent' : 'customer',
                 'last_message_sender_info' => $this->lastMessage->sender_type === 'App\Models\User' ? new UserInfoResource($this->lastMessage->sender) : new CustomerResource($this->lastMessage->sender),
+                'attachment' => $this->lastMessage->attachment ? new MessageAttachemntResource($this->lastMessage->attachment) : null, 
             ] : null,
 
             'started_at'      => $this->started_at,

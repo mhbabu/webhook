@@ -27,4 +27,9 @@ class Message extends Model
     {
         return $this->morphTo();
     }
+
+    public function attachment()
+    {
+        return $this->hasOne(MessageAttachment::class, 'message_id');
+    }
 }
