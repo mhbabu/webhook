@@ -106,8 +106,8 @@ class MessageController extends Controller
             return jsonResponse('Missing required fields: conversationId or agentId.', false, null, 400);
         }
 
-        // DB::beginTransaction();
-        // try {
+        DB::beginTransaction();
+        try {
             // Fetch conversation
 
             $conversation = Conversation::find((int)$conversationId);
@@ -144,14 +144,14 @@ class MessageController extends Controller
             // Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
 
             return jsonResponse('Message received successfully.', true, null);
-        // } catch (\Exception $e) {
-        //     DB::rollBack();
-        //     Log::error('[IncomingMsg] Exception occurred', [
-        //         'message' => $e->getMessage(),
-        //         'trace' => $e->getTraceAsString(),
-        //     ]);
-        //     return jsonResponse('Something went wrong while processing the message.', false, null, 500);
-        // }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('[IncomingMsg] Exception occurred', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return jsonResponse('Something went wrong while processing the message.', false, null, 500);
+        }
     }
 
     public function endConversation(EndConversationRequest $request)
