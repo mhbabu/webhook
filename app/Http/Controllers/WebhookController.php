@@ -111,7 +111,7 @@ class WebhookController extends Controller
                     "conversationId"   => $conversation->id,
                     "conversationType" => $isNewConversation ? "new" : "old",
                     "sender"           => $phone,
-                     "api_key"         => config('dispatcher.api_key'),
+                    "api_key"          => config('dispatcher.api_key'),
                     "timestamp"        => $status['timestamp'] ?? time(),
                     "message"          => $status['status'] ?? '',
                     "attachmentId"     => [],
@@ -165,7 +165,7 @@ class WebhookController extends Controller
                     'content'         => $caption ?? null,
                     'direction'       => 'incoming',
                     'receiver_type'   => User::class,
-                    'receiver_id'     => $conversation->agent_id,
+                    'receiver_id'     => $conversation->agent_id ?? null,
                 ]);
 
                 // Insert attachments

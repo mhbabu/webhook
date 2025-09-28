@@ -126,9 +126,9 @@ class MessageController extends Controller
             $message->receiver_type = User::class;
             $message->save();
 
-            // Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
+            Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
 
-            // DB::commit();
+            DB::commit();
 
             // Broadcast payload
             $payload = [
