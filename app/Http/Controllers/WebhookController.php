@@ -51,10 +51,10 @@ class WebhookController extends Controller
         $contacts  = $entry['contacts'][0] ?? null;
 
         // Authenticate Token
-        $token = $this->getAuthToken();
-        if (!$token) {
-            return response()->json(['status' => 'Dispatcher authentication failed'], 500);
-        }
+        // $token = $this->getAuthToken();
+        // if (!$token) {
+        //     return response()->json(['status' => 'Dispatcher authentication failed'], 500);
+        // }
 
         // Get platform
         $platform = Platform::whereRaw('LOWER(name) = ?', [strtolower('WhatsApp')])->first();
@@ -69,7 +69,7 @@ class WebhookController extends Controller
         $phone      = '+88' . substr($rawPhone, -11); // last 11 digits
         $senderName = $contacts['profile']['name'] ?? 'WhatsApp Customer';
 
-        DB::transaction(function () use ($token, $statuses, $messages, $phone, $senderName, $platformId, $platformName) {
+        DB::transaction(function () use ($statuses, $messages, $phone, $senderName, $platformId, $platformName) {
 
             // Get or create customer
             $customer = Customer::where('phone', $phone)->where('platform_id', $platformId)->first();
@@ -111,13 +111,14 @@ class WebhookController extends Controller
                     "conversationId"   => $conversation->id,
                     "conversationType" => $isNewConversation ? "new" : "old",
                     "sender"           => $phone,
+                     "api_key"         => config('dispatcher.api_key'),
                     "timestamp"        => $status['timestamp'] ?? time(),
                     "message"          => $status['status'] ?? '',
                     "attachmentId"     => [],
                     "attachments"      => [],
                     "subject"          => "WhatsApp Status Update",
                 ];
-                $this->sendToHandler($token, $payload);
+                $this->sendToHandler($payload);
             }
 
             // Step 2: Process customer messages
@@ -197,6 +198,7 @@ class WebhookController extends Controller
                     "conversationId"   => $conversation->id,
                     "conversationType" => $isNewConversation ? "new" : "old",
                     "sender"           => $phone,
+                    "api_key"          => config('dispatcher.api_key'),
                     "timestamp"        => $timestamp,
                     "message"          => $caption ?? 'No text message',
                     "attachmentId"     => $mediaIds,
@@ -204,7 +206,7 @@ class WebhookController extends Controller
                     "subject"          => "Customer Message from $senderName",
                 ];
 
-                $this->sendToHandler($token, $payload);
+                $this->sendToHandler($payload);
             }
         });
 
@@ -229,10 +231,10 @@ class WebhookController extends Controller
     /**
      * Send payload to handler API
      */
-    private function sendToHandler(string $token, array $payload): void
+    private function sendToHandler(array $payload): void
     {
         try {
-            $response = Http::withToken($token)->acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
+            $response = Http::acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
 
             if ($response->ok()) {
                 // Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
