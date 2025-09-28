@@ -117,7 +117,7 @@ class MessageController extends Controller
             $user->current_limit = $agentAvailableScope;
             $user->save();
 
-             Log::info('[UserData]', $user);
+             Log::info('[UserData]'. json_encode($user));
 
 
             // Fetch conversation
