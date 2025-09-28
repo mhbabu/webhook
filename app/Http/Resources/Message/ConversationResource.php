@@ -16,7 +16,7 @@ class ConversationResource extends JsonResource
             'trace_id'        => $this->trace_id,
             'customer'        => $this->customer ? new CustomerResource($this->customer) : null,
             'last_message'    => $this->lastMessage?->content ?? null,
-            'last_message_at' => $this->lastMessage?->created_at ? $this->lastMessage->created_at->toDateTimeString() . ' UTC' : null,
+            'last_message_at' => $this->lastMessage?->created_at ? $this->lastMessage->created_at->toDateTimeString() : null,
 
             'last_message_info' => $this->lastMessage ? [
                 'last_message_sender' => $this->lastMessage->sender_type === 'App\Models\User' ? 'agent' : 'customer',

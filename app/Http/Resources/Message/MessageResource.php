@@ -45,9 +45,9 @@ class MessageResource extends JsonResource
                 return null;
             }),
 
-            'read_at'    => $this->read_at ? $this->read_at->toDateTimeString() . ' UTC' : null,
-            'created_at' => $this->created_at->toDateTimeString() . ' UTC',
-            'updated_at' => $this->updated_at->toDateTimeString() . ' UTC',
+            'read_at'    => $this->read_at ? $this->read_at->toDateTimeString() : null,
+            'created_at' => $this->created_at->toDateTimeString(),
+            'updated_at' => $this->updated_at->toDateTimeString(),
         ];
     }
 }
