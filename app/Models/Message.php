@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,5 +27,10 @@ class Message extends Model
     public function receiver(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(MessageAttachment::class);
     }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\Message;
 
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\User\UserInfoResource;
@@ -45,9 +44,10 @@ class MessageResource extends JsonResource
                 return null;
             }),
 
-            'read_at'    => $this->read_at ? $this->read_at->toDateTimeString() : null,
-            'created_at' => $this->created_at->toDateTimeString(),
-            'updated_at' => $this->updated_at->toDateTimeString(),
+            'attachments' => $this->attachments ? MessageAttachmentResource::collection($this->attachments) : [],
+            'read_at'    => $this->read_at ? $this->read_at->toDateTimeString() . ' UTC' : null,
+            'created_at' => $this->created_at->toDateTimeString() . ' UTC',
+            'updated_at' => $this->updated_at->toDateTimeString() . ' UTC',
         ];
     }
 }
