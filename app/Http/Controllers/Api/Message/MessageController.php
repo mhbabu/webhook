@@ -96,6 +96,7 @@ class MessageController extends Controller
     public function incomingMsg(Request $request)
     {
         $data = $request->all();
+        info('incomming message data' . json_encode($data));
         $agentId             = isset($data['agentId']) ? (int)$data['agentId'] : null;
         $agentAvailableScope = $data['availableScope'] ?? null;
         $source              = strtolower($data['source'] ?? '');
