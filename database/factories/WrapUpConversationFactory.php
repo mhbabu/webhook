@@ -22,7 +22,6 @@ class WrapUpConversationFactory extends Factory
             'Escalated to supervisor',
             'Technical issue – unable to proceed',
             'Call dropped',
-            'Wrong number',
             'No longer interested',
             'Language barrier',
             'Customer became unresponsive',
