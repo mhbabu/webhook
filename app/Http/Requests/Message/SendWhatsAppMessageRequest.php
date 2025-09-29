@@ -8,49 +8,37 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 
 class SendWhatsAppMessageRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules.
-     */
     public function rules(): array
     {
         return [
             'conversation_id' => ['required', 'integer', 'exists:conversations,id'],
-            'content'         => ['required', 'string'],
+            'content'         => ['nullable', 'string'],
+            'attachments'     => ['nullable', 'array'],
+            'attachments.*'   => ['file', 'max:10240'], // max 10MB each
         ];
     }
 
-    /**
-     * Custom error messages.
-     */
     public function messages(): array
     {
         return [
             'conversation_id.required' => 'Conversation ID is required.',
             'conversation_id.exists'   => 'The selected conversation does not exist.',
-            'content.required'         => 'Message content is required.',
+            'attachments.*.file'       => 'Each attachment must be a valid file.',
+            'attachments.*.max'        => 'Each attachment must not exceed 10MB.',
         ];
     }
 
-    /**
-     * Handle failed validation.
-     */
     protected function failedValidation(Validator $validator)
     {
-        $errors = $validator->errors();
-        $response = response()->json([
+        throw new HttpResponseException(response()->json([
             'status'  => false,
-            'message' => $errors->first(),
-            'errors'  => $errors,
-        ], 422);
-
-        throw new HttpResponseException($response);
+            'message' => $validator->errors()->first(),
+            'errors'  => $validator->errors(),
+        ], 422));
     }
 }

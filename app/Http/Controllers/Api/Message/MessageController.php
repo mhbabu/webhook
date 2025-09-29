@@ -37,7 +37,7 @@ class MessageController extends Controller
 
         if ($isEnded) {
             $query->whereNotNull('end_at'); // end conversation
-        }else{
+        } else {
             $query->whereNull('end_at');
         }
 
@@ -95,7 +95,7 @@ class MessageController extends Controller
 
     public function incomingMsg(Request $request)
     {
-        
+
         $data = $request->all();
         Log::info('[IncomingMsg] Data', $data);
         $agentId             = isset($data['agentId']) ? (int)$data['agentId'] : null;
@@ -112,48 +112,48 @@ class MessageController extends Controller
 
         // DB::beginTransaction();
         // try {
-            
-            // Update agent's current limit
-            $user = User::find($agentId);
-            $user->current_limit = $agentAvailableScope;
-            $user->save();
 
-             Log::info('[UserData]'. json_encode($user));
+        // Update agent's current limit
+        $user = User::find($agentId);
+        $user->current_limit = $agentAvailableScope;
+        $user->save();
+
+        Log::info('[UserData]' . json_encode($user));
 
 
-            // Fetch conversation
-            $conversation = Conversation::find((int)$conversationId);
-            Log::info('[IncomingMsg] before conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
-            $conversation->agent_id = $user->id;
-            $conversation->save();
+        // Fetch conversation
+        $conversation = Conversation::find((int)$conversationId);
+        Log::info('[IncomingMsg] before conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
+        $conversation->agent_id = $user->id;
+        $conversation->save();
 
-            Log::info('[IncomingMsg] after conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
+        Log::info('[IncomingMsg] after conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
 
-            $convertedMsgId          = (int)$messageId;
-            $message                 = Message::find($convertedMsgId);
-            $message->receiver_id    = $conversation->agent_id ?? $user->id;
-            $message->receiver_type  = User::class;
-            $message->save();
+        $convertedMsgId          = (int)$messageId;
+        $message                 = Message::find($convertedMsgId);
+        $message->receiver_id    = $conversation->agent_id ?? $user->id;
+        $message->receiver_type  = User::class;
+        $message->save();
 
-            // Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
+        // Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
 
-            // DB::commit();
+        // DB::commit();
 
-            // Broadcast payload
-            $payload = [
-                'conversation' => new ConversationResource($conversation),
-                'message'     => $message ? new MessageResource($message) : null,
-            ];
-            $channelData = [
-                'platform' => $source,
-                'agentId'  => $agentId,
-            ];
+        // Broadcast payload
+        $payload = [
+            'conversation' => new ConversationResource($conversation),
+            'message'     => $message ? new MessageResource($message) : null,
+        ];
+        $channelData = [
+            'platform' => $source,
+            'agentId'  => $agentId,
+        ];
 
-            broadcast(new SocketIncomingMessage($payload, $channelData));
-            // SocketIncomingMessage::dispatch($payload, $channelData);
-            // Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
+        broadcast(new SocketIncomingMessage($payload, $channelData));
+        // SocketIncomingMessage::dispatch($payload, $channelData);
+        // Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
 
-            return jsonResponse('Message received successfully.', true, null);
+        return jsonResponse('Message received successfully.', true, null);
         // } catch (\Exception $e) {
         //     DB::rollBack();
         //     Log::error('[IncomingMsg] Exception occurred',[
@@ -235,6 +235,84 @@ class MessageController extends Controller
             'message' => new MessageResource($message),
             'whatsapp_response' => $response,
             'used_template' => !$within24Hours
+        ]);
+    }
+
+    public function sendWhatsAppMessage2(SendWhatsAppMessageRequest $request)
+    {
+        $data = $request->validated();
+
+        $conversation = Conversation::find($data['conversation_id']);
+        $customer     = Customer::find($conversation->customer_id);
+        $phone        = $customer->phone;
+
+        // Save text message in DB (if any)
+        $message = null;
+        if (!empty($data['content'])) {
+            $message = new Message();
+            $message->conversation_id = $conversation->id;
+            $message->sender_id = auth()->id();
+            $message->sender_type = User::class;
+            $message->receiver_type = Customer::class;
+            $message->receiver_id = $conversation->customer_id;
+            $message->type = 'text';
+            $message->content = $data['content'];
+            $message->direction = 'outgoing';
+            $message->save();
+        }
+
+        $whatsAppService = new WhatsAppService();
+
+        $mediaResponses = [];
+
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $storedPath = $file->store('wa_temp');
+                $fullPath = storage_path("app/{$storedPath}");
+                $mime = $file->getMimeType();
+
+                // Upload to WhatsApp
+                $mediaId = $whatsAppService->uploadMedia($fullPath, $mime);
+
+                if ($mediaId) {
+                    // Determine type
+                    $mediaType = match (true) {
+                        str_starts_with($mime, 'image/') => 'image',
+                        str_starts_with($mime, 'video/') => 'video',
+                        str_starts_with($mime, 'audio/') => 'audio',
+                        str_starts_with($mime, 'application/') => 'document',
+                        default => 'document',
+                    };
+
+                    $mediaResponse = $whatsAppService->sendMediaMessage($phone, $mediaId, $mediaType);
+                    $mediaResponses[] = $mediaResponse;
+
+                    // Optionally: save each media as message
+                    Message::create([
+                        'conversation_id' => $conversation->id,
+                        'sender_id'       => auth()->id(),
+                        'sender_type'     => User::class,
+                        'receiver_type'   => Customer::class,
+                        'receiver_id'     => $conversation->customer_id,
+                        'type'            => $mediaType,
+                        'content'         => $file->getClientOriginalName(),
+                        'direction'       => 'outgoing',
+                        'metadata'        => ['whatsapp_media_id' => $mediaId],
+                    ]);
+                }
+            }
+        }
+
+        // If text provided, send last (after media)
+        $textResponse = null;
+        if (!empty($data['content'])) {
+            $textResponse = $whatsAppService->sendTextMessage($phone, $data['content']);
+        }
+
+        return jsonResponse('WhatsApp message(s) sent successfully.', true, [
+            'text_message'      => $message ? new MessageResource($message) : null,
+            'media_responses'   => $mediaResponses,
+            'text_response'     => $textResponse,
         ]);
     }
 }
