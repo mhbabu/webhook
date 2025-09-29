@@ -13,6 +13,7 @@ class MessageAttachmentResource extends JsonResource
             'id'            => $this->id,
             'attachment_id' => $this->attachment_id,
             'path'          => $this->path,
+            'type'          => $this->type,
             'url'           => asset('storage/' . $this->path),
         ];
     }
