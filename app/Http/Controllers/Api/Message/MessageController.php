@@ -142,7 +142,7 @@ class MessageController extends Controller
             // Broadcast payload
             $payload = [
                 'conversation' => new ConversationResource($conversation),
-                'message'     => $conversation->lastMessage ? new MessageResource($message) : null,
+                'message'     => $message ? new MessageResource($message) : null,
             ];
             $channelData = [
                 'platform' => $source,
@@ -156,7 +156,7 @@ class MessageController extends Controller
             return jsonResponse('Message received successfully.', true, null);
         // } catch (\Exception $e) {
         //     DB::rollBack();
-        //     Log::error('[IncomingMsg] Exception occurred', [
+        //     Log::error('[IncomingMsg] Exception occurred',[
         //         'message' => $e->getMessage(),
         //         'trace' => $e->getTraceAsString(),
         //     ]);
