@@ -51,7 +51,7 @@ services:
       - "3306:3306"   
 
   zookeeper:
-    image: bitnami/zookeeper:3.9.1
+    image: bitnami/zookeeper:3.9.1-debian-11-r6
     container_name: webhook-zookeeper
     restart: unless-stopped
     environment:
@@ -62,7 +62,7 @@ services:
       - automatrix
 
   kafka:
-    image: bitnami/kafka:3.6.0
+    image: bitnami/kafka:3.6.0-debian-11-r9
     container_name: webhook-kafka
     restart: unless-stopped
     environment:
