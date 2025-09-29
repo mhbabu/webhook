@@ -147,7 +147,8 @@ class MessageController extends Controller
                 'agentId'  => $agentId,
             ];
 
-            SocketIncomingMessage::dispatch($payload, $channelData);
+            broadcast(new SocketIncomingMessage($payload, $channelData));
+            // SocketIncomingMessage::dispatch($payload, $channelData);
             // Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
 
             return jsonResponse('Message received successfully.', true, null);

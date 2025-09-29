@@ -31,10 +31,12 @@ class SocketIncomingMessage implements ShouldBroadcastNow
         return ['data' => $this->data];
     }
 
-    public function broadcastOn()
+    public function broadcastOn(): array
     {
         $platform = strtolower($this->channelData['platform']);
         $agentId  = $this->channelData['agentId'];
-        return new PrivateChannel("platform.{$platform}.{$agentId}");
+        return [
+            new PrivateChannel("platform.{$platform}.{$agentId}"),
+        ];
     }
 }
