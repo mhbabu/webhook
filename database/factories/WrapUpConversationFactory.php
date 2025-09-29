@@ -11,8 +11,31 @@ class WrapUpConversationFactory extends Factory
 {
     public function definition(): array
     {
+        $reasons = [
+            'Customer did not respond',
+            'Internet connection lost',
+            'Agent\'s shift ended',
+            'Customer ended the conversation',
+            'Issue resolved',
+            'Customer disconnected',
+            'Customer will call back later',
+            'Escalated to supervisor',
+            'Technical issue – unable to proceed',
+            'Call dropped',
+            'Wrong number',
+            'No longer interested',
+            'Language barrier',
+            'Customer became unresponsive',
+            'Requested follow-up email',
+            'Customer was in a hurry',
+            'Message transferred to another department',
+            'Agent had an emergency',
+            'Scheduled callback',
+            'Customer resolved issue themselves',
+        ];
+
         return [
-            'name' => $this->faker->sentence(3),
+            'name' => $this->faker->randomElement($reasons),
         ];
     }
 }
