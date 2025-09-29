@@ -62,7 +62,7 @@ services:
       - automatrix
 
   kafka:
-    image: bitnami/kafka:latest
+    image: bitnami/kafka:3.6.0
     container_name: webhook-kafka
     restart: unless-stopped
     environment:
