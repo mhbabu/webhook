@@ -51,7 +51,7 @@ services:
       - "3306:3306"   
 
   zookeeper:
-    image: bitnami/zookeeper:latest
+    image: bitnami/zookeeper:3.9.1
     container_name: webhook-zookeeper
     restart: unless-stopped
     environment:
