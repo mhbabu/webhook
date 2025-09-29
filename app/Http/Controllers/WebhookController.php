@@ -193,7 +193,7 @@ class WebhookController extends Controller
                     "attachmentId"     => $mediaIds,
                     "attachments"      => array_column($attachments, 'path'),
                     "subject"          => "Customer Message from $senderName",
-                    "message_id"       => $message->id, // ✅ Added message ID here
+                    "messageId"        => $message->id, // ✅ Added message ID here
                 ];
 
                 $this->sendToHandler($payload);

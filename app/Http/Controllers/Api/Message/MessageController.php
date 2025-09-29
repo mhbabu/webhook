@@ -102,6 +102,7 @@ class MessageController extends Controller
         $agentAvailableScope = $data['availableScope'] ?? null;
         $source              = strtolower($data['source'] ?? '');
         $conversationId      = $data['messageData']['conversationId'] ?? null;
+        $messageId           = $data['messageData']['messageId'];
 
         // Validate required fields
         if (!$conversationId || !$agentId) {
@@ -128,9 +129,10 @@ class MessageController extends Controller
 
             Log::info('[IncomingMsg] after conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
 
-            $message = Message::find($conversation->last_message_id);
-            $message->receiver_id  = $conversation->agent_id ?? $user->id;
-            $message->receiver_type = User::class;
+            $convertedMsgId          = (int)$messageId;
+            $message                 = Message::find($convertedMsgId);
+            $message->receiver_id    = $conversation->agent_id ?? $user->id;
+            $message->receiver_type  = User::class;
             $message->save();
 
             // Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
@@ -140,7 +142,7 @@ class MessageController extends Controller
             // Broadcast payload
             $payload = [
                 'conversation' => new ConversationResource($conversation),
-                'message'     => $conversation->lastMessage ? new MessageResource($conversation->lastMessage) : null,
+                'message'     => $conversation->lastMessage ? new MessageResource($message) : null,
             ];
             $channelData = [
                 'platform' => $source,
