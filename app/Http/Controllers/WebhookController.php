@@ -113,7 +113,7 @@ class WebhookController extends Controller
                     "attachments"      => [],
                     "subject"          => "WhatsApp Status Update",
                 ];
-                Log::info("[WA] Status update payload", $payload);
+                // Send status update payload to separate handler (not customer message)
                 $this->sendToHandler($payload);
             }
 
@@ -125,20 +125,14 @@ class WebhookController extends Controller
                 $attachments = [];
                 $timestamp   = $msg['timestamp'] ?? time();
 
-                Log::info("[WA] Incoming message", ['type' => $type, 'msg' => $msg]);
-
+                // Extract message content
                 if ($type === 'text') {
                     $caption = $msg['text']['body'] ?? '';
                 } elseif (in_array($type, ['image', 'video', 'document', 'audio'])) {
-                    $mediaBlock = $msg[$type] ?? null;
-
-                    if (!$mediaBlock || !isset($mediaBlock['id'])) {
-                        Log::warning("[WA] Media block or ID missing", ['type' => $type, 'msg' => $msg]);
-                    } else {
-                        $mediaId = $mediaBlock['id'];
+                    $mediaId = $msg[$type]['id'] ?? null;
+                    if ($mediaId) {
                         $mediaIds[] = $mediaId;
 
-                        // Try downloading the media
                         $mediaData = $this->whatsAppService->getMediaUrlAndDownload($mediaId);
                         if ($mediaData) {
                             $attachments[] = [
@@ -150,16 +144,14 @@ class WebhookController extends Controller
                                 'type'          => $mediaData['type'],
                             ];
                         } else {
-                            Log::error("[WA] WhatsApp Media [$mediaId] could not be downloaded.");
-                        }
-
-                        // Fallback caption
-                        if (!$caption && !empty($mediaBlock['caption'])) {
-                            $caption = $mediaBlock['caption'];
+                            Log::error("WhatsApp Media [$mediaId] could not be downloaded.");
                         }
                     }
-                } else {
-                    Log::warning("[WA] Unsupported message type", ['type' => $type, 'msg' => $msg]);
+
+                    // Use caption if available in media message
+                    if (!$caption && !empty($msg[$type]['caption'])) {
+                        $caption = $msg[$type]['caption'];
+                    }
                 }
 
                 // Save the incoming message to DB
@@ -212,8 +204,6 @@ class WebhookController extends Controller
                     "subject"          => "Customer Message from $senderName",
                     "messageId"        => $message->id,
                 ];
-
-                Log::info("[WA] Final payload to handler", $payload);
 
                 $this->sendToHandler($payload);
             }
