@@ -113,11 +113,7 @@ class WebhookController extends Controller
                     "attachments"      => [],
                     "subject"          => "WhatsApp Status Update",
                 ];
-<<<<<<< HEAD
-                // Send status update payload to separate handler (not customer message)
-=======
                 Log::info("[WA] Status update payload", $payload);
->>>>>>> development
                 $this->sendToHandler($payload);
             }
 
@@ -129,14 +125,6 @@ class WebhookController extends Controller
                 $attachments = [];
                 $timestamp   = $msg['timestamp'] ?? time();
 
-<<<<<<< HEAD
-                // Extract message content
-                if ($type === 'text') {
-                    $caption = $msg['text']['body'] ?? '';
-                } elseif (in_array($type, ['image', 'video', 'document', 'audio'])) {
-                    $mediaId = $msg[$type]['id'] ?? null;
-                    if ($mediaId) {
-=======
                 Log::info("[WA] Incoming message", ['type' => $type, 'msg' => $msg]);
 
                 if ($type === 'text') {
@@ -148,7 +136,6 @@ class WebhookController extends Controller
                         Log::warning("[WA] Media block or ID missing", ['type' => $type, 'msg' => $msg]);
                     } else {
                         $mediaId = $mediaBlock['id'];
->>>>>>> development
                         $mediaIds[] = $mediaId;
 
                         // Try downloading the media
@@ -171,16 +158,8 @@ class WebhookController extends Controller
                             $caption = $mediaBlock['caption'];
                         }
                     }
-<<<<<<< HEAD
-
-                    // Use caption if available in media message
-                    if (!$caption && !empty($msg[$type]['caption'])) {
-                        $caption = $msg[$type]['caption'];
-                    }
-=======
                 } else {
                     Log::warning("[WA] Unsupported message type", ['type' => $type, 'msg' => $msg]);
->>>>>>> development
                 }
 
                 // Save the incoming message to DB
