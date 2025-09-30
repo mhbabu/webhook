@@ -395,13 +395,13 @@ class WebhookController extends Controller
     /**
      * Send payload to handler API
      */
-    private function sendToHandler(array $payload): void
+    private function sendToHandler2(array $payload): void
     {
         try {
             $response = Http::acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
 
             if ($response->ok()) {
-                // Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
+                Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
             } else {
                 // Log::error("[CUSTOMER MESSAGE FORWARDED] FAILED", ['payload' => $payload, 'response' => $response->body()]);
             }
@@ -409,6 +409,47 @@ class WebhookController extends Controller
             Log::error("[CUSTOMER MESSAGE FORWARDED] ERROR", ['exception' => $e->getMessage()]);
         }
     }
+
+    private function sendToHandler(array $payload)
+    {
+        try {
+            $response = Http::acceptJson()->post(
+                config('dispatcher.url') . config('dispatcher.endpoints.handler'),
+                $payload
+            );
+
+            if ($response->ok()) {
+                Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
+                return [
+                    'status' => 'success',
+                    'code'   => $response->status(),
+                    'body'   => $response->json(),
+                ];
+            } else {
+                $responseBody = $response->body();
+                Log::error("[CUSTOMER MESSAGE FORWARDED] FAILED", [
+                    'payload'  => $payload,
+                    'response' => $responseBody,
+                    'status'   => $response->status(),
+                ]);
+                return [
+                    'status' => 'failed',
+                    'code'   => $response->status(),
+                    'body'   => $responseBody,
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::error("[CUSTOMER MESSAGE FORWARDED] ERROR", [
+                'exception' => $e->getMessage(),
+                'payload'   => $payload,
+            ]);
+            return [
+                'status' => 'error',
+                'error'  => $e->getMessage(),
+            ];
+        }
+    }
+
 
 
     public function fetchWhatsappMedia($mediaId)
