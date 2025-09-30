@@ -213,195 +213,31 @@ class WebhookController extends Controller
     }
 
 
-    // public function whatsapp(Request $request)
-    // {
-    //     $data      = $request->all();
-    //     $entry     = $data['entry'][0]['changes'][0]['value'] ?? [];
-    //     $statuses  = $entry['statuses'] ?? [];
-    //     $messages  = $entry['messages'] ?? [];
-    //     $contacts  = $entry['contacts'][0] ?? null;
+    /**
+     * Authenticate and get API token for DISPATCHER 
+     */
+    private function getAuthToken(): ?string
+    {
+        $authResponse = Http::post(config('dispatcher.url') . config('dispatcher.endpoints.authenticate'), ['api_key' => config('dispatcher.api_key')]);
 
-    //     // Get platform (WhatsApp)
-    //     $platform = Platform::whereRaw('LOWER(name) = ?', ['whatsapp'])->first();
-    //     if (!$platform) {
-    //         return response()->json(['status' => 'platform_not_found'], 500);
-    //     }
-    //     $platformId   = $platform->id;
-    //     $platformName = $platform->name;
+        if (!$authResponse->ok()) {
+            // Log::error('[WHATSAPP ERROR] Authentication failed', ['response' => $authResponse->body()]);
+            return null;
+        }
 
-    //     // Get customer phone and name
-    //     $rawPhone   = $contacts['wa_id'] ?? ($messages[0]['from'] ?? null);
-    //     if (!$rawPhone) {
-    //         return response()->json(['status' => 'invalid_phone'], 400);
-    //     }
-
-    //     $phone      = '+88' . substr($rawPhone, -11); // last 11 digits
-    //     $senderName = $contacts['profile']['name'] ?? 'WhatsApp Customer';
-
-    //     DB::transaction(function () use ($statuses, $messages, $phone, $senderName, $platformId, $platformName) {
-
-    //         // Get or create customer
-    //         $customer = Customer::firstOrCreate(
-    //             ['phone' => $phone, 'platform_id' => $platformId],
-    //             ['name' => $senderName]
-    //         );
-
-    //         // Get or create active conversation
-    //         $conversation = Conversation::where('customer_id', $customer->id)
-    //             ->where('platform', $platformName)
-    //             ->where(function ($q) {
-    //                 $q->whereNull('end_at')
-    //                     ->orWhere('created_at', '>=', now()->subHours(6));
-    //             })
-    //             ->latest()
-    //             ->first();
-
-    //         $isNewConversation = false;
-
-    //         if (!$conversation || $conversation->end_at !== null || $conversation->created_at < now()->subHours(6)) {
-    //             $conversation = new Conversation();
-    //             $conversation->customer_id = $customer->id;
-    //             $conversation->platform    = $platformName;
-    //             $conversation->trace_id    = "WA-" . now()->format('YmdHis') . '-' . uniqid();
-    //             $conversation->agent_id    = null;
-    //             $conversation->save();
-
-    //             $isNewConversation = true;
-    //         }
-
-    //         // Step 1: Handle status updates (e.g., read, delivered)
-    //         foreach ($statuses as $status) {
-    //             $payload = [
-    //                 "source"           => "whatsapp",
-    //                 "traceId"          => "WA-" . now()->format('YmdHis') . '-' . uniqid(),
-    //                 "conversationId"   => $conversation->id,
-    //                 "conversationType" => $isNewConversation ? "new" : "old",
-    //                 "sender"           => $phone,
-    //                 "api_key"          => config('dispatcher.api_key'),
-    //                 "timestamp"        => $status['timestamp'] ?? time(),
-    //                 "message"          => $status['status'] ?? '',
-    //                 "attachmentId"     => [],
-    //                 "attachments"      => [],
-    //                 "subject"          => "WhatsApp Status Update",
-    //             ];
-    //             // Send status update payload to separate handler (not customer message)
-    //             Log::info('Sending WhatsApp message payload to handler2222', ['payload' => $payload]);
-
-    //             $this->sendToHandler($payload);
-    //         }
-
-    //         // Step 2: Process incoming customer messages ONLY
-    //         foreach ($messages as $msg) {
-    //             $type        = $msg['type'] ?? '';
-    //             $caption     = null;
-    //             $mediaIds    = [];
-    //             $attachments = [];
-    //             $timestamp   = $msg['timestamp'] ?? time();
-
-    //             // Extract message content
-    //             if ($type === 'text') {
-    //                 $caption = $msg['text']['body'] ?? '';
-    //             } elseif (in_array($type, ['image', 'video', 'document', 'audio'])) {
-    //                 $mediaId = $msg[$type]['id'] ?? null;
-    //                 if ($mediaId) {
-    //                     $mediaIds[] = $mediaId;
-
-    //                     $mediaData = $this->whatsAppService->getMediaUrlAndDownload($mediaId);
-    //                     if ($mediaData) {
-    //                         $attachments[] = [
-    //                             'attachment_id' => $mediaId,
-    //                             'path'          => $mediaData['full_path'],  // storage path
-    //                             'is_download'   => 1,
-    //                             'mime'          => $mediaData['mime'] ?? null,
-    //                             'size'          => $mediaData['size'] ?? null,
-    //                             'type'          => $mediaData['type'],
-    //                         ];
-    //                         Log::info("Attachment downloaded", ['mediaData' => $mediaData]);
-    //                     } else {
-    //                         Log::error("WhatsApp Media [$mediaId] could not be downloaded.");
-    //                     }
-    //                 }
-
-    //                 // Use caption if available in media message
-    //                 if (!$caption && !empty($msg[$type]['caption'])) {
-    //                     $caption = $msg[$type]['caption'];
-    //                     Log::info("Caption extracted from media", ['caption' => $caption]);
-    //                 }
-    //             }
-
-    //             // Save the incoming message to DB
-    //             $message = Message::create([
-    //                 'conversation_id' => $conversation->id,
-    //                 'sender_id'       => $customer->id,
-    //                 'sender_type'     => Customer::class,
-    //                 'type'            => $type,
-    //                 'content'         => $caption,
-    //                 'direction'       => 'incoming',
-    //                 'receiver_type'   => User::class,
-    //                 'receiver_id'     => $conversation->agent_id ?? null,
-    //             ]);
-
-    //             // Save attachments to DB if any
-    //             if (!empty($attachments)) {
-    //                 $bulkInsert = array_map(function ($att) use ($message) {
-    //                     return [
-    //                         'message_id'    => $message->id,
-    //                         'attachment_id' => $att['attachment_id'],
-    //                         'path'          => $att['path'],
-    //                         'type'          => $att['type'],
-    //                         'mime'          => $att['mime'],
-    //                         'size'          => $att['size'],
-    //                         'is_available'  => $att['is_download'],
-    //                         'created_at'    => now(),
-    //                         'updated_at'    => now(),
-    //                     ];
-    //                 }, $attachments);
-
-    //                 MessageAttachment::insert($bulkInsert);
-    //             }
-
-    //             // Update conversation last message id
-    //             $conversation->last_message_id = $message->id;
-    //             $conversation->save();
-
-    //             // Prepare payload with message_id for customer message only
-    //             $payload = [
-    //                 "source"           => "whatsapp",
-    //                 "traceId"          => 'wa_' . uniqid(),
-    //                 "conversationId"   => $conversation->id,
-    //                 "conversationType" => $isNewConversation ? "new" : "old",
-    //                 "sender"           => $phone,
-    //                 "api_key"          => config('dispatcher.api_key'),
-    //                 "timestamp"        => $timestamp,
-    //                 "message"          => $caption ?? 'No text message',
-    //                 "attachmentId"     => $mediaIds,
-    //                 "attachments"      => array_column($attachments, 'path'),
-    //                 "subject"          => "Customer Message from $senderName",
-    //                 "messageId"        => $message->id,
-    //             ];
-
-    //             Log::info('Sending WhatsApp message payload to handler11', ['payload' => $payload]);
-
-    //             $this->sendToHandler($payload);
-    //         }
-    //     });
-
-    //     return jsonResponse(!empty($messages) ? 'Message received' : 'Status received', true);
-    // }
-
-
-
+        return $authResponse->json('token');
+    }
 
     /**
      * Send payload to handler API
      */
-    private function sendToHandler2(array $payload): void
+    private function sendToHandler(array $payload): void
     {
         try {
             $response = Http::acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
 
             if ($response->ok()) {
-                Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
+                // Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
             } else {
                 // Log::error("[CUSTOMER MESSAGE FORWARDED] FAILED", ['payload' => $payload, 'response' => $response->body()]);
             }
@@ -410,47 +246,44 @@ class WebhookController extends Controller
         }
     }
 
-    private function sendToHandler(array $payload)
+    private function getMediaUrl($mediaId)
     {
-        try {
-            $response = Http::acceptJson()->post(
-                config('dispatcher.url') . config('dispatcher.endpoints.handler'),
-                $payload
-            );
+        $accessToken = env('WHATSAPP_ACCESS_TOKEN');
 
-            if ($response->ok()) {
-                Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
-                return [
-                    'status' => 'success',
-                    'code'   => $response->status(),
-                    'body'   => $response->json(),
-                ];
-            } else {
-                $responseBody = $response->body();
-                Log::error("[CUSTOMER MESSAGE FORWARDED] FAILED", [
-                    'payload'  => $payload,
-                    'response' => $responseBody,
-                    'status'   => $response->status(),
-                ]);
-                return [
-                    'status' => 'failed',
-                    'code'   => $response->status(),
-                    'body'   => $responseBody,
-                ];
-            }
-        } catch (\Exception $e) {
-            Log::error("[CUSTOMER MESSAGE FORWARDED] ERROR", [
-                'exception' => $e->getMessage(),
-                'payload'   => $payload,
+        if (!$mediaId) {
+            return null;
+        }
+
+        $cacheKey = "whatsapp_media_url_{$mediaId}";
+        $cachedUrl = Cache::get($cacheKey);
+        if ($cachedUrl) {
+            return $cachedUrl;
+        }
+
+        $url = "https://graph.facebook.com/v18.0/{$mediaId}";
+
+        try {
+            $client   = new \GuzzleHttp\Client();
+            $response = $client->get($url, [
+                'headers' => [
+                    'Authorization' => "Bearer {$accessToken}"
+                ]
             ]);
-            return [
-                'status' => 'error',
-                'error'  => $e->getMessage(),
-            ];
+
+            $body     = json_decode($response->getBody(), true);
+            $mediaUrl = $body['url'] ?? null;
+
+            if ($mediaUrl) {
+                // Cache media url for 10 minutes to avoid repeated calls
+                Cache::put($cacheKey, $mediaUrl, now()->addMinutes(10));
+            }
+
+            return $mediaUrl;
+        } catch (RequestException $e) {
+            Log::error("Error fetching media URL for mediaId {$mediaId}: " . $e->getMessage());
+            return null;
         }
     }
-
-
 
     public function fetchWhatsappMedia($mediaId)
     {
