@@ -129,11 +129,19 @@ class MessageController extends Controller
 
         Log::info('[IncomingMsg] after conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
 
+<<<<<<< HEAD
         $convertedMsgId          = (int)$messageId;
         $message                 = Message::find($convertedMsgId);
         $message->receiver_id    = $conversation->agent_id ?? $user->id;
         $message->receiver_type  = User::class;
         $message->save();
+=======
+            $convertedMsgId          = (int)$messageId;
+            $message                 = Message::find($convertedMsgId);
+            $message->receiver_id    = $user->id;
+            $message->receiver_type  = User::class;
+            $message->save();
+>>>>>>> development
 
         // Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
 
