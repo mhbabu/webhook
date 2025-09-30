@@ -131,7 +131,7 @@ class MessageController extends Controller
 
             $convertedMsgId          = (int)$messageId;
             $message                 = Message::find($convertedMsgId);
-            $message->receiver_id    = $conversation->agent_id ?? $user->id;
+            $message->receiver_id    = $user->id;
             $message->receiver_type  = User::class;
             $message->save();
 
