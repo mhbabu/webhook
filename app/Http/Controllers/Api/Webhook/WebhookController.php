@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api\Webhook;
 
 use App\Events\SocketIncomingMessage;
+use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
