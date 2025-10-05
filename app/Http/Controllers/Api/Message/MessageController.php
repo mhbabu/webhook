@@ -177,41 +177,31 @@ class MessageController extends Controller
         return jsonResponse('Conversation ended successfully.', true, null);
     }
 
-    public function sendWhatsAppMessage(SendWhatsAppMessageRequest $request)
+    public function sendWhatsAppMessage2(SendWhatsAppMessageRequest $request)
     {
-        $data = $request->validated();
-
-        $conversation = Conversation::findOrFail($data['conversation_id']);
+        $data         = $request->validated();
+        $conversation = Conversation::find($data['conversation_id']);
 
         // Save message in DB
-        $message = new Message();
-        $message->conversation_id = $conversation->id;
-        $message->sender_id = auth()->id();
-        $message->sender_type = User::class;
-        $message->receiver_type = Customer::class;
-        $message->receiver_id = $conversation->customer_id;
-        $message->type = 'text';
-        $message->content = $data['content'];
-        $message->direction = 'outgoing';
+        $message                    = new Message();
+        $message->conversation_id   = $conversation->id;
+        $message->sender_id         = auth()->id();
+        $message->sender_type       = User::class;
+        $message->receiver_type     = Customer::class;
+        $message->receiver_id       = $conversation->customer_id;
+        $message->type              = 'text';
+        $message->content           = $data['content'];
+        $message->direction         = 'outgoing';
         $message->save();
 
-        $customer = Customer::findOrFail($conversation->customer_id);
-        $phone = $customer->phone;
-
-        // Format phone number
-        if (!str_starts_with($phone, '+')) {
-            $phone = '+' . $phone;
-        }
+        $customer = Customer::find($conversation->customer_id);
+        $phone    = $customer->phone;
 
         $whatsAppService = new WhatsAppService();
 
         // Check if customer messaged in last 24h
-        $lastIncomingMessage = Message::where('conversation_id', $conversation->id)
-            ->where('direction', 'incoming')
-            ->latest()
-            ->first();
-
-        $within24Hours = $lastIncomingMessage && now()->diffInHours($lastIncomingMessage->created_at) <= 24;
+        $lastIncomingMessage = Message::where('conversation_id', $conversation->id)->where('direction', 'incoming')->latest()->first();
+        $within24Hours       = $lastIncomingMessage && now()->diffInHours($lastIncomingMessage->created_at) <= 24;
 
         if ($within24Hours) {
             // ✅ Send free text
@@ -229,28 +219,24 @@ class MessageController extends Controller
         ]);
     }
 
-    public function sendWhatsAppMessage2(SendWhatsAppMessageRequest $request)
+    public function sendWhatsAppMessage(SendWhatsAppMessageRequest $request)
     {
-        $data = $request->validated();
-
+        $data         = $request->validated();
         $conversation = Conversation::find($data['conversation_id']);
         $customer     = Customer::find($conversation->customer_id);
         $phone        = $customer->phone;
 
-        // Save text message in DB (if any)
-        $message = null;
-        if (!empty($data['content'])) {
-            $message = new Message();
-            $message->conversation_id = $conversation->id;
-            $message->sender_id = auth()->id();
-            $message->sender_type = User::class;
-            $message->receiver_type = Customer::class;
-            $message->receiver_id = $conversation->customer_id;
-            $message->type = 'text';
-            $message->content = $data['content'];
-            $message->direction = 'outgoing';
-            $message->save();
-        }
+        // Save message in DB
+        $message                    = new Message();
+        $message->conversation_id   = $conversation->id;
+        $message->sender_id         = auth()->id();
+        $message->sender_type       = User::class;
+        $message->receiver_type     = Customer::class;
+        $message->receiver_id       = $conversation->customer_id;
+        $message->type              = 'text';
+        $message->content           = $data['content'];
+        $message->direction         = 'outgoing';
+        $message->save();
 
         $whatsAppService = new WhatsAppService();
 
@@ -280,15 +266,16 @@ class MessageController extends Controller
 
                     // Optionally: save each media as message
                     Message::create([
-                        'conversation_id' => $conversation->id,
-                        'sender_id'       => auth()->id(),
-                        'sender_type'     => User::class,
-                        'receiver_type'   => Customer::class,
-                        'receiver_id'     => $conversation->customer_id,
-                        'type'            => $mediaType,
-                        'content'         => $file->getClientOriginalName(),
-                        'direction'       => 'outgoing',
-                        'metadata'        => ['whatsapp_media_id' => $mediaId],
+                        'conversation_id'     => $conversation->id,
+                        'sender_id'           => auth()->id(),
+                        'sender_type'         => User::class,
+                        'receiver_type'       => Customer::class,
+                        'receiver_id'         => $conversation->customer_id,
+                        'type'                => $mediaType,
+                        'content'             => null,
+                        'direction'           => 'outgoing',
+                        'platform_message_id' => $mediaResponse['messages'][0]['id'] ?? null,
+                        'parent_id'           => $data['parent_id'] ?? null,
                     ]);
                 }
             }
@@ -298,6 +285,7 @@ class MessageController extends Controller
         $textResponse = null;
         if (!empty($data['content'])) {
             $textResponse = $whatsAppService->sendTextMessage($phone, $data['content']);
+            $message->update(['platform_message_id' => $textResponse['messages'][0]['id']]);
         }
 
         return jsonResponse('WhatsApp message(s) sent successfully.', true, [
