@@ -144,25 +144,18 @@ class MessageController extends Controller
             $message->save();
         }
 
-        // Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
+        Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
 
         // DB::commit();
 
         // Broadcast payload
+       $payload     = ['conversation' => new ConversationInfoResource($conversation, $message), 'message' => new MessageResource($message)];
+       $channelData = ['platform' => $source, 'agentId' => $agentId];
+        Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
 
-        $payload = [
-            'conversation' => new ConversationInfoResource($conversation, $message),
-            'message'      => $message ? new MessageResource($message) : null,
-        ];
-
-        $channelData = [
-            'platform' => $source,
-            'agentId'  => $agentId,
-        ];
-        
         broadcast(new SocketIncomingMessage($payload, $channelData));
         // SocketIncomingMessage::dispatch($payload, $channelData);
-        // Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
+       
 
         return jsonResponse('Message received successfully.', true, null);
         // } catch (\Exception $e) {
