@@ -6,20 +6,15 @@ use App\Events\SocketIncomingMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Message\EndConversationRequest;
 use App\Http\Requests\Message\SendWhatsAppMessageRequest;
-use App\Http\Resources\CustomerResource;
 use App\Http\Resources\Message\ConversationInfoResource;
 use App\Http\Resources\Message\ConversationResource;
 use App\Http\Resources\Message\MessageResource;
-use App\Http\Resources\User\UserResource;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
-use App\Models\Platform;
 use App\Models\User;
 use App\Services\Platforms\WhatsAppService;
-use Illuminate\Container\Attributes\Auth;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class MessageController extends Controller
