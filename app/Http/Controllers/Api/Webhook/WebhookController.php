@@ -230,21 +230,6 @@ class WebhookController extends Controller
     }
 
     /**
-     * Authenticate and get API token for DISPATCHER 
-     */
-    private function getAuthToken(): ?string
-    {
-        $authResponse = Http::post(config('dispatcher.url') . config('dispatcher.endpoints.authenticate'), ['api_key' => config('dispatcher.api_key')]);
-
-        if (!$authResponse->ok()) {
-            // Log::error('[WHATSAPP ERROR] Authentication failed', ['response' => $authResponse->body()]);
-            return null;
-        }
-
-        return $authResponse->json('token');
-    }
-
-    /**
      * Send payload to handler API
      */
     private function sendToHandler(array $payload): void

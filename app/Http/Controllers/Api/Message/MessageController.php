@@ -19,7 +19,6 @@ use Illuminate\Support\Facades\Log;
 
 class MessageController extends Controller
 {
-
     public function agentConversationList(Request $request)
     {
         $agentId = auth()->id(); // authenticated agent
@@ -113,16 +112,13 @@ class MessageController extends Controller
         $user = User::find($agentId);
         $user->current_limit = $agentAvailableScope;
         $user->save();
-
         Log::info('[UserData]' . json_encode($user));
-
 
         // Fetch conversation
         $conversation = Conversation::find((int)$conversationId);
         Log::info('[IncomingMsg] before conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
         $conversation->agent_id = $user->id;
         $conversation->save();
-
         Log::info('[IncomingMsg] after conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
 
         $convertedMsgId          = (int)$messageId;
@@ -130,7 +126,6 @@ class MessageController extends Controller
         $message->receiver_id    = $conversation->agent_id ?? $user->id;
         $message->receiver_type  = User::class;
         $message->save();
-
         Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
 
         // DB::commit();
@@ -138,6 +133,7 @@ class MessageController extends Controller
         // Broadcast payload
        $payload     = ['conversation' => new ConversationInfoResource($conversation, $message), 'message' => new MessageResource($message)];
        $channelData = ['platform' => $source, 'agentId' => $agentId];
+       
         Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
 
         broadcast(new SocketIncomingMessage($payload, $channelData));
