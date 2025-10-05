@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api\Webhook;
 
 use App\Events\SocketIncomingMessage;
+use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
@@ -44,38 +45,36 @@ class WebhookController extends Controller
 
     public function whatsapp(Request $request)
     {
-        $data      = $request->all();
-        $entry     = $data['entry'][0]['changes'][0]['value'] ?? [];
-        $statuses  = $entry['statuses'] ?? [];
-        $messages  = $entry['messages'] ?? [];
-        $contacts  = $entry['contacts'][0] ?? null;
+        // Capture and log the entire incoming request
+        $data = $request->all();
+        Log::info('WhatsApp Incoming Request', ['data' => $data]);
 
-        // Get platform (WhatsApp)
-        $platform = Platform::whereRaw('LOWER(name) = ?', ['whatsapp'])->first();
-        if (!$platform) {
-            return response()->json(['status' => 'platform_not_found'], 500);
-        }
+        $entry    = $data['entry'][0]['changes'][0]['value'] ?? [];
+        $statuses = $entry['statuses'] ?? [];
+        $messages = $entry['messages'] ?? [];
+        $contacts = $entry['contacts'][0] ?? null;
+
+        // Find WhatsApp platform
+        $platform     = Platform::whereRaw('LOWER(name) = ?', ['whatsapp'])->first();
         $platformId   = $platform->id;
         $platformName = $platform->name;
 
-        // Get customer phone and name
+        // Determine sender's phone and name
         $rawPhone   = $contacts['wa_id'] ?? ($messages[0]['from'] ?? null);
         if (!$rawPhone) {
+            Log::warning('Invalid or missing phone number in request.');
             return response()->json(['status' => 'invalid_phone'], 400);
         }
 
-        $phone      = '+88' . substr($rawPhone, -11); // last 11 digits
+        $phone      = '+88' . substr($rawPhone, -11); // normalize to last 11 digits
         $senderName = $contacts['profile']['name'] ?? 'WhatsApp Customer';
 
         DB::transaction(function () use ($statuses, $messages, $phone, $senderName, $platformId, $platformName) {
 
             // Get or create customer
-            $customer = Customer::firstOrCreate(
-                ['phone' => $phone, 'platform_id' => $platformId],
-                ['name' => $senderName]
-            );
+            $customer = Customer::firstOrCreate(['phone' => $phone, 'platform_id' => $platformId], ['name' => $senderName]);
 
-            // Get or create active conversation
+            // Get or create conversation
             $conversation = Conversation::where('customer_id', $customer->id)
                 ->where('platform', $platformName)
                 ->where(function ($q) {
@@ -98,7 +97,7 @@ class WebhookController extends Controller
                 $isNewConversation = true;
             }
 
-            // Step 1: Handle status updates (e.g., read, delivered)
+            // Handle statuses (e.g. delivered, read)
             foreach ($statuses as $status) {
                 $payload = [
                     "source"           => "whatsapp",
@@ -113,11 +112,12 @@ class WebhookController extends Controller
                     "attachments"      => [],
                     "subject"          => "WhatsApp Status Update",
                 ];
-                // Send status update payload to separate handler (not customer message)
+
+                Log::info('Sending WhatsApp Status Payload', ['payload' => $payload]);
                 $this->sendToHandler($payload);
             }
 
-            // Step 2: Process incoming customer messages ONLY
+            // Handle incoming messages
             foreach ($messages as $msg) {
                 $type        = $msg['type'] ?? '';
                 $caption     = null;
@@ -125,11 +125,12 @@ class WebhookController extends Controller
                 $attachments = [];
                 $timestamp   = $msg['timestamp'] ?? time();
 
-                // Extract message content
+                // Extract text or media
                 if ($type === 'text') {
                     $caption = $msg['text']['body'] ?? '';
                 } elseif (in_array($type, ['image', 'video', 'document', 'audio'])) {
                     $mediaId = $msg[$type]['id'] ?? null;
+
                     if ($mediaId) {
                         $mediaIds[] = $mediaId;
 
@@ -137,36 +138,51 @@ class WebhookController extends Controller
                         if ($mediaData) {
                             $attachments[] = [
                                 'attachment_id' => $mediaId,
-                                'path'          => $mediaData['full_path'],  // storage path
+                                'path'          => $mediaData['full_path'],
                                 'is_download'   => 1,
                                 'mime'          => $mediaData['mime'] ?? null,
                                 'size'          => $mediaData['size'] ?? null,
                                 'type'          => $mediaData['type'],
                             ];
                         } else {
-                            Log::error("WhatsApp Media [$mediaId] could not be downloaded.");
+                            Log::error("Media download failed for ID: {$mediaId}");
                         }
                     }
 
-                    // Use caption if available in media message
                     if (!$caption && !empty($msg[$type]['caption'])) {
                         $caption = $msg[$type]['caption'];
                     }
                 }
 
-                // Save the incoming message to DB
+                // Get WhatsApp platform message ID
+                $platformMessageId = $msg['id'] ?? null;
+
+                // Check for reply context
+                $parentPlatformMessageId = $msg['context']['id'] ?? null;
+                $parentId = null;
+
+                if ($parentPlatformMessageId) {
+                    $parent = Message::where('platform_message_id', $parentPlatformMessageId)->first();
+                    if ($parent) {
+                        $parentId = $parent->id;
+                    }
+                }
+
+                // Store message
                 $message = Message::create([
-                    'conversation_id' => $conversation->id,
-                    'sender_id'       => $customer->id,
-                    'sender_type'     => Customer::class,
-                    'type'            => $type,
-                    'content'         => $caption,
-                    'direction'       => 'incoming',
-                    'receiver_type'   => User::class,
-                    'receiver_id'     => $conversation->agent_id ?? null,
+                    'conversation_id'     => $conversation->id,
+                    'sender_id'           => $customer->id,
+                    'sender_type'         => Customer::class,
+                    'type'                => $type,
+                    'content'             => $caption,
+                    'direction'           => 'incoming',
+                    'receiver_type'       => User::class,
+                    'receiver_id'         => $conversation->agent_id ?? null,
+                    'platform_message_id' => $platformMessageId,
+                    'parent_id'           => $parentId,
                 ]);
 
-                // Save attachments to DB if any
+                // Save attachments if available
                 if (!empty($attachments)) {
                     $bulkInsert = array_map(function ($att) use ($message) {
                         return [
@@ -185,11 +201,11 @@ class WebhookController extends Controller
                     MessageAttachment::insert($bulkInsert);
                 }
 
-                // Update conversation last message id
+                // Update conversation with last message
                 $conversation->last_message_id = $message->id;
                 $conversation->save();
 
-                // Prepare payload with message_id for customer message only
+                // Build payload
                 $payload = [
                     "source"           => "whatsapp",
                     "traceId"          => 'wa_' . uniqid(),
@@ -205,13 +221,13 @@ class WebhookController extends Controller
                     "messageId"        => $message->id,
                 ];
 
+                Log::info('Sending WhatsApp Message Payload', ['payload' => $payload]);
                 $this->sendToHandler($payload);
             }
         });
 
         return jsonResponse(!empty($messages) ? 'Message received' : 'Status received', true);
     }
-
 
     /**
      * Authenticate and get API token for DISPATCHER 
