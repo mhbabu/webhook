@@ -6,6 +6,7 @@ use App\Events\SocketIncomingMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Message\EndConversationRequest;
 use App\Http\Requests\Message\SendWhatsAppMessageRequest;
+use App\Http\Resources\CustomerResource;
 use App\Http\Resources\Message\ConversationInfoResource;
 use App\Http\Resources\Message\ConversationResource;
 use App\Http\Resources\Message\MessageResource;
@@ -98,6 +99,7 @@ class MessageController extends Controller
         $source              = strtolower($data['source'] ?? '');
         $conversationId      = $data['messageData']['conversationId'] ?? null;
         $messageId           = $data['messageData']['messageId'];
+        $conversationType    = $data['messageData']['conversationType'];
 
         // Validate required fields
         if (!$conversationId || !$agentId) {
@@ -117,25 +119,40 @@ class MessageController extends Controller
         // Fetch conversation
         $conversation = Conversation::find((int)$conversationId);
         Log::info('[IncomingMsg] before conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
-        $conversation->agent_id = $user->id;
-        $conversation->save();
+
+        if ($conversationType === 'new') {
+            $conversation->agent_id = $user->id;
+            $conversation->save();
+        }
+
+
         Log::info('[IncomingMsg] after conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
 
         $convertedMsgId          = (int)$messageId;
         $message                 = Message::find($convertedMsgId);
-        $message->receiver_id    = $conversation->agent_id ?? $user->id;
-        $message->receiver_type  = User::class;
-        $message->save();
-        Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
+
+        if ($conversationType === 'new') {
+            $message->receiver_id    = $conversation->agent_id ?? $user->id;
+            $message->receiver_type  = User::class;
+            $message->save();
+        }
+
+        // Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
 
         // DB::commit();
 
         // Broadcast payload
-       $payload     = ['conversation' => new ConversationInfoResource($conversation, $message), 'message' => new MessageResource($message)];
-       $channelData = ['platform' => $source, 'agentId' => $agentId];
-       
-        Log::info('[IncomingMsg] Payload dispatched to socket', ['payload' => $payload, 'channelData' => $channelData]);
 
+        $payload = [
+            'conversation' => new ConversationInfoResource($conversation, $message),
+            'message'      => $message ? new MessageResource($message) : null,
+        ];
+
+        $channelData = [
+            'platform' => $source,
+            'agentId'  => $agentId,
+        ];
+        
         broadcast(new SocketIncomingMessage($payload, $channelData));
         // SocketIncomingMessage::dispatch($payload, $channelData);
        

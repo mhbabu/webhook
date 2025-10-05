@@ -4,45 +4,39 @@ namespace App\Http\Resources\Message;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 use App\Http\Resources\CustomerResource;
-use App\Http\Resources\User\UserInfoResource;
-use App\Http\Resources\Message\MessageAttachmentResource;
-use App\Http\Resources\Message\WrapUpConversationResource;
+use App\Http\Resources\Message\MessageResource;
 
 class ConversationInfoResource extends JsonResource
 {
     protected $message;
 
-    public function __construct($resource, $message = null)
+    public function __construct($conversation, $message = null)
     {
-        parent::__construct($resource);
-        $this->resource = $resource;
+        parent::__construct($conversation);
         $this->message = $message;
     }
 
     public function toArray($request): array
     {
+        $conversation = $this->resource;
+        $message = $this->message;
+
         return [
-            'id'              => $this->id,
-            'platform'        => $this->platform,
-            'trace_id'        => $this->trace_id,
-            'customer'        => $this->customer ? new CustomerResource($this->customer) : null,
-            'last_message'    => $this->message?->content ?? null,
-            'last_message_at' => $this->message?->created_at ? $this->message->created_at->toDateTimeString() : null,
+            'id'              => $conversation->id,
+            'platform'        => $conversation->platform,
+            'trace_id'        => $conversation->trace_id,
+            'customer'        => $conversation->customer ? new CustomerResource($conversation->customer) : null,
 
-            'last_message_info' => $this->message ? [
-                'last_message_sender' => $this->message->sender_type === 'App\Models\User' ? 'agent' : 'customer',
-                'last_message_sender_info' => $this->message->sender_type === 'App\Models\User'
-                    ? new UserInfoResource($this->message->sender)
-                    : new CustomerResource($this->message->sender),
-                'attachments' => $this->message->attachments
-                    ? MessageAttachmentResource::collection($this->message->attachments)
-                    : [],
-            ] : null,
+            // Use the passed message here
+            'last_message'    => $message?->content ?? null,
+            'last_message_at' => $message?->created_at ? $message->created_at->toDateTimeString() : null,
 
-            'started_at'      => $this->started_at,
-            'end_at'          => $this->end_at,
-            'wrap_up_info'    => $this->wrapUp ? new WrapUpConversationResource($this->wrapUp) : null,
-            'is_ended'        => (bool) $this->end_at,
+            'last_message_info' => $message ? new MessageResource($message) : null,
+
+            'started_at'      => $conversation->started_at,
+            'end_at'          => $conversation->end_at,
+            'wrap_up_info'    => $conversation->wrapUp ? new WrapUpConversationResource($conversation->wrapUp) : null,
+            'is_ended'        => (bool) $conversation->end_at,
         ];
     }
 }
