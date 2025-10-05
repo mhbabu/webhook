@@ -5,8 +5,6 @@ namespace App\Http\Resources\Message;
 use Illuminate\Http\Resources\Json\JsonResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\Message\MessageResource;
-use App\Http\Resources\Message\WrapUpConversationResource as MessageWrapUpConversationResource;
-use App\Http\Resources\WrapUpConversationResource;
 
 class ConversationInfoResource extends JsonResource
 {
@@ -37,7 +35,7 @@ class ConversationInfoResource extends JsonResource
 
             'started_at'      => $conversation->started_at,
             'end_at'          => $conversation->end_at,
-            'wrap_up_info'    => $conversation->wrapUp ? new MessageWrapUpConversationResource($conversation->wrapUp) : null,
+            'wrap_up_info'    => $conversation->wrapUp ? new WrapUpConversationResource($conversation->wrapUp) : null,
             'is_ended'        => (bool) $conversation->end_at,
         ];
     }
