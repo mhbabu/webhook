@@ -348,8 +348,8 @@ class WebhookController extends Controller
         foreach ($entries as $entry) {
             foreach ($entry['messaging'] ?? [] as $event) {
 
-                $senderId = $event['sender']['id'] ?? null;
-                $timestamp = $event['timestamp'] ?? now()->timestamp;
+                $senderId    = $event['sender']['id'] ?? null;
+                $timestamp   = $event['timestamp'] ?? now()->timestamp;
                 $messageData = $event['message'] ?? [];
 
                 if (!$senderId || empty($messageData)) {
@@ -357,15 +357,16 @@ class WebhookController extends Controller
                     continue;
                 }
 
-                $text = $messageData['text'] ?? null;
+                $text        = $messageData['text'] ?? null;
                 $attachments = $messageData['attachments'] ?? [];
+                $platformMessageId = $messageData['mid'] ?? ($senderId . '-' . $timestamp);
 
                 // Fetch sender info
-                $senderInfo = $this->facebookService->getSenderInfo($senderId);
-                $senderName = $senderInfo['name'] ?? "Facebook User {$senderId}";
-                $profilePic = $senderInfo['profile_pic'] ?? null;
+                $senderInfo  = $this->facebookService->getSenderInfo($senderId);
+                $senderName  = $senderInfo['name'] ?? "Facebook User {$senderId}";
+                $profilePic  = $senderInfo['profile_pic'] ?? null;
 
-                DB::transaction(function () use ($senderId, $senderName, $profilePic, $platformId, $platformName, $text, $attachments, $timestamp) {
+                DB::transaction(function () use ($senderId, $senderName, $profilePic, $platformId, $platformName, $text, $attachments, $timestamp, $platformMessageId) {
 
                     // 1️⃣ Create or get Customer
                     $customer = Customer::firstOrCreate(
@@ -373,7 +374,7 @@ class WebhookController extends Controller
                         ['name' => $senderName]
                     );
 
-                    // 1️⃣a Download profile photo only first time
+                    // 1️⃣a Download profile photo only on creation
                     if ($customer->wasRecentlyCreated && $profilePic) {
                         try {
                             $response = Http::get($profilePic);
@@ -431,7 +432,7 @@ class WebhookController extends Controller
                         'direction'           => 'incoming',
                         'receiver_type'       => User::class,
                         'receiver_id'         => $conversation->agent_id ?? null,
-                        'platform_message_id' => $senderId . '-' . $timestamp,
+                        'platform_message_id' => $platformMessageId,
                     ]);
 
                     // 5️⃣ Save attachments
