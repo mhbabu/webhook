@@ -5,8 +5,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
-Route::get('webhook/whatsapp', [WebhookController::class, 'verify']); // GET for webhook verification
-Route::post('webhook/whatsapp', [WebhookController::class, 'whatsapp']); // POST for message reception
+Route::get('webhook/whatsapp', [WebhookController::class, 'verifyWhatsAppToken']); // GET for webhook verification
+Route::post('webhook/whatsapp', [WebhookController::class, 'incomingWhatsAppMessage']); // receive whatsapp webhook incoming message
 Route::get('/whatsapp-media/{mediaId}', [WebhookController::class, 'fetchWhatsappMedia']);
 
 

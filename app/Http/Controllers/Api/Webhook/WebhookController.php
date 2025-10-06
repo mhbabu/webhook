@@ -28,7 +28,7 @@ class WebhookController extends Controller
     }
 
     // Meta webhook callbackUrl verification endpoint
-    public function verify(Request $request)
+    public function verifyWhatsAppToken(Request $request)
     {
         $VERIFY_TOKEN = 'mahadi'; // must match Meta's setting
 
@@ -43,7 +43,7 @@ class WebhookController extends Controller
         return response('Verification token mismatch', 403);
     }
 
-    public function whatsapp(Request $request)
+    public function incomingWhatsAppMessage(Request $request)
     {
         // Capture and log the entire incoming request
         $data = $request->all();
@@ -67,7 +67,7 @@ class WebhookController extends Controller
         }
 
         $phone      = '+88' . substr($rawPhone, -11); // normalize to last 11 digits
-        $senderName = $contacts['profile']['name'] ?? 'WhatsApp Customer';
+        $senderName = $contacts['profile']['name'] ?? $phone;
 
         DB::transaction(function () use ($statuses, $messages, $phone, $senderName, $platformId, $platformName) {
 
@@ -238,9 +238,9 @@ class WebhookController extends Controller
             $response = Http::acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
 
             if ($response->ok()) {
-                // Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
+                Log::info("[CUSTOMER MESSAGE FORWARDED]", $payload);
             } else {
-                // Log::error("[CUSTOMER MESSAGE FORWARDED] FAILED", ['payload' => $payload, 'response' => $response->body()]);
+                Log::error("[CUSTOMER MESSAGE FORWARDED] FAILED", ['payload' => $payload, 'response' => $response->body()]);
             }
         } catch (\Exception $e) {
             Log::error("[CUSTOMER MESSAGE FORWARDED] ERROR", ['exception' => $e->getMessage()]);
