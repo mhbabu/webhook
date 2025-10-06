@@ -7,14 +7,15 @@ use Illuminate\Support\Facades\Auth;
 
 Route::get('webhook/whatsapp', [WebhookController::class, 'verifyWhatsAppToken']); // webhook verification for wahtsapp
 Route::post('webhook/whatsapp', [WebhookController::class, 'incomingWhatsAppMessage']); // receive whatsapp webhook incoming message
-Route::get('/whatsapp-media/{mediaId}', [WebhookController::class, 'fetchWhatsappMedia']);
+
+Route::get('webhook/messenger', [WebhookController::class, 'verifyMessengerToken']); // For for webhook verification
+Route::post('webhook/messenger', [WebhookController::class, 'incomingMessengerMessage']); // POST for message reception
 
 
 // Route::get('webhook/instagram', [WebhookController::class, 'verifyIntragram']); // For for webhook verification
 // Route::post('webhook/instagram', [WebhookController::class, 'receiveInstragramMsg']); // POST for message reception
 
-// Route::get('webhook/messenger', [WebhookController::class, 'verifyMessenger']); // For for webhook verification
-// Route::post('webhook/messenger', [WebhookController::class, 'receiveMessengerMsg']); // POST for message reception
+
 
 require __DIR__ .'/platform.php';
 

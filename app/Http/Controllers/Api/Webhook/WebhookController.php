@@ -247,91 +247,13 @@ class WebhookController extends Controller
         }
     }
 
-    private function getMediaUrl($mediaId)
-    {
-        $accessToken = env('WHATSAPP_ACCESS_TOKEN');
-
-        if (!$mediaId) {
-            return null;
-        }
-
-        $cacheKey = "whatsapp_media_url_{$mediaId}";
-        $cachedUrl = Cache::get($cacheKey);
-        if ($cachedUrl) {
-            return $cachedUrl;
-        }
-
-        $url = "https://graph.facebook.com/v18.0/{$mediaId}";
-
-        try {
-            $client   = new \GuzzleHttp\Client();
-            $response = $client->get($url, [
-                'headers' => [
-                    'Authorization' => "Bearer {$accessToken}"
-                ]
-            ]);
-
-            $body     = json_decode($response->getBody(), true);
-            $mediaUrl = $body['url'] ?? null;
-
-            if ($mediaUrl) {
-                // Cache media url for 10 minutes to avoid repeated calls
-                Cache::put($cacheKey, $mediaUrl, now()->addMinutes(10));
-            }
-
-            return $mediaUrl;
-        } catch (RequestException $e) {
-            Log::error("Error fetching media URL for mediaId {$mediaId}: " . $e->getMessage());
-            return null;
-        }
-    }
-
-    public function fetchWhatsappMedia($mediaId)
-    {
-        $accessToken = env('WHATSAPP_ACCESS_TOKEN');
-        $client      = new \GuzzleHttp\Client();
-
-        try {
-            // Get media URL first
-            $response = $client->get("https://graph.facebook.com/v18.0/{$mediaId}", [
-                'headers' => [
-                    'Authorization' => "Bearer {$accessToken}"
-                ]
-            ]);
-
-            $body     = json_decode($response->getBody(), true);
-            $mediaUrl = $body['url'] ?? null;
-
-            if (!$mediaUrl) {
-                return response()->json(['error' => 'Media URL not found'], 404);
-            }
-
-            // Now fetch the actual media content (stream it)
-            $mediaResponse = $client->get($mediaUrl, [
-                'headers' => [
-                    'Authorization' => "Bearer {$accessToken}"
-                ],
-                'stream' => true,
-            ]);
-
-            // Return streamed response with appropriate headers
-            return response($mediaResponse->getBody(), 200)
-                ->header('Content-Type', $mediaResponse->getHeaderLine('Content-Type'))
-                ->header('Content-Disposition', $mediaResponse->getHeaderLine('Content-Disposition'));
-        } catch (\Exception $e) {
-            Log::error("Error fetching WhatsApp media: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to fetch media'], 500);
-        }
-    }
-
     // Meta Webhook verification (GET request)
     public function verifyIntragram(Request $request)
     {
         $verify_token = env('INSTAGRAM_VERIFY_TOKEN'); // Get from .env
-
-        $mode = $request->get('hub_mode');
-        $token = $request->get('hub_verify_token');
-        $challenge = $request->get('hub_challenge');
+        $mode         = $request->get('hub_mode');
+        $token        = $request->get('hub_verify_token');
+        $challenge    = $request->get('hub_challenge');
 
         if ($mode === 'subscribe' && $token === $verify_token) {
             return response($challenge, 200);
@@ -392,7 +314,7 @@ class WebhookController extends Controller
     }
 
     // 1. Verify Meta Webhook (GET)
-    public function verifyMessenger(Request $request)
+    public function verifyMessengerToken(Request $request)
     {
         $verify_token = env('FB_VERIFY_TOKEN');
 
@@ -408,7 +330,7 @@ class WebhookController extends Controller
     }
 
     // 2. Receive Message (POST)
-    public function receiveMessengerMsg(Request $request)
+    public function incomingMessengerMessage(Request $request)
     {
         Log::info('Messenger Webhook Payload:', $request->all());
 
