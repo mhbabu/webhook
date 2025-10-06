@@ -41,4 +41,10 @@ return [
         'url'   => 'https://graph.facebook.com/v22.0/' . env('WHATSAPP_PHONE_NUMBER_ID') . '/messages',
     ],
 
+    'facebook' => [
+        'fb_verify_token' => env('FB_VERIFY_TOKEN'), 
+        'token' => env('FB_PAGE_ACCESS_TOKEN'),
+        'url'   => 'https://graph.facebook.com/v18.0',
+    ],
+
 ];

@@ -15,7 +15,8 @@ class Customer extends Model implements HasMedia
         'name',
         'email',
         'phone',
-        'platform_id'
+        'platform_id',
+        'platform_user_id'
     ];
 
     public function registerMediaCollections(): void
