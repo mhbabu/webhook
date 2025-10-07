@@ -190,49 +190,7 @@ class MessageController extends Controller
         return jsonResponse('Conversation ended successfully.', true, null);
     }
 
-    public function sendWhatsAppMessage2(SendWhatsAppMessageRequest $request)
-    {
-        $data         = $request->validated();
-        $conversation = Conversation::find($data['conversation_id']);
-
-        // Save message in DB
-        $message                    = new Message();
-        $message->conversation_id   = $conversation->id;
-        $message->sender_id         = auth()->id();
-        $message->sender_type       = User::class;
-        $message->receiver_type     = Customer::class;
-        $message->receiver_id       = $conversation->customer_id;
-        $message->type              = 'text';
-        $message->content           = $data['content'];
-        $message->direction         = 'outgoing';
-        $message->save();
-
-        $customer = Customer::find($conversation->customer_id);
-        $phone    = $customer->phone;
-
-        $whatsAppService = new WhatsAppService();
-
-        // Check if customer messaged in last 24h
-        $lastIncomingMessage = Message::where('conversation_id', $conversation->id)->where('direction', 'incoming')->latest()->first();
-        $within24Hours       = $lastIncomingMessage && now()->diffInHours($lastIncomingMessage->created_at) <= 24;
-
-        if ($within24Hours) {
-            // ✅ Send free text
-            $response = $whatsAppService->sendTextMessage($phone, $data['content']);
-        } else {
-            // ❌ Outside 24h: send fallback template
-            $fallbackTemplateName = 'fallback_message'; // Replace with your actual template name
-            $response = $whatsAppService->sendTemplateMessage($phone, $fallbackTemplateName, [$customer->name ?? 'Customer']);
-        }
-
-        return jsonResponse('WhatsApp message sent successfully.', true, [
-            'message' => new MessageResource($message),
-            'whatsapp_response' => $response,
-            'used_template' => !$within24Hours
-        ]);
-    }
-
-    public function sendWhatsAppMessage(SendWhatsAppMessageRequest $request)
+    public function sendWhatsAppMessageFromAgent(SendWhatsAppMessageRequest $request)
     {
         $data         = $request->validated();
         $conversation = Conversation::find($data['conversation_id']);
@@ -307,4 +265,6 @@ class MessageController extends Controller
             'text_response'     => $textResponse,
         ]);
     }
+
+    
 }
