@@ -152,10 +152,10 @@ class MessageController extends Controller
             'platform' => $source,
             'agentId'  => $agentId,
         ];
-        
+
         broadcast(new SocketIncomingMessage($payload, $channelData));
         // SocketIncomingMessage::dispatch($payload, $channelData);
-       
+
 
         return jsonResponse('Message received successfully.', true, null);
         // } catch (\Exception $e) {
@@ -266,5 +266,73 @@ class MessageController extends Controller
         ]);
     }
 
-    
+    public function sendMessengerMessageFromAgent(SendMessengerMessageRequest $request)
+    {
+        $data         = $request->validated();
+        $conversation = Conversation::findOrFail($data['conversation_id']);
+        $customer     = Customer::findOrFail($conversation->customer_id);
+        $recipientId  = $customer->messenger_id; // make sure this field exists!
+
+        $facebookService = new FacebookService();
+        $mediaResponses  = [];
+
+        // Save text message in DB first (for tracking platform_message_id later)
+        $textMessage = null;
+        if (!empty($data['content'])) {
+            $textMessage = Message::create([
+                'conversation_id'   => $conversation->id,
+                'sender_id'         => auth()->id(),
+                'sender_type'       => User::class,
+                'receiver_type'     => Customer::class,
+                'receiver_id'       => $customer->id,
+                'type'              => 'text',
+                'content'           => $data['content'],
+                'direction'         => 'outgoing',
+                'platform'          => 'messenger',
+            ]);
+        }
+
+        // Handle file uploads (attachments)
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $storedPath = $file->store('messenger_temp', 'public');
+                $fullPath   = "messenger_temp/" . basename($storedPath);
+                $mime       = $file->getMimeType();
+
+                // Send via Facebook API
+                $response = $facebookService->sendAttachmentMessage($recipientId, $fullPath, $mime);
+                $mediaResponses[] = $response;
+
+                // Save media message to DB
+                Message::create([
+                    'conversation_id'     => $conversation->id,
+                    'sender_id'           => auth()->id(),
+                    'sender_type'         => User::class,
+                    'receiver_type'       => Customer::class,
+                    'receiver_id'         => $customer->id,
+                    'type'                => $this->resolveMediaType($mime),
+                    'content'             => null,
+                    'direction'           => 'outgoing',
+                    'platform'            => 'messenger',
+                    'platform_message_id' => $response['message_id'] ?? null,
+                    'parent_id'           => $data['parent_id'] ?? null,
+                ]);
+            }
+        }
+
+        // Send the text message *after* media
+        $textResponse = null;
+        if ($textMessage) {
+            $textResponse = $facebookService->sendTextMessage($recipientId, $textMessage->content);
+            $textMessage->update([
+                'platform_message_id' => $textResponse['message_id'] ?? null
+            ]);
+        }
+
+        return jsonResponse('Messenger message(s) sent successfully.', true, [
+            'text_message'    => $textMessage ? new MessageResource($textMessage) : null,
+            'media_responses' => $mediaResponses,
+            'text_response'   => $textResponse,
+        ]);
+    }
 }
