@@ -1,19 +1,19 @@
 <?php
 
-use App\Http\Controllers\Api\Webhook\WebhookController;
+use App\Http\Controllers\Api\Webhook\PlatformWebhookController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
-Route::get('webhook/whatsapp', [WebhookController::class, 'verifyWhatsAppToken']); // webhook verification for wahtsapp
-Route::post('webhook/whatsapp', [WebhookController::class, 'incomingWhatsAppMessage']); // receive whatsapp webhook incoming message
+Route::get('webhook/whatsapp', [PlatformWebhookController::class, 'verifyWhatsAppToken']); // webhook verification for wahtsapp
+Route::post('webhook/whatsapp', [PlatformWebhookController::class, 'incomingWhatsAppMessage']); // receive whatsapp webhook incoming message
 
-Route::get('webhook/messenger', [WebhookController::class, 'verifyMessengerToken']); // For for webhook verification
-Route::post('webhook/messenger', [WebhookController::class, 'incomingMessengerMessage']); // POST for message reception
+Route::get('webhook/messenger', [PlatformWebhookController::class, 'verifyMessengerToken']); // For for webhook verification
+Route::post('webhook/messenger', [PlatformWebhookController::class, 'incomingMessengerMessage']); // POST for message reception
 
 
-// Route::get('webhook/instagram', [WebhookController::class, 'verifyIntragram']); // For for webhook verification
-// Route::post('webhook/instagram', [WebhookController::class, 'receiveInstragramMsg']); // POST for message reception
+// Route::get('webhook/instagram', [PlatformWebhookController::class, 'verifyIntragram']); // For for webhook verification
+// Route::post('webhook/instagram', [PlatformWebhookController::class, 'receiveInstragramMsg']); // POST for message reception
 
 
 
