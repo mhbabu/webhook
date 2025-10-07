@@ -113,25 +113,26 @@ class FacebookService
             $uploadUrl = "{$this->url}/me/message_attachments";
             $file = Storage::disk('public')->path($filePath);
 
-            // Determine type based on MIME
+            // Detect MIME if not provided
             if (!$mime) {
                 $mime = mime_content_type($file) ?: 'application/octet-stream';
             }
 
-            $type = match (true) {
-                str_contains($mime, 'image/') => 'image',
-                str_contains($mime, 'video/') => 'video',
-                str_contains($mime, 'audio/') => 'audio',
-                default => 'file',
-            };
+            $type = $this->resolveMediaType($mime);
 
-            // 1️⃣ Upload file to Facebook
+            // 1️⃣ Upload media to Facebook with proper message payload
             $uploadResponse = Http::attach('filedata', file_get_contents($file), basename($file))
                 ->asMultipart()
                 ->post($uploadUrl, [
-                    'message_type' => 'RESPONSE',
+                    'message' => json_encode([
+                        'attachment' => [
+                            'type' => $type,
+                            'payload' => [
+                                'is_reusable' => true,
+                            ],
+                        ],
+                    ]),
                     'access_token' => $this->token,
-                    'type'         => $type,
                 ]);
 
             $uploadJson = $uploadResponse->json();
@@ -174,6 +175,7 @@ class FacebookService
             return ['error' => $e->getMessage()];
         }
     }
+
 
     /**
      * 🔹 Resolve MIME type to a platform media type

@@ -269,6 +269,7 @@ class MessageController extends Controller
     public function sendMessagerMessageFromAgent(SendPlatformMessageRequest $request)
     {
         $data         = $request->validated();
+        info(['$data' => $data]);
         $conversation = Conversation::find($data['conversation_id']);
         $customer     = Customer::find($conversation->customer_id);
         $recipientId  = $customer->platform_user_id; // make sure this field exists!
