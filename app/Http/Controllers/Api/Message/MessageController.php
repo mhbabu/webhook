@@ -5,8 +5,7 @@ namespace App\Http\Controllers\Api\Message;
 use App\Events\SocketIncomingMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Message\EndConversationRequest;
-use App\Http\Requests\Message\SendWhatsAppMessageRequest;
-use App\Http\Resources\CustomerResource;
+use App\Http\Requests\Message\SendPlatformMessageRequest;
 use App\Http\Resources\Message\ConversationInfoResource;
 use App\Http\Resources\Message\ConversationResource;
 use App\Http\Resources\Message\MessageResource;
@@ -14,6 +13,7 @@ use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\Platforms\FacebookService;
 use App\Services\Platforms\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -190,7 +190,7 @@ class MessageController extends Controller
         return jsonResponse('Conversation ended successfully.', true, null);
     }
 
-    public function sendWhatsAppMessageFromAgent(SendWhatsAppMessageRequest $request)
+    public function sendWhatsAppMessageFromAgent(SendPlatformMessageRequest $request)
     {
         $data         = $request->validated();
         $conversation = Conversation::find($data['conversation_id']);
@@ -266,31 +266,29 @@ class MessageController extends Controller
         ]);
     }
 
-    public function sendMessengerMessageFromAgent(SendMessengerMessageRequest $request)
+    public function sendMessagerMessageFromAgent(SendPlatformMessageRequest $request)
     {
         $data         = $request->validated();
-        $conversation = Conversation::findOrFail($data['conversation_id']);
-        $customer     = Customer::findOrFail($conversation->customer_id);
-        $recipientId  = $customer->messenger_id; // make sure this field exists!
+        $conversation = Conversation::find($data['conversation_id']);
+        $customer     = Customer::find($conversation->customer_id);
+        $recipientId  = $customer->platform_user_id; // make sure this field exists!
 
         $facebookService = new FacebookService();
         $mediaResponses  = [];
 
         // Save text message in DB first (for tracking platform_message_id later)
-        $textMessage = null;
-        if (!empty($data['content'])) {
-            $textMessage = Message::create([
-                'conversation_id'   => $conversation->id,
-                'sender_id'         => auth()->id(),
-                'sender_type'       => User::class,
-                'receiver_type'     => Customer::class,
-                'receiver_id'       => $customer->id,
-                'type'              => 'text',
-                'content'           => $data['content'],
-                'direction'         => 'outgoing',
-                'platform'          => 'messenger',
-            ]);
-        }
+
+        $textMessage = Message::create([
+            'conversation_id'   => $conversation->id,
+            'sender_id'         => auth()->id(),
+            'sender_type'       => User::class,
+            'receiver_type'     => Customer::class,
+            'receiver_id'       => $customer->id,
+            'type'              => 'text',
+            'content'           => $data['content'],
+            'direction'         => 'outgoing',
+            'platform'          => 'messenger',
+        ]);
 
         // Handle file uploads (attachments)
         if ($request->hasFile('attachments')) {
@@ -310,7 +308,7 @@ class MessageController extends Controller
                     'sender_type'         => User::class,
                     'receiver_type'       => Customer::class,
                     'receiver_id'         => $customer->id,
-                    'type'                => $this->resolveMediaType($mime),
+                    'type'                => $facebookService->resolveMediaType($mime),
                     'content'             => null,
                     'direction'           => 'outgoing',
                     'platform'            => 'messenger',

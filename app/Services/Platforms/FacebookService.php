@@ -174,4 +174,18 @@ class FacebookService
             return ['error' => $e->getMessage()];
         }
     }
+
+    /**
+     * 🔹 Resolve MIME type to a platform media type
+     */
+    public function resolveMediaType(string $mime): string
+    {
+        return match (true) {
+            str_starts_with($mime, 'image/')        => 'image',
+            str_starts_with($mime, 'video/')        => 'video',
+            str_starts_with($mime, 'audio/')        => 'audio',
+            str_starts_with($mime, 'application/')  => 'file',
+            default                                 => 'file',
+        };
+    }
 }
