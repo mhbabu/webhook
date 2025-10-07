@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('path')->nullable();
             $table->string('mime')->nullable();
             $table->string('size')->nullable(); // 👈 make nullable or add default
-            $table->string('attachment_id')->nullable();
+            $table->longText('attachment_id')->nullable();
             $table->tinyInteger('is_available')->default(0);
             $table->timestamps();
         });

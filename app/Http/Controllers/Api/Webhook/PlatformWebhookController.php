@@ -504,7 +504,7 @@ class PlatformWebhookController extends Controller
                     continue;
                 }
 
-                if (!$senderId || empty($messageData)) {
+                if (!$senderId) {
                     Log::warning('⚠️ Invalid or empty Messenger event.', ['event' => $event]);
                     continue;
                 }
@@ -526,19 +526,7 @@ class PlatformWebhookController extends Controller
                 $profilePic = $senderInfo['profile_pic'] ?? null;
 
                 // 🔒 Start DB transaction
-                DB::transaction(function () use (
-                    $senderId,
-                    $senderName,
-                    $profilePic,
-                    $platformId,
-                    $platformName,
-                    $text,
-                    $attachments,
-                    $timestamp,
-                    $platformMessageId,
-                    $replyToMessageId,
-                    $parentMessageId
-                ) {
+                DB::transaction(function () use ($senderId, $senderName, $profilePic, $platformId, $platformName, $text, $attachments, $timestamp, $platformMessageId, $replyToMessageId, $parentMessageId) {
                     // 1️⃣ Create or fetch customer
                     $customer = Customer::firstOrCreate(
                         ['platform_user_id' => $senderId, 'platform_id' => $platformId],
@@ -646,8 +634,8 @@ class PlatformWebhookController extends Controller
                         "messageId"        => $message->id,
                     ];
 
-                    // Log::info('📤 Forwarding Facebook payload', ['payload' => $payload]);
-                    // $this->sendToHandler($payload);
+                    Log::info('📤 Forwarding Facebook payload', ['payload' => $payload]);
+                    $this->sendToHandler($payload);
                 });
             }
         }
