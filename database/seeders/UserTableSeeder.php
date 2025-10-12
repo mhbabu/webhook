@@ -75,5 +75,51 @@ class UserTableSeeder extends Seeder
             'current_limit'       => 5
         ]);
         $agent->platforms()->sync([1, 2, 3]);
+
+        // Agent
+        $agent = User::create([
+            'name'                => 'Shahidul Islam',
+            'email'               => 'shahidul@gmail.com',
+            'employee_id'         => 'AGNT123452',
+            'role_id'             => 4,
+            'password'            => bcrypt('12345678'),
+            'account_status'      => 'active',
+            'email_verified_at'   => now(),
+            'is_verified'         => 1,
+            'is_password_updated' => 1,
+            'max_limit'           => 2,
+            'current_limit'       => 2
+        ]);
+        $agent->platforms()->sync([2, 3]);
+
+        $agent = User::create([
+            'name'                => 'Imran Islam',
+            'email'               => 'imran@gmail.com',
+            'employee_id'         => 'AGNT123453',
+            'role_id'             => 4,
+            'password'            => bcrypt('12345678'),
+            'account_status'      => 'active',
+            'email_verified_at'   => now(),
+            'is_verified'         => 1,
+            'is_password_updated' => 1,
+            'max_limit'           => 2,
+            'current_limit'       => 2
+        ]);
+        $agent->platforms()->sync([1]);
+
+        $agent = User::create([
+            'name'                => 'Rashed Khan',
+            'email'               => 'rashed@gmail.com',
+            'employee_id'         => 'AGNT12345309',
+            'role_id'             => 4,
+            'password'            => bcrypt('12345678'),
+            'account_status'      => 'active',
+            'email_verified_at'   => now(),
+            'is_verified'         => 1,
+            'is_password_updated' => 1,
+            'max_limit'           => 2,
+            'current_limit'       => 2
+        ]);
+        $agent->platforms()->sync([1]);
     }
 }
