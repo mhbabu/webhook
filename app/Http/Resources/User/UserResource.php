@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\User;
 
+use App\Http\Resources\Webhook\PlatformResource;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class UserResource extends JsonResource
@@ -23,6 +24,9 @@ class UserResource extends JsonResource
             'current_status'      => $this->current_status,
             'status_info'         => $this->userStatusInfo ?? null,
             'profile_picture'     => $this->getFirstMediaUrl('profile_pictures') ?: null,
+            'platform_ids' => $this->whenLoaded('platforms', function () {
+                return $this->platforms->pluck('id')->toArray();
+            }),
         ];
     }
 }
