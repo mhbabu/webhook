@@ -335,7 +335,7 @@ class PlatformWebhookController extends Controller
     }
 
     // 2. Receive Message (POST)
-    public function incomingMessengerMessage(Request $request)
+    public function incomingMessengerMessage2(Request $request)
     {
         Log::info('📩 Messenger Webhook Payload:', ['data' => $request->all()]);
 
@@ -495,6 +495,7 @@ class PlatformWebhookController extends Controller
 
         return response('EVENT_RECEIVED', 200);
     }
+    
 
     // 1. Verify Meta Webhook (GET)
     public function verifyFacebookPageToken(Request $request)
