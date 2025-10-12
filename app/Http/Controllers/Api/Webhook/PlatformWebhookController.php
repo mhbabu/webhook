@@ -374,12 +374,6 @@ class PlatformWebhookController extends Controller
                     $parentMessageId = Message::where('platform_message_id', $replyToMessageId)->value('id');
                 }
 
-                // ✅ Skip duplicate messages
-if (isset($platformMessageId) && Message::where('platform_message_id', $platformMessageId)->exists()) {
-    Log::info("⚠️ Duplicate message skipped", ['platform_message_id' => $platformMessageId, 'sender_id' => $senderId]);
-    continue;
-}
-
                 // Fetch sender details from Facebook API
                 $senderInfo = $this->facebookService->getSenderInfo($senderId);
                 $senderName = $senderInfo['name'] ?? "Facebook User {$senderId}";
@@ -443,35 +437,18 @@ if (isset($platformMessageId) && Message::where('platform_message_id', $platform
                     }
 
                     // 4️⃣ Create message
-                    // $message = Message::create([
-                    //     'conversation_id'     => $conversation->id,
-                    //     'sender_id'           => $customer->id,
-                    //     'sender_type'         => Customer::class,
-                    //     'type'                => !empty($attachments) ? 'media' : 'text',
-                    //     'content'             => $text,
-                    //     'direction'           => 'incoming',
-                    //     'receiver_type'       => User::class,
-                    //     'receiver_id'         => $conversation->agent_id ?? null,
-                    //     'platform_message_id' => $platformMessageId,  // ✅ Save Facebook message ID
-                    //     'parent_id'           => $parentMessageId,   // ✅ Save internal parent message ID
-                    // ]);
-
-                     $message = Message::upsert([
-                        [
-                            'platform_message_id' => $platformMessageId,
-                            'conversation_id' => $conversation->id,
-                            'sender_id' => $customer->id,
-                            'sender_type' => Customer::class,
-                            'type' => !empty($attachments) ? 'media' : 'text',
-                            'content' => $text,
-                            'direction' => 'incoming',
-                            'receiver_type' => User::class,
-                            'receiver_id' => $conversation->agent_id ?? null,
-                            'parent_id'  => $parentMessageId,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ],
-                    ], ['platform_message_id'], ['updated_at']);
+                    $message = Message::create([
+                        'conversation_id'     => $conversation->id,
+                        'sender_id'           => $customer->id,
+                        'sender_type'         => Customer::class,
+                        'type'                => !empty($attachments) ? 'media' : 'text',
+                        'content'             => $text,
+                        'direction'           => 'incoming',
+                        'receiver_type'       => User::class,
+                        'receiver_id'         => $conversation->agent_id ?? null,
+                        'platform_message_id' => $platformMessageId,
+                        'parent_id'           => $parentMessageId,   // ✅ Save internal parent message ID
+                    ]);
 
                     // 5️⃣ Save attachments (if any)
                     if (!empty($storedAttachments)) {
@@ -518,7 +495,6 @@ if (isset($platformMessageId) && Message::where('platform_message_id', $platform
 
         return response('EVENT_RECEIVED', 200);
     }
-
 
     // 1. Verify Meta Webhook (GET)
     public function verifyFacebookPageToken(Request $request)
