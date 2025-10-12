@@ -24,9 +24,7 @@ class UserResource extends JsonResource
             'current_status'      => $this->current_status,
             'status_info'         => $this->userStatusInfo ?? null,
             'profile_picture'     => $this->getFirstMediaUrl('profile_pictures') ?: null,
-            'platform_ids' => $this->whenLoaded('platforms', function () {
-                return $this->platforms->pluck('id')->toArray();
-            }),
+            'platform_ids'        => $this->platforms ? $this->platforms->pluck('id')->toArray() : [],
         ];
     }
 }
