@@ -377,8 +377,8 @@ class MessageController extends Controller
 
         Log::info('Agent sending message', [
             'requestData'      => $data,
-            'attachmentsCount' => count($attachments),
-            'attachements'      => $attachments,
+            // 'attachmentsCount' => count($attachments),
+            // 'attachements'      => $attachments,
         ]);
 
         // Step 5: Send based on platform
