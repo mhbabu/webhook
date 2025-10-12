@@ -11,7 +11,7 @@ class MessageAttachmentResource extends JsonResource
     {
         return [
             'id'            => $this->id,
-            'attachment_id' => $this->attachment_id,
+            // 'attachment_id' => $this->attachment_id,
             'path'          => $this->path,
             'type'          => $this->type,
             'url'           => asset('storage/' . $this->path),

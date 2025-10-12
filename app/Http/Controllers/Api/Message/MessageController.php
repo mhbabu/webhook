@@ -342,20 +342,41 @@ class MessageController extends Controller
      * @param SendPlatformMessageRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    
+
     public function sendAgentMessageToCustomer(SendPlatformMessageRequest $request)
     {
-        $data         = $request->validated();
-        $customer     = Customer::find($data['customer_id']);
+        $data = $request->validated();
+        $agentId = auth()->id();
+
+        // Step 1: Find conversation
+        $conversation = Conversation::find($data['conversation_id']);
+
+        if (! $conversation) {
+            return jsonResponse('Conversation not found', false, [], 404);
+        }
+
+        // Step 2: Get customer from conversation
+        $customer = Customer::find($conversation->customer_id);
+
+        if (! $customer) {
+            return jsonResponse('Customer not found', false, [], 404);
+        }
+
         $platformName = strtolower($customer->platform->name);
-        $agentId      = auth()->id();
 
-        // Get or create conversation for this agent, customer & platform
-        $conversation = $this->getOrCreateConversationForAgentCustomer($customer->id, $agentId, $platformName);
+        // Step 3: Check if conversation expired or ended
+        $expireHours = config('services.conversation_expire_hours');
+        $expired = $conversation->end_at !== null || $conversation->created_at->lt(now()->subHours($expireHours));
 
-        // Extract attachments if present
+        if ($expired) {
+            // Create new conversation if expired
+            $conversation = $this->getOrCreateConversationForAgentCustomer($customer->id, $agentId, $platformName);
+        }
+
+        // Step 4: Extract attachments if any
         $attachments = $request->hasFile('attachments') ? $request->file('attachments') : [];
 
+        // Step 5: Send based on platform
         if ($platformName === 'facebook') {
             return $this->sendMessagerMessageFromAgent($data, $attachments, $conversation, $customer);
         } elseif ($platformName === 'whatsapp') {
@@ -399,16 +420,16 @@ class MessageController extends Controller
         $phone = $customer->phone;
 
         // Save text message in DB
-        $message = new Message();
-        $message->conversation_id = $conversation->id;
-        $message->sender_id = auth()->id();
-        $message->sender_type = User::class;
-        $message->receiver_type = Customer::class;
-        $message->receiver_id = $customer->id;
-        $message->type = 'text';
-        $message->content = $data['content'] ?? '';
-        $message->direction = 'outgoing';
-        $message->platform = 'whatsapp';
+        $message                      = new Message();
+        $message->conversation_id     = $conversation->id;
+        $message->sender_id           = auth()->id();
+        $message->sender_type         = User::class;
+        $message->receiver_type       = Customer::class;
+        $message->receiver_id         = $customer->id;
+        $message->type                = 'text';
+        $message->content             = $data['content'] ?? '';
+        $message->direction           = 'outgoing';
+        // $message->platform            = 'whatsapp';
         $message->save();
 
         $whatsAppService = new WhatsAppService();
@@ -417,8 +438,8 @@ class MessageController extends Controller
 
         foreach ($attachments as $file) {
             $storedPath = $file->store('wa_temp');
-            $fullPath = storage_path("app/{$storedPath}");
-            $mime = $file->getMimeType();
+            $fullPath   = storage_path("app/{$storedPath}");
+            $mime       = $file->getMimeType();
 
             // Upload media to WhatsApp
             $mediaId = $whatsAppService->uploadMedia($fullPath, $mime);
@@ -437,17 +458,17 @@ class MessageController extends Controller
 
                 // Save each media as message in DB
                 Message::create([
-                    'conversation_id' => $conversation->id,
-                    'sender_id' => auth()->id(),
-                    'sender_type' => User::class,
-                    'receiver_type' => Customer::class,
-                    'receiver_id' => $customer->id,
-                    'type' => $mediaType,
-                    'content' => null,
-                    'direction' => 'outgoing',
-                    'platform' => 'whatsapp',
-                    'platform_message_id' => $mediaResponse['messages'][0]['id'] ?? null,
-                    'parent_id' => $data['parent_id'] ?? null,
+                    'conversation_id'      => $conversation->id,
+                    'sender_id'            => auth()->id(),
+                    'sender_type'          => User::class,
+                    'receiver_type'        => Customer::class,
+                    'receiver_id'          => $customer->id,
+                    'type'                 => $mediaType,
+                    'content'              => null,
+                    'direction'            => 'outgoing',
+                    'platform'             => 'whatsapp',
+                    'platform_message_id'  => $mediaResponse['messages'][0]['id'] ?? null,
+                    'parent_id'            => $data['parent_id'] ?? null,
                 ]);
             }
         }
@@ -469,59 +490,49 @@ class MessageController extends Controller
     protected function sendMessagerMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
     {
         $recipientId = $customer->platform_user_id;
-
         $facebookService = new FacebookService();
         $mediaResponses = [];
 
-        // Save text message in DB first
+        // Step 1: Save main text message
         $textMessage = Message::create([
             'conversation_id' => $conversation->id,
-            'sender_id' => auth()->id(),
-            'sender_type' => User::class,
-            'receiver_type' => Customer::class,
-            'receiver_id' => $customer->id,
-            'type' => 'text',
-            'content' => $data['content'] ?? '',
-            'direction' => 'outgoing',
-            'platform' => 'messenger',
+            'sender_id'       => auth()->id(),
+            'sender_type'     => User::class,
+            'receiver_type'   => Customer::class,
+            'receiver_id'     => $customer->id,
+            'type'            => 'text',
+            'content'         => $data['content'] ?? '',
+            'direction'       => 'outgoing',
+            'platform'        => 'messenger',
         ]);
 
-        // Handle file uploads (attachments)
+        // Step 2: Handle attachments
         foreach ($attachments as $file) {
             $storedPath = $file->store('messenger_temp', 'public');
-            $fullPath = "messenger_temp/" . basename($storedPath);
             $mime = $file->getMimeType();
 
-            $response = $facebookService->sendAttachmentMessage($recipientId, $fullPath, $mime);
+            // Send to Facebook
+            $response = $facebookService->sendAttachmentMessage($recipientId, $storedPath, $mime);
             $mediaResponses[] = $response;
 
-            // Save media message to DB
-            Message::create([
-                'conversation_id'     => $conversation->id,
-                'sender_id'           => auth()->id(),
-                'sender_type'         => User::class,
-                'receiver_type'       => Customer::class,
-                'receiver_id'         => $customer->id,
-                'type'                => $facebookService->resolveMediaType($mime),
-                'content'             => null,
-                'direction'           => 'outgoing',
-                'platform'            => 'messenger',
-                'platform_message_id' => $response['message_id'] ?? null,
-                'parent_id'           => $data['parent_id'] ?? null,
+            Log::info('Facebook Media Response', $response);
+
+            // Save attachment using the relationship
+            $textMessage->attachments()->create([
+                'type'                 => $facebookService->resolveMediaType($mime),
+                'path'                 => $storedPath,
+                'mime'                 => $mime,
+                'size'                 => $file->getSize(),
             ]);
         }
 
-        // Send the text message after media
-        $textResponse = null;
-        if ($textMessage) {
+        // Step 3: Send text after attachments
+        if ($textMessage->content) {
             $textResponse = $facebookService->sendTextMessage($recipientId, $textMessage->content);
             $textMessage->update(['platform_message_id' => $textResponse['message_id'] ?? null]);
         }
 
-        return jsonResponse('Messenger message(s) sent successfully.', true, [
-            'text_message' => $textMessage ? new MessageResource($textMessage) : null,
-            'media_responses' => $mediaResponses,
-            'text_response' => $textResponse,
-        ]);
+        // Step 4: Return message with attachments loaded
+        return jsonResponse('Messenger message(s) sent successfully.', true, new MessageResource($textMessage->load('attachments')));
     }
 }
