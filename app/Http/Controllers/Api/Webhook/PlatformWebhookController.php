@@ -374,6 +374,16 @@ class PlatformWebhookController extends Controller
                     $parentMessageId = Message::where('platform_message_id', $replyToMessageId)->value('id');
                 }
 
+                // ✅ Lookup internal parent message ID if reply_to exists
+                if ($replyToMessageId) {
+                    $parentMessageId = Message::where('platform_message_id', $replyToMessageId)->value('id');
+                }
+
+                if (isset($platformMessageId) && Message::where('platform_message_id', $platformMessageId)->exists()) {
+                    Log::info("⚠️ Duplicate message skipped", ['platform_message_id' => $platformMessageId]);
+                    continue; // skip creating
+                }
+
                 // Fetch sender details from Facebook API
                 $senderInfo = $this->facebookService->getSenderInfo($senderId);
                 $senderName = $senderInfo['name'] ?? "Facebook User {$senderId}";
@@ -495,7 +505,7 @@ class PlatformWebhookController extends Controller
 
         return response('EVENT_RECEIVED', 200);
     }
-    
+
 
     // 1. Verify Meta Webhook (GET)
     public function verifyFacebookPageToken(Request $request)
