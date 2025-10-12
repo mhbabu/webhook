@@ -137,7 +137,7 @@ class MessageController extends Controller
             $message->save();
         }
 
-        // Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
+        Log::info('[Message Data] Updated message', ['message' => $message, 'receiver_id' => $message->receiver_id, 'agentId' => $agentId]);
 
         // DB::commit();
 
