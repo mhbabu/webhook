@@ -335,7 +335,7 @@ class PlatformWebhookController extends Controller
     }
 
     // 2. Receive Message (POST)
-    public function incomingMessengerMessage2(Request $request)
+    public function incomingMessengerMessage(Request $request)
     {
         Log::info('📩 Messenger Webhook Payload:', ['data' => $request->all()]);
 
