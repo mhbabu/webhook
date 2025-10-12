@@ -335,7 +335,7 @@ class PlatformWebhookController extends Controller
     }
 
     // 2. Receive Message (POST)
-    public function incomingMessengerMessage(Request $request)
+    public function incomingMessengerMessage2(Request $request)
     {
         Log::info('📩 Messenger Webhook Payload:', ['data' => $request->all()]);
 
@@ -496,6 +496,187 @@ class PlatformWebhookController extends Controller
 
         return response('EVENT_RECEIVED', 200);
     }
+
+    // 2. Receive Message (POST)
+    public function incomingMessengerMessage(Request $request)
+    {
+        Log::info('📩 Messenger Webhook Payload:', ['data' => $request->all()]);
+
+        $entries = $request->input('entry', []);
+
+        $platform = Platform::whereRaw('LOWER(name) = ?', ['facebook'])->first();
+        $platformId = $platform->id ?? null;
+        $platformName = strtolower($platform->name ?? 'facebook');
+
+        foreach ($entries as $entry) {
+            foreach ($entry['messaging'] ?? [] as $event) {
+                $senderId     = $event['sender']['id'] ?? null;
+                $pageId       = $event['recipient']['id'] ?? null;
+                $timestamp    = $event['timestamp'] ?? now()->timestamp;
+                $messageData  = $event['message'] ?? [];
+
+                // 🛑 Skip outgoing messages (from the business page)
+                if ($senderId === $pageId) {
+                    Log::info('➡️ Skipped outgoing message from page.', ['event' => $event]);
+                    continue;
+                }
+
+                if (!$senderId) {
+                    Log::warning('⚠️ Invalid or empty Messenger event.', ['event' => $event]);
+                    continue;
+                }
+
+                $text               = $messageData['text'] ?? null;
+                $attachments        = $messageData['attachments'] ?? [];
+                $platformMessageId  = $messageData['mid'] ?? null;
+                $replyToMessageId   = $messageData['reply_to']['mid'] ?? null;
+                $parentMessageId    = null;
+
+                // ✅ Lookup internal parent message ID if reply_to exists
+                if ($replyToMessageId) {
+                    $parentMessageId = Message::where('platform_message_id', $replyToMessageId)->value('id');
+                }
+
+                // 🔒 Start DB transaction
+                DB::transaction(function () use (
+                    $senderId,
+                    $text,
+                    $attachments,
+                    $timestamp,
+                    $platformMessageId,
+                    $replyToMessageId,
+                    $parentMessageId,
+                    $platformId,
+                    $platformName
+                ) {
+
+                    // 1️⃣ Skip duplicate messages
+                    if ($platformMessageId && Message::where('platform_message_id', $platformMessageId)->exists()) {
+                        Log::info("⚠️ Duplicate message skipped", ['platform_message_id' => $platformMessageId]);
+                        return;
+                    }
+
+                    // 2️⃣ Fetch sender info from Facebook API
+                    $senderInfo = $this->facebookService->getSenderInfo($senderId);
+                    $senderName = $senderInfo['name'] ?? "Facebook User {$senderId}";
+                    $profilePic = $senderInfo['profile_pic'] ?? null;
+
+                    // 3️⃣ Create or fetch customer
+                    $customer = Customer::firstOrCreate(
+                        ['platform_user_id' => $senderId, 'platform_id' => $platformId],
+                        ['name' => $senderName]
+                    );
+
+                    // 3️⃣a Download profile photo (on first creation only)
+                    if ($customer->wasRecentlyCreated && $profilePic) {
+                        try {
+                            $response = Http::get($profilePic);
+                            if ($response->ok()) {
+                                $extension = pathinfo(parse_url($profilePic, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
+                                $filename = "profile_photos/fb_{$customer->id}." . $extension;
+                                Storage::disk('public')->put($filename, $response->body());
+                                $customer->profile_photo = $filename;
+                                $customer->save();
+                            }
+                        } catch (\Exception $e) {
+                            Log::error("⚠️ Failed to download Facebook profile photo: " . $e->getMessage());
+                        }
+                    }
+
+                    // 4️⃣ Find or create active conversation
+                    $conversation = Conversation::where('customer_id', $customer->id)
+                        ->where('platform', $platformName)
+                        ->where(function ($query) {
+                            $query->whereNull('end_at')
+                                ->orWhere('created_at', '>=', now()->subHours(config('services.conversation_expire_hours')));
+                        })
+                        ->latest()
+                        ->first();
+
+                    $isNewConversation = false;
+
+                    if (!$conversation || $conversation->end_at || $conversation->created_at < now()->subHours(6)) {
+                        $conversation = new Conversation();
+                        $conversation->customer_id = $customer->id;
+                        $conversation->platform = $platformName;
+                        $conversation->trace_id = "FB-" . now()->format('YmdHis') . '-' . uniqid();
+                        $conversation->save();
+                        $isNewConversation = true;
+                    }
+
+                    // 5️⃣ Handle attachments
+                    $storedAttachments = [];
+                    $mediaPaths = [];
+
+                    foreach ($attachments as $attachment) {
+                        $downloaded = $this->facebookService->downloadAttachment($attachment);
+                        if ($downloaded) {
+                            $storedAttachments[] = $downloaded;
+                            $mediaPaths[] = $downloaded['path'];
+                        }
+                    }
+
+                    // 6️⃣ Create message
+                    $message = Message::create([
+                        'conversation_id'     => $conversation->id,
+                        'sender_id'           => $customer->id,
+                        'sender_type'         => Customer::class,
+                        'type'                => !empty($attachments) ? 'media' : 'text',
+                        'content'             => $text,
+                        'direction'           => 'incoming',
+                        'receiver_type'       => User::class,
+                        'receiver_id'         => $conversation->agent_id ?? null,
+                        'platform_message_id' => $platformMessageId,
+                        'reply_to_message_id' => $replyToMessageId,
+                        'parent_id'           => $parentMessageId,
+                    ]);
+
+                    // 7️⃣ Save attachments (if any)
+                    if (!empty($storedAttachments)) {
+                        $bulkInsert = array_map(function ($att) use ($message) {
+                            return [
+                                'message_id'    => $message->id,
+                                'attachment_id' => $att['attachment_id'],
+                                'path'          => $att['path'],
+                                'type'          => $att['type'],
+                                'mime'          => $att['mime'],
+                                'is_available'  => $att['is_download'],
+                                'created_at'    => now(),
+                                'updated_at'    => now(),
+                            ];
+                        }, $storedAttachments);
+
+                        MessageAttachment::insert($bulkInsert);
+                    }
+
+                    // 8️⃣ Update conversation last message
+                    $conversation->last_message_id = $message->id;
+                    $conversation->save();
+
+                    // 9️⃣ Forward payload
+                    $payload = [
+                        "source"           => "facebook",
+                        "traceId"          => $conversation->trace_id,
+                        "conversationId"   => $conversation->id,
+                        "conversationType" => $isNewConversation ? "new" : "old",
+                        "sender"           => $senderId,
+                        "api_key"          => config('dispatcher.facebook_api_key'),
+                        "timestamp"        => $timestamp,
+                        "message"          => $text ?? 'No text message',
+                        "attachments"      => $mediaPaths,
+                        "subject"          => "Facebook Message from $senderName",
+                        "messageId"        => $message->id,
+                    ];
+
+                    Log::info('📤 Forwarding Facebook payload', ['payload' => $payload]);
+                    $this->sendToHandler($payload);
+                });
+            }
+        }
+
+        return response('EVENT_RECEIVED', 200);
+    }
+
 
     // 1. Verify Meta Webhook (GET)
     public function verifyFacebookPageToken(Request $request)
