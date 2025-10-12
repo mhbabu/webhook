@@ -335,7 +335,6 @@ class MessageController extends Controller
         ]);
     }
 
-
     /**
      * Send message from agent to customer across platforms (WhatsApp, Messenger).
      * Handles conversation creation/expiration and message with attachments.
@@ -368,7 +367,7 @@ class MessageController extends Controller
 
     protected function getOrCreateConversationForAgentCustomer(int $customerId, int $agentId, string $platformName): Conversation
     {
-        $expireHours = config('services.conversation_expire_hours', 6);
+        $expireHours = config('services.conversation_expire_hours');
         $now = now();
 
         // Try to find existing active conversation for same customer, agent and platform
@@ -498,17 +497,17 @@ class MessageController extends Controller
 
             // Save media message to DB
             Message::create([
-                'conversation_id' => $conversation->id,
-                'sender_id' => auth()->id(),
-                'sender_type' => User::class,
-                'receiver_type' => Customer::class,
-                'receiver_id' => $customer->id,
-                'type' => $facebookService->resolveMediaType($mime),
-                'content' => null,
-                'direction' => 'outgoing',
-                'platform' => 'messenger',
+                'conversation_id'     => $conversation->id,
+                'sender_id'           => auth()->id(),
+                'sender_type'         => User::class,
+                'receiver_type'       => Customer::class,
+                'receiver_id'         => $customer->id,
+                'type'                => $facebookService->resolveMediaType($mime),
+                'content'             => null,
+                'direction'           => 'outgoing',
+                'platform'            => 'messenger',
                 'platform_message_id' => $response['message_id'] ?? null,
-                'parent_id' => $data['parent_id'] ?? null,
+                'parent_id'           => $data['parent_id'] ?? null,
             ]);
         }
 

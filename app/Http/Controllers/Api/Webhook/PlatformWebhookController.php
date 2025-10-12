@@ -408,7 +408,7 @@ class PlatformWebhookController extends Controller
                         ->where('platform', $platformName)
                         ->where(function ($query) {
                             $query->whereNull('end_at')
-                                ->orWhere('created_at', '>=', now()->subHours(6));
+                                ->orWhere('created_at', '>=', now()->subHours(config('services.conversation_expire_hours')));
                         })
                         ->latest()
                         ->first();
