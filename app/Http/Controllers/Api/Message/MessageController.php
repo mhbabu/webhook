@@ -375,6 +375,12 @@ class MessageController extends Controller
         // Step 4: Extract attachments if any
         $attachments = $request->hasFile('attachments') ? $request->file('attachments') : [];
 
+        Log::info('Agent sending message', [
+            'requestData'      => $data,
+            'attachmentsCount' => count($attachments),
+            'attachements'      => $attachments,
+        ]);
+
         // Step 5: Send based on platform
         if ($platformName === 'facebook') {
             return $this->sendMessagerMessageFromAgent($data, $attachments, $conversation, $customer);
