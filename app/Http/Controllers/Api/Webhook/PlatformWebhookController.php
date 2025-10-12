@@ -480,7 +480,7 @@ class PlatformWebhookController extends Controller
                         "conversationId"   => $conversation->id,
                         "conversationType" => $isNewConversation ? "new" : "old",
                         "sender"           => $senderId,
-                        "api_key"          => config('dispatcher.api_key'),
+                        "api_key"          => config('dispatcher.facebook_api_key'),
                         "timestamp"        => $timestamp,
                         "message"          => $text ?? 'No text message',
                         "attachments"      => $mediaPaths,

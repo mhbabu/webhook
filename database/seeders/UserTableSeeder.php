@@ -26,7 +26,7 @@ class UserTableSeeder extends Seeder
             'max_limit'           => 5,
             'current_limit'       => 5
         ]);
-        $superAdmin->platforms()->sync([1, 2]); // Attach platforms
+        $superAdmin->platforms()->sync([1, 2, 3, 4]); // Attach platforms
 
         // Admin
         $admin = User::create([
@@ -42,7 +42,7 @@ class UserTableSeeder extends Seeder
             'max_limit'           => 5,
             'current_limit'       => 5
         ]);
-        $admin->platforms()->sync([1, 2, 3]);
+        $admin->platforms()->sync([1, 2, 3, 4]);
 
         // Supervisor
         $supervisor = User::create([
@@ -58,7 +58,7 @@ class UserTableSeeder extends Seeder
             'max_limit'           => 5,
             'current_limit'       => 5
         ]);
-        $supervisor->platforms()->sync([1, 2, 3]);
+        $supervisor->platforms()->sync([1, 2, 3, 4]);
 
         // Agent
         $agent = User::create([
