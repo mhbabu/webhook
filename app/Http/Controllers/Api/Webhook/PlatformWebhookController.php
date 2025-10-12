@@ -475,7 +475,7 @@ class PlatformWebhookController extends Controller
 
                     // 7️⃣ Prepare payload to forward
                     $payload = [
-                        "source"           => "messenger",
+                        "source"           => "facebook",
                         "traceId"          => $conversation->trace_id,
                         "conversationId"   => $conversation->id,
                         "conversationType" => $isNewConversation ? "new" : "old",

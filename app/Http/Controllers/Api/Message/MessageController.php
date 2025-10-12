@@ -91,7 +91,6 @@ class MessageController extends Controller
 
     public function incomingMsg(Request $request)
     {
-
         $data = $request->all();
         Log::info('[IncomingMsg] Data', $data);
         $agentId             = isset($data['agentId']) ? (int)$data['agentId'] : null;
