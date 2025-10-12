@@ -443,19 +443,24 @@ class PlatformWebhookController extends Controller
                     }
 
                     // 4️⃣ Create message
-                    $message = Message::create([
-                        'conversation_id'     => $conversation->id,
-                        'sender_id'           => $customer->id,
-                        'sender_type'         => Customer::class,
-                        'type'                => !empty($attachments) ? 'media' : 'text',
-                        'content'             => $text,
-                        'direction'           => 'incoming',
-                        'receiver_type'       => User::class,
-                        'receiver_id'         => $conversation->agent_id ?? null,
-                        'platform_message_id' => $platformMessageId,
-                        'reply_to_message_id' => $replyToMessageId,  // ✅ Save Facebook message ID
-                        'parent_id'           => $parentMessageId,   // ✅ Save internal parent message ID
-                    ]);
+                    $message = Message::upsert([
+                        [
+                            'platform_message_id' => $platformMessageId,
+                            'conversation_id' => $conversation->id,
+                            'sender_id' => $customer->id,
+                            'sender_type' => Customer::class,
+                            'type' => !empty($attachments) ? 'media' : 'text',
+                            'content' => $text,
+                            'direction' => 'incoming',
+                            'receiver_type' => User::class,
+                            'receiver_id' => $conversation->agent_id ?? null,
+                            'reply_to_message_id' => $replyToMessageId,
+                            'parent_id' => $parentMessageId,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ],
+                    ], ['platform_message_id'], ['updated_at']);
+
 
                     // 5️⃣ Save attachments (if any)
                     if (!empty($storedAttachments)) {

@@ -29,7 +29,7 @@ return new class extends Migration
             $table->enum('direction', ['incoming', 'outgoing']);
             $table->timestamp('read_at')->nullable();
             $table->string('read_by')->nullable();
-            $table->string('platform_message_id')->nullable();
+            $table->string('platform_message_id')->unique()->nullable();
             $table->unsignedBigInteger('parent_id')->nullable();
             $table->timestamps();
         });
