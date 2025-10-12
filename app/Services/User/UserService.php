@@ -99,6 +99,7 @@ class UserService
                 'max_limit'         => $data['max_limit'],
                 'role_id'           => $data['role_id'],
                 'email_verified_at' => now(),
+                'mobile'            => $data['mobile'] ?? null,
                 'is_verified'       => 1,
                 'account_status'    => 'active',
                 'password'          => bcrypt($password),
