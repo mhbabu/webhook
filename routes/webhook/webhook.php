@@ -8,8 +8,11 @@ use Illuminate\Support\Facades\Auth;
 Route::get('webhook/whatsapp', [PlatformWebhookController::class, 'verifyWhatsAppToken']); // webhook verification for wahtsapp
 Route::post('webhook/whatsapp', [PlatformWebhookController::class, 'incomingWhatsAppMessage']); // receive whatsapp webhook incoming message
 
-Route::get('webhook/messenger', [PlatformWebhookController::class, 'verifyMessengerToken']); // For for webhook verification
-Route::post('webhook/messenger', [PlatformWebhookController::class, 'incomingMessengerMessage']); // POST for message reception
+Route::get('webhook/messenger', [PlatformWebhookController::class, 'verifyMessengerToken']); //  messenger token verification
+Route::post('webhook/messenger', [PlatformWebhookController::class, 'incomingMessengerMessage']); // receive messenger webhook response
+
+Route::get('webhook/facebook-page', [PlatformWebhookController::class, 'verifyFacebookPageToken']); //  facebook page token verification
+Route::post('webhook/facebook-page', [PlatformWebhookController::class, 'receiveFacebookPageEventData']); // receive facebook page event data
 
 
 // Route::get('webhook/instagram', [PlatformWebhookController::class, 'verifyIntragram']); // For for webhook verification

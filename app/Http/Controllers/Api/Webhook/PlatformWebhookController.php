@@ -496,4 +496,58 @@ class PlatformWebhookController extends Controller
 
         return response('EVENT_RECEIVED', 200);
     }
+
+    // 1. Verify Meta Webhook (GET)
+    public function verifyFacebookPageToken(Request $request)
+    {
+        info(['requestData' => $request->all()]);
+        $verify_token = env('FB_VERIFY_TOKEN');
+
+        $mode = $request->get('hub_mode');
+        $token = $request->get('hub_verify_token');
+        $challenge = $request->get('hub_challenge');
+
+        if ($mode === 'subscribe' && $token === $verify_token) {
+            return response($challenge, 200);
+        }
+
+        return response('Forbidden', 403);
+    }
+
+    // 2. Receive Message (POST)
+    public function receiveFacebookPageEventData2(Request $request)
+    {
+        Log::info('📩 Messenger Webhook Payload:', ['data' => $request->all()]);
+
+        return response('EVENT_RECEIVED', 200);
+    }
+
+    public function receiveFacebookPageEventData(Request $request)
+    {
+        $payload = $request->all();
+        Log::info('📩 Facebook Webhook Payload:', $payload);
+
+        // Loop through entries
+        if (isset($payload['entry'])) {
+            foreach ($payload['entry'] as $entry) {
+                // Messenger messages
+                if (isset($entry['messaging'])) {
+                    foreach ($entry['messaging'] as $msg) {
+                        Log::info('Messenger Event:', $msg);
+                    }
+                }
+
+                // Page feed events (comments, reactions)
+                if (isset($entry['changes'])) {
+                    foreach ($entry['changes'] as $change) {
+                        if ($change['field'] === 'feed') {
+                            Log::info('Page Feed Event:', $change['value']);
+                        }
+                    }
+                }
+            }
+        }
+
+        return response('EVENT_RECEIVED', 200);
+    }
 }

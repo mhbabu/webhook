@@ -190,7 +190,7 @@ class MessageController extends Controller
         return jsonResponse('Conversation ended successfully.', true, null);
     }
 
-    public function sendWhatsAppMessageFromAgent(SendPlatformMessageRequest $request)
+    public function sendWhatsAppMessageFromAgent1(SendPlatformMessageRequest $request)
     {
         $data         = $request->validated();
         $conversation = Conversation::find($data['conversation_id']);
@@ -266,7 +266,7 @@ class MessageController extends Controller
         ]);
     }
 
-    public function sendMessagerMessageFromAgent(SendPlatformMessageRequest $request)
+    public function sendMessagerMessageFromAgent1(SendPlatformMessageRequest $request)
     {
         $data         = $request->validated();
         info(['$data' => $data]);
@@ -332,6 +332,197 @@ class MessageController extends Controller
             'text_message'    => $textMessage ? new MessageResource($textMessage) : null,
             'media_responses' => $mediaResponses,
             'text_response'   => $textResponse,
+        ]);
+    }
+
+
+    /**
+     * Send message from agent to customer across platforms (WhatsApp, Messenger).
+     * Handles conversation creation/expiration and message with attachments.
+     *
+     * @param SendPlatformMessageRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    
+    public function sendAgentMessageToCustomer(SendPlatformMessageRequest $request)
+    {
+        $data         = $request->validated();
+        $customer     = Customer::find($data['customer_id']);
+        $platformName = strtolower($customer->platform->name);
+        $agentId      = auth()->id();
+
+        // Get or create conversation for this agent, customer & platform
+        $conversation = $this->getOrCreateConversationForAgentCustomer($customer->id, $agentId, $platformName);
+
+        // Extract attachments if present
+        $attachments = $request->hasFile('attachments') ? $request->file('attachments') : [];
+
+        if ($platformName === 'facebook') {
+            return $this->sendMessagerMessageFromAgent($data, $attachments, $conversation, $customer);
+        } elseif ($platformName === 'whatsapp') {
+            return $this->sendWhatsAppMessageFromAgent($data, $attachments, $conversation, $customer);
+        }
+
+        return jsonResponse('Unsupported platform', false, [], 422);
+    }
+
+    protected function getOrCreateConversationForAgentCustomer(int $customerId, int $agentId, string $platformName): Conversation
+    {
+        $expireHours = config('services.conversation_expire_hours', 6);
+        $now = now();
+
+        // Try to find existing active conversation for same customer, agent and platform
+        $conversation = Conversation::where('customer_id', $customerId)
+            ->where('agent_id', $agentId)
+            ->where('platform', $platformName)
+            ->where(function ($q) use ($now, $expireHours) {
+                $q->whereNull('end_at')
+                    ->orWhere('created_at', '>=', $now->subHours($expireHours));
+            })
+            ->latest()
+            ->first();
+
+        // If none found or expired or ended, create new one
+        if (!$conversation || $conversation->end_at !== null || $conversation->created_at < $now->subHours($expireHours)) {
+            $conversation = new Conversation();
+            $conversation->customer_id = $customerId;
+            $conversation->platform = $platformName;
+            $conversation->agent_id = $agentId;
+            $conversation->trace_id = strtoupper(substr($platformName, 0, 2)) . '-' . now()->format('YmdHis') . '-' . uniqid();
+            $conversation->save();
+        }
+
+        return $conversation;
+    }
+
+    protected function sendWhatsAppMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
+    {
+        $phone = $customer->phone;
+
+        // Save text message in DB
+        $message = new Message();
+        $message->conversation_id = $conversation->id;
+        $message->sender_id = auth()->id();
+        $message->sender_type = User::class;
+        $message->receiver_type = Customer::class;
+        $message->receiver_id = $customer->id;
+        $message->type = 'text';
+        $message->content = $data['content'] ?? '';
+        $message->direction = 'outgoing';
+        $message->platform = 'whatsapp';
+        $message->save();
+
+        $whatsAppService = new WhatsAppService();
+
+        $mediaResponses = [];
+
+        foreach ($attachments as $file) {
+            $storedPath = $file->store('wa_temp');
+            $fullPath = storage_path("app/{$storedPath}");
+            $mime = $file->getMimeType();
+
+            // Upload media to WhatsApp
+            $mediaId = $whatsAppService->uploadMedia($fullPath, $mime);
+
+            if ($mediaId) {
+                $mediaType = match (true) {
+                    str_starts_with($mime, 'image/') => 'image',
+                    str_starts_with($mime, 'video/') => 'video',
+                    str_starts_with($mime, 'audio/') => 'audio',
+                    str_starts_with($mime, 'application/') => 'document',
+                    default => 'document',
+                };
+
+                $mediaResponse = $whatsAppService->sendMediaMessage($phone, $mediaId, $mediaType);
+                $mediaResponses[] = $mediaResponse;
+
+                // Save each media as message in DB
+                Message::create([
+                    'conversation_id' => $conversation->id,
+                    'sender_id' => auth()->id(),
+                    'sender_type' => User::class,
+                    'receiver_type' => Customer::class,
+                    'receiver_id' => $customer->id,
+                    'type' => $mediaType,
+                    'content' => null,
+                    'direction' => 'outgoing',
+                    'platform' => 'whatsapp',
+                    'platform_message_id' => $mediaResponse['messages'][0]['id'] ?? null,
+                    'parent_id' => $data['parent_id'] ?? null,
+                ]);
+            }
+        }
+
+        // Send text message after media
+        $textResponse = null;
+        if (!empty($data['content'])) {
+            $textResponse = $whatsAppService->sendTextMessage($phone, $data['content']);
+            $message->update(['platform_message_id' => $textResponse['messages'][0]['id'] ?? null]);
+        }
+
+        return jsonResponse('WhatsApp message(s) sent successfully.', true, [
+            'text_message' => $message ? new MessageResource($message) : null,
+            'media_responses' => $mediaResponses,
+            'text_response' => $textResponse,
+        ]);
+    }
+
+    protected function sendMessagerMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
+    {
+        $recipientId = $customer->platform_user_id;
+
+        $facebookService = new FacebookService();
+        $mediaResponses = [];
+
+        // Save text message in DB first
+        $textMessage = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => auth()->id(),
+            'sender_type' => User::class,
+            'receiver_type' => Customer::class,
+            'receiver_id' => $customer->id,
+            'type' => 'text',
+            'content' => $data['content'] ?? '',
+            'direction' => 'outgoing',
+            'platform' => 'messenger',
+        ]);
+
+        // Handle file uploads (attachments)
+        foreach ($attachments as $file) {
+            $storedPath = $file->store('messenger_temp', 'public');
+            $fullPath = "messenger_temp/" . basename($storedPath);
+            $mime = $file->getMimeType();
+
+            $response = $facebookService->sendAttachmentMessage($recipientId, $fullPath, $mime);
+            $mediaResponses[] = $response;
+
+            // Save media message to DB
+            Message::create([
+                'conversation_id' => $conversation->id,
+                'sender_id' => auth()->id(),
+                'sender_type' => User::class,
+                'receiver_type' => Customer::class,
+                'receiver_id' => $customer->id,
+                'type' => $facebookService->resolveMediaType($mime),
+                'content' => null,
+                'direction' => 'outgoing',
+                'platform' => 'messenger',
+                'platform_message_id' => $response['message_id'] ?? null,
+                'parent_id' => $data['parent_id'] ?? null,
+            ]);
+        }
+
+        // Send the text message after media
+        $textResponse = null;
+        if ($textMessage) {
+            $textResponse = $facebookService->sendTextMessage($recipientId, $textMessage->content);
+            $textMessage->update(['platform_message_id' => $textResponse['message_id'] ?? null]);
+        }
+
+        return jsonResponse('Messenger message(s) sent successfully.', true, [
+            'text_message' => $textMessage ? new MessageResource($textMessage) : null,
+            'media_responses' => $mediaResponses,
+            'text_response' => $textResponse,
         ]);
     }
 }

@@ -47,4 +47,8 @@ return [
         'url'   => 'https://graph.facebook.com/v18.0',
     ],
 
+    'conversation' => [
+        'conversation_expire_hours' => env('CONVERSATION_EXPIRE_HOURS', 6),
+    ],
+
 ];
