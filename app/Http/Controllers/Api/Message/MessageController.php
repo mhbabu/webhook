@@ -364,13 +364,13 @@ class MessageController extends Controller
         $platformName = strtolower($customer->platform->name);
 
         // Step 3: Check if conversation expired or ended
-        $expireHours = config('services.conversation_expire_hours');
-        $expired = $conversation->end_at !== null || $conversation->created_at->lt(now()->subHours($expireHours));
+        // $expireHours = config('services.conversation_expire_hours');
+        // $expired = $conversation->end_at !== null || $conversation->created_at->lt(now()->subHours($expireHours));
 
-        if ($expired) {
-            // Create new conversation if expired
-            $conversation = $this->getOrCreateConversationForAgentCustomer($customer->id, $agentId, $platformName);
-        }
+        // if ($expired) {
+        //     // Create new conversation if expired
+        //     $conversation = $this->getOrCreateConversationForAgentCustomer($customer->id, $agentId, $platformName);
+        // }
 
         // Step 4: Extract attachments if any
         $attachments = $request->hasFile('attachments') ? $request->file('attachments') : [];
@@ -388,9 +388,9 @@ class MessageController extends Controller
     protected function getOrCreateConversationForAgentCustomer(int $customerId, int $agentId, string $platformName): Conversation
     {
         $expireHours = config('services.conversation_expire_hours');
-        $now = now();
+        $now         = now();
 
-        // Try to find existing active conversation for same customer, agent and platform
+        // 1️⃣ Try to find an active conversation first
         $conversation = Conversation::where('customer_id', $customerId)
             ->where('agent_id', $agentId)
             ->where('platform', $platformName)
@@ -401,14 +401,14 @@ class MessageController extends Controller
             ->latest()
             ->first();
 
-        // If none found or expired or ended, create new one
+        // 2️⃣ Create new conversation if none found or expired/ended
         if (!$conversation || $conversation->end_at !== null || $conversation->created_at < $now->subHours($expireHours)) {
-            $conversation = new Conversation();
-            $conversation->customer_id = $customerId;
-            $conversation->platform = $platformName;
-            $conversation->agent_id = $agentId;
-            $conversation->trace_id = strtoupper(substr($platformName, 0, 2)) . '-' . now()->format('YmdHis') . '-' . uniqid();
-            $conversation->save();
+            $conversation = Conversation::create([
+                'customer_id' => $customerId,
+                'agent_id'    => $agentId,
+                'platform'    => $platformName,
+                'trace_id'    => strtoupper(substr($platformName, 0, 2)) . '-' . now()->format('YmdHis') . '-' . uniqid(),
+            ]);
         }
 
         return $conversation;
