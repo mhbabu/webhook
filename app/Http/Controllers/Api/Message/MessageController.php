@@ -119,7 +119,7 @@ class MessageController extends Controller
         $conversation = Conversation::find((int)$conversationId);
         Log::info('[IncomingMsg] before conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
 
-        if ($conversationType === 'new') {
+        if ($conversationType === 'new' || empty($conversation->agent_id)) {
             $conversation->agent_id = $user->id;
             $conversation->save();
         }
@@ -130,7 +130,7 @@ class MessageController extends Controller
         $convertedMsgId          = (int)$messageId;
         $message                 = Message::find($convertedMsgId);
 
-        if ($conversationType === 'new') {
+        if ($conversationType === 'new' || empty($conversation->agent_id)) {
             $message->receiver_id    = $conversation->agent_id ?? $user->id;
             $message->receiver_type  = User::class;
             $message->save();
