@@ -922,7 +922,14 @@ class PlatformWebhookController extends Controller
 
                 DB::transaction(function () use ($senderId, $senderName, $profilePic, $platformId, $platformName, $text, $attachments, $timestamp, $platformMessageId, $parentMessageId) {
                     // 1️⃣ Find or create the customer
-                    $customer = Customer::firstOrCreate(['platform_user_id' => $senderId], ['name' => $senderName, 'platform_id' => $platformId]);
+                    $customer = Customer::where('platform_user_id', $senderId)->first();
+                    if (! $customer) {
+                        $customer = Customer::create([
+                            'platform_user_id' => $senderId,
+                            'name'             => $senderName,
+                            'platform_id'      => $platformId,
+                        ]);
+                    }
 
                     // 1️⃣a Download profile photo only when customer is newly created
                     if ($customer->wasRecentlyCreated && $profilePic) {
@@ -1023,7 +1030,7 @@ class PlatformWebhookController extends Controller
 
                     // 7️⃣ Prepare payload
                     $payload = [
-                        "source"           => "facebook",
+                        "source"           => "facebook_messenger",
                         "traceId"          => $conversation->trace_id,
                         "conversationId"   => $conversation->id,
                         "conversationType" => $isNewConversation ? "new" : "old",
