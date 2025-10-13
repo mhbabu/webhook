@@ -17,6 +17,7 @@ use App\Services\Platforms\FacebookService;
 use App\Services\Platforms\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class MessageController extends Controller
 {
@@ -167,7 +168,7 @@ class MessageController extends Controller
         // }
     }
 
-    public function endConversation(EndConversationRequest $request)
+    public function endConversation1(EndConversationRequest $request)
     {
         $user = User::find(auth()->id());
         $data = $request->validated();
@@ -188,6 +189,102 @@ class MessageController extends Controller
 
         return jsonResponse('Conversation ended successfully.', true, null);
     }
+
+    /**
+     * End a conversation
+     * - Updates conversation table
+     * - Updates agent current_limit based on platform weight
+     * - Updates Redis hash and list
+     * - Conditionally removes platform from CONTACT_TYPE
+     */
+    public function endConversation(EndConversationRequest $request)
+    {
+        $user = auth()->user();
+        $data = $request->validated();
+        $conversation = Conversation::find($data['conversation_id']);
+
+        if (!$conversation) {
+            return jsonResponse('Conversation not found.', false, null, 404);
+        }
+
+        // Authorization check
+        if ($user->id !== $conversation->agent_id) {
+            return jsonResponse('You are not authorized to end this conversation.', false, null, 403);
+        }
+
+        // Check if already ended
+        if ($conversation->end_at) {
+            return jsonResponse('Conversation already ended.', false, null, 400);
+        }
+
+        // ✅ End the conversation
+        $conversation->update([
+            'end_at'     => now(),
+            'wrap_up_id' => $data['wrap_up_id'],
+            'ended_by'   => $user->id,
+        ]);
+
+        // ✅ Update agent current_limit based on platform weight
+        $weight = getPlatformWeight($conversation->platform);
+        $user->increment('current_limit', $weight);
+
+        // ✅ Update Redis: hash + omnitrix list + conditional CONTACT_TYPE removal
+        $this->updateUserInRedis($user, $conversation->platform);
+
+        return jsonResponse('Conversation ended successfully.', true);
+    }
+
+    /**
+     * Update or add user data in Redis
+     * - Updates agent hash ("agent:{id}")
+     * - Removes the ended platform from CONTACT_TYPE if no other active conversations
+     * - Pushes platform into "omnitrix_agent:{id}" list
+     *
+     * @param \App\Models\User $user
+     * @param string|null $endedPlatform
+     */
+    private function updateUserInRedis($user, ?string $endedPlatform = null)
+    {
+        $hashKey = "agent:{$user->id}";
+
+        // Fetch existing CONTACT_TYPE from Redis hash
+        $contactTypesJson = Redis::hGet($hashKey, 'CONTACT_TYPE') ?? '[]';
+        $contactTypes = json_decode($contactTypesJson, true) ?: [];
+
+        // Get all active conversations for this platform
+        $activeConversations = Conversation::where('agent_id', $user->id)->where('platform', $endedPlatform)
+            ->where(function ($query) {
+                $query->whereNull('end_at')
+                    ->orWhere('end_at', '>=', now()->subHours(config('services.conversation_expire_hours')));
+            })
+            ->count();
+
+        // Remove platform only if no active conversations exist
+        if ($endedPlatform && $activeConversations === 0 && in_array($endedPlatform, $contactTypes)) {
+            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
+        }
+
+        // Remove platform only if no active conversations exist
+        if ($endedPlatform && $activeConversations === 0 && in_array($endedPlatform, $contactTypes)) {
+            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
+        }
+
+        // Prepare agent hash data
+        $agentData = [
+            "AGENT_ID"        => $user->id,
+            "AGENT_TYPE"      => $user->agent_type ?? 'NORMAL',
+            "STATUS"          => $user->current_status,
+            "MAX_SCOPE"       => $user->max_limit,
+            "AVAILABLE_SCOPE" => $user->current_limit,
+            "CONTACT_TYPE"    => json_encode($contactTypes),
+            "SKILL"           => json_encode($user->platforms()->pluck('name')->map(fn($n) => strtolower($n))->toArray()),
+            "BUSYSINCE"       => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
+        ];
+
+        // Save hash in Redis
+        Redis::hMSet($hashKey, $agentData);
+    }
+
 
     public function sendWhatsAppMessageFromAgent1(SendPlatformMessageRequest $request)
     {

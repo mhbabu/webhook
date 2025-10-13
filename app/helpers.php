@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\PlatformTypeWiseWeightage;
+
 if (!function_exists('jsonResponse')) {
     function jsonResponse(string $message, bool $status, $data = null, int $statusCode = 200)
     {
@@ -43,5 +45,41 @@ if (!function_exists('isRoleCreationAuthorized')) {
 
         // Return true if the target role is in the allowed roles, otherwise false
         return in_array($targetRole, $allowedRoles);
+    }
+
+
+    if (! function_exists('getPlatformWeight')) {
+
+        /**
+         * Get the weightage of a given platform.
+         *
+         * This function accepts either:
+         * - A string representing the platform (e.g., 'whatsapp', 'facebook_messenger')
+         * - A PlatformTypeWiseWeightage enum instance
+         * - Null (defaults to UnknownSource)
+         *
+         * The weight indicates how much capacity/limit a conversation on this platform
+         * consumes or frees for an agent.
+         *
+         * @param  string|PlatformTypeWiseWeightage|null  $platform
+         * @return int  Returns the weight value (default 1 for unknown platforms)
+         */
+        function getPlatformWeight(string|PlatformTypeWiseWeightage|null $platform): int
+        {
+            // If already an enum instance, just return its weight directly
+            if ($platform instanceof PlatformTypeWiseWeightage) {
+                return $platform->weight();
+            }
+
+            // Normalize the input string (trim + lowercase)
+            $normalized = strtolower(trim($platform ?? 'unknown_source'));
+
+            // Try to convert the string into a PlatformTypeWiseWeightage enum
+            // If not found, fallback to UnknownSource
+            $enum = PlatformTypeWiseWeightage::tryFrom($normalized) ?? PlatformTypeWiseWeightage::UnknownSource;
+
+            // Return the weight for this platform
+            return $enum->weight();
+        }
     }
 }
