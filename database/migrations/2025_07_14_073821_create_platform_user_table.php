@@ -15,7 +15,6 @@ return new class extends Migration
            $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('platform_id')->constrained()->onDelete('cascade');
-            $table->timestamps();
             $table->unique(['user_id', 'platform_id']); // Prevent duplicate user-platform pairs
         });
     }
