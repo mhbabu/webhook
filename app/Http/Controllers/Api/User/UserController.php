@@ -131,6 +131,8 @@ class UserController extends Controller
     public function update(UpdateUserProfileRequest $request, $userId)
     {
         $data     = $request->validated(); // ensures $data is an array of only validated inputs
+
+        info('Updating user with data:', $data);
         $response = $this->userService->updateUserProfile($data, $userId);
         return $this->jsonResponse($response['message'], $response['status'], $response['data'] ?? null);
     }

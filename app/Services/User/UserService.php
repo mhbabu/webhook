@@ -333,7 +333,6 @@ class UserService
         }
     }
 
-
     /**
      * Delete User
      */

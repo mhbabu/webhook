@@ -168,28 +168,6 @@ class MessageController extends Controller
         // }
     }
 
-    public function endConversation1(EndConversationRequest $request)
-    {
-        $user = User::find(auth()->id());
-        $data = $request->validated();
-        $conversation = Conversation::find($data['conversation_id']);
-
-        if ($user->id !== $conversation->agent_id) {
-            return jsonResponse('You are not authorized to end this conversation.', false, null, 403);
-        }
-
-        if ($conversation->end_at) {
-            return jsonResponse('Conversation already ended.', false, null, 400);
-        }
-
-        $conversation->end_at = now();
-        $conversation->wrap_up_id = $data['wrap_up_id'];
-        $conversation->ended_by = $user->id;
-        $conversation->save();
-
-        return jsonResponse('Conversation ended successfully.', true, null);
-    }
-
     /**
      * End a conversation
      * - Updates conversation table
@@ -229,7 +207,7 @@ class MessageController extends Controller
         $user->increment('current_limit', $weight);
 
         // ✅ Update Redis: hash + omnitrix list + conditional CONTACT_TYPE removal
-        $this->updateUserInRedis($user, $conversation->platform);
+        $this->updateUserInRedis($user, $conversation);
 
         return jsonResponse('Conversation ended successfully.', true);
     }
@@ -243,9 +221,11 @@ class MessageController extends Controller
      * @param \App\Models\User $user
      * @param string|null $endedPlatform
      */
-    private function updateUserInRedis($user, ?string $endedPlatform = null)
+    private function updateUserInRedis($user, $conversation)
     {
-        $hashKey = "agent:{$user->id}";
+        $endedPlatform       = $conversation->platform;
+        $hashKey             = "agent:{$user->id}";
+        $removedConversation = "conversation:{$conversation->id}";
 
         // Fetch existing CONTACT_TYPE from Redis hash
         $contactTypesJson = Redis::hGet($hashKey, 'CONTACT_TYPE') ?? '[]';
@@ -281,8 +261,10 @@ class MessageController extends Controller
             "BUSYSINCE"       => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
         ];
 
+
         // Save hash in Redis
         Redis::hMSet($hashKey, $agentData);
+        Redis::del($removedConversation); // Remove ended conversation key
     }
 
 
