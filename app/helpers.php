@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\PlatformTypeWiseWeightage;
+use App\Models\Conversation;
 
 if (!function_exists('jsonResponse')) {
     function jsonResponse(string $message, bool $status, $data = null, int $statusCode = 200)
@@ -82,4 +83,29 @@ if (!function_exists('isRoleCreationAuthorized')) {
             return $enum->weight();
         }
     }
+
+
+
+     if (! function_exists('getAgentActiveConversationsCount')) {
+
+        /**
+         * Get the count of active conversations for a specific agent.
+         *
+         * This function checks the database for active conversations
+         * associated with the given agent ID.
+         *
+         * @param  int  $agentId
+         * @return int
+         */
+        function getAgentActiveConversationsCount(int $agentId): int
+        {
+            return Conversation::where('agent_id', $agentId)
+                ->where(function ($query) {
+                    $query->whereNull('end_at')
+                        ->orWhere('end_at', '>=', now()->subHours(config('services.conversation_expire_hours')));
+                })
+                ->count();
+        }
+    }
+
 }

@@ -363,12 +363,20 @@ class UserService
     {
         $user = Auth::user();
 
+        // Check for active conversations
+        $agentPendingConversations = getAgentActiveConversationsCount($user->id);
+
+        if($agentPendingConversations > 0){
+            return ['message' => 'Resolve '.$agentPendingConversations.' active conversations to log out.', 'status' => false];
+        }
+
         // Update user status
         $user->current_status = UserStatus::OFFLINE->value;
         $user->save();
 
-        // --- Redis Update using helper ---
-        $this->updateUserInRedis($user);
+        // --- Remove user key from Redis ---
+        $redisKey = "agent:{$user->id}";
+        Redis::del($redisKey);
 
         // Revoke all tokens
         $user->tokens()->delete();
@@ -378,26 +386,5 @@ class UserService
     public function validRequest($userId): bool
     {
         return User::where('id', $userId)->where('is_request', 1)->exists();
-    }
-
-    private function updateUserInRedis($user): void
-    {
-        $redisKey = "agent:{$user->id}";
-
-        $agentData = [
-            "AGENT_ID"        => $user->id,
-            "AGENT_TYPE"      => $user->agent_type ?? 'NORMAL',
-            "STATUS"          => $user->current_status ?? 'inactive',
-            "MAX_SCOPE"       => $user->max_limit ?? 0,
-            "AVAILABLE_SCOPE" => $user->available_limit ?? ($user->max_limit ?? 0),
-            "CONTACT_TYPE"    => json_encode($user->contact_type ?? []),
-            "SKILL"           => json_encode(
-                $user->platforms()->pluck('name')->map(fn($name) => strtolower($name))->toArray()
-            ),
-            "BUSYSINCE"        => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
-        ];
-
-        // Save as Redis Hash
-        Redis::hMSet($redisKey, $agentData);
     }
 }

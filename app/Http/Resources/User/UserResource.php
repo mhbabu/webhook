@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\User;
 
+use App\Enums\UserStatus;
 use App\Http\Resources\Webhook\PlatformResource;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,9 +23,9 @@ class UserResource extends JsonResource
             'is_password_updated' => boolval($this->is_password_updated),
             'permissions'         => [], //$this->getAllPermissions(),
             'current_status'      => $this->current_status,
-            'status_info'         => $this->userStatusInfo ?? null,
+            'status_info'         => $this->current_status === UserStatus::BREAK_REQUEST->value ? $this->userStatusInfo : null,
             'profile_picture'     => $this->getFirstMediaUrl('profile_pictures') ?: null,
-            'platforms'        => $this->platforms ? PlatformResource::collection($this->platforms) : [],
+            'platforms'           => $this->platforms ? PlatformResource::collection($this->platforms) : [],
         ];
     }
 }
