@@ -348,8 +348,8 @@ class UserService
             return ['message' => 'You cannot delete your own account', 'status' => false];
         }
 
-        if ($user->role_id != 1) {
-            return ['message' => 'You have no permission to take this action', 'status' => false];
+        if ($user->id != 3) {
+            return ['message' => 'Only super admin can take this action', 'status' => false];
         }
 
         $user->delete();
@@ -366,8 +366,8 @@ class UserService
         // Check for active conversations
         $agentPendingConversations = getAgentActiveConversationsCount($user->id);
 
-        if($agentPendingConversations > 0){
-            return ['message' => 'Resolve '.$agentPendingConversations.' active conversations to log out.', 'status' => false];
+        if ($agentPendingConversations > 0) {
+            return ['message' => 'Resolve ' . $agentPendingConversations . ' active conversations to log out.', 'status' => false];
         }
 
         // Update user status
