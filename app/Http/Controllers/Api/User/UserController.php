@@ -29,7 +29,7 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-       return $this->userService->getUserList($request->all());
+        return $this->userService->getUserList($request->all());
     }
 
 
@@ -128,12 +128,13 @@ class UserController extends Controller
     /**
      * Update User
      */
-    public function update(UpdateUserProfileRequest $request, $userId)
+    
+    public function update(UpdateUserProfileRequest $request, User $user)
     {
-        $data     = $request->validated(); // ensures $data is an array of only validated inputs
-
+        $data = $request->validated();
         info('Updating user with data:', $data);
-        $response = $this->userService->updateUserProfile($data, $userId);
+
+        $response = $this->userService->updateUserProfile($data, $user);
         return $this->jsonResponse($response['message'], $response['status'], $response['data'] ?? null);
     }
 

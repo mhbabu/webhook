@@ -278,49 +278,39 @@ class UserService
     /**
      * Update User
      */
-    public function updateUserProfile(array $data, $userId): array
+    /**
+     * Update user profile
+     */
+    public function updateUserProfile(array $data, User $user): array
     {
-        $user = User::find($userId);
-        if (!$user) {
-            return ['message' => 'User not found', 'status' => false];
-        }
-
         DB::beginTransaction();
 
         try {
             // Update basic fields for all users
-            if (isset($data['name'])) {
-                $user->name = $data['name'];
-            }
+            $fields = ['name', 'mobile', 'email', 'employee_id', 'max_limit', 'role_id'];
+            foreach ($fields as $field) {
+                if (isset($data[$field])) {
+                    $user->$field = $data[$field];
 
-            if (isset($data['mobile'])) {
-                $user->mobile = $data['mobile'];
-            }
-
-            // Get authenticated user's role name
-            $role = auth()->user()->role->name ?? null;
-
-            // Only Super Admin, Admin, Supervisor can update these fields
-            if (in_array($role, ['Super Admin', 'Admin', 'Supervisor'])) {
-                $user->email       = $data['email'] ?? $user->email;
-                $user->mobile      = $data['mobile'] ?? $user->mobile;
-                $user->employee_id = $data['employee_id'] ?? $user->employee_id;
-                $user->max_limit   = $data['max_limit'] ?? $user->max_limit;
-                $user->role_id     = $data['role_id'] ?? $user->role_id;
+                    // If max_limit is updated, also update current_limit
+                    if ($field === 'max_limit') {
+                        $user->current_limit = $data[$field];
+                    }
+                }
             }
 
             // Save changes
             $user->save();
 
             // Handle profile picture
-            if (isset($data['profile_picture'])) {
+            if (!empty($data['profile_picture'])) {
                 $user->clearMediaCollection('profile_pictures'); // remove old picture
                 $user->addMedia($data['profile_picture'])->toMediaCollection('profile_pictures');
             }
 
             // Sync platforms if provided
-            if (!empty($data['platform_ids']) && is_array($data['platform_ids'])) {
-                $user->platforms()->sync(array_unique($data['platform_ids']));
+            if (!empty($data['platforms']) && is_array($data['platforms'])) {
+                $user->platforms()->sync(array_unique($data['platforms']));
             }
 
             DB::commit();
@@ -328,10 +318,10 @@ class UserService
             return ['message' => 'User updated successfully', 'status'  => true, 'data'    => new UserResource($user)];
         } catch (\Exception $e) {
             DB::rollBack();
-
             return ['message' => 'User update failed: ' . $e->getMessage(), 'status'  => false];
         }
     }
+
 
     /**
      * Delete User
