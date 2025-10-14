@@ -272,7 +272,7 @@ class MessageController extends Controller
         // Prepare agent hash data
         $agentData = [
             "AGENT_ID"        => $user->id,
-            "AGENT_TYPE"      => $user->agent_type ?? 'NORMAL',
+            "AGENT_TYPE"      => 'NORMAL',
             "STATUS"          => $user->current_status,
             "MAX_SCOPE"       => $user->max_limit,
             "AVAILABLE_SCOPE" => $user->current_limit,

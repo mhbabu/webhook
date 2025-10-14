@@ -583,8 +583,7 @@ class PlatformWebhookController extends Controller
                 }
 
                 // Update conversation
-                $conversation->last_message_id = $message->id;
-                $conversation->save();
+                $conversation->update(['last_message_id' => $message->id]);
 
                 // Build payload
                 $payloadsToSend[] = [
