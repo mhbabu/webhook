@@ -240,7 +240,7 @@ class MessageController extends Controller
             ->count();
 
         // Remove platform only if no active conversations exist
-        if ($endedPlatform && $activeConversations === 0 && in_array($endedPlatform, $contactTypes)) {
+        if ($endedPlatform && $activeConversations === 1 && in_array($endedPlatform, $contactTypes)) {
             $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
         }
 
@@ -461,8 +461,8 @@ class MessageController extends Controller
         ]);
 
         // Step 5: Send based on platform
-        if ($platformName === 'facebook') {
-            return $this->sendMessagerMessageFromAgent($data, $attachments, $conversation, $customer);
+        if ($platformName === 'facebook_messenger') {
+            return $this->sendMessengerMessageFromAgent($data, $attachments, $conversation, $customer);
         } elseif ($platformName === 'whatsapp') {
             return $this->sendWhatsAppMessageFromAgent($data, $attachments, $conversation, $customer);
         }
@@ -571,7 +571,7 @@ class MessageController extends Controller
         ]);
     }
 
-    protected function sendMessagerMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
+    protected function sendMessengerMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
     {
         $recipientId = $customer->platform_user_id;
         $facebookService = new FacebookService();
