@@ -672,7 +672,7 @@ class PlatformWebhookController extends Controller
             DB::afterCommit(function () use ($payloadsToSend) {
                 foreach ($payloadsToSend as $payload) {
                     Log::info('✅ Dispatching Website Payload After Commit', ['payload' => $payload]);
-                    // $this->sendToDispatcher($payload); // Define this method or dispatch a job
+                    $this->sendToDispatcher($payload); // Define this method or dispatch a job
                 }
             });
         });
