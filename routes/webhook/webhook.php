@@ -14,6 +14,8 @@ Route::post('webhook/messenger', [PlatformWebhookController::class, 'incomingMes
 Route::get('webhook/facebook-page', [PlatformWebhookController::class, 'verifyFacebookPageToken']); //  facebook page token verification
 Route::post('webhook/facebook-page', [PlatformWebhookController::class, 'receiveFacebookPageEventData']); // receive facebook page event data
 
+Route::post('webhook/website', [PlatformWebhookController::class, 'receiveWebsitePageData'])->middleware('customer.token'); // receive website message data
+
 
 // Route::get('webhook/instagram', [PlatformWebhookController::class, 'verifyIntragram']); // For for webhook verification
 // Route::post('webhook/instagram', [PlatformWebhookController::class, 'receiveInstragramMsg']); // POST for message reception

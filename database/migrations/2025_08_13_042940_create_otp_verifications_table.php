@@ -13,11 +13,14 @@ return new class extends Migration
     {
         Schema::create('otp_verifications', function (Blueprint $table) {
            $table->id();
-            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->unsignedBigInteger('customer_id')->nullable();
             $table->string('otp');
             $table->timestamp('expire_at');
             $table->timestamps();
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
+
         });
     }
 

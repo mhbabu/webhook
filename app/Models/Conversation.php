@@ -1,8 +1,5 @@
 <?php
 namespace App\Models;
-
-use App\Http\Resources\CustomerResource;
-use App\Http\Resources\User\UserResource;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 

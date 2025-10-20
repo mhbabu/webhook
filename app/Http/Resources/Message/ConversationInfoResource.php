@@ -3,7 +3,7 @@
 namespace App\Http\Resources\Message;
 
 use Illuminate\Http\Resources\Json\JsonResource;
-use App\Http\Resources\CustomerResource;
+use App\Http\Resources\Customer\CustomerResource;
 use App\Http\Resources\Message\MessageResource;
 
 class ConversationInfoResource extends JsonResource
