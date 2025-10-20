@@ -163,9 +163,7 @@ class CustomerController extends Controller
         $pagination = !isset($data['pagination']) || $data['pagination'] === 'true';
         $page       = $data['page'] ?? 1;
         $perPage    = $data['per_page'] ?? 10;
-        $query      = Conversation::with(['customer', 'agent', 'lastMessage'])->where('customer_id', $customer->id)->latest();
-
-        $query->latest();
+        $query      = Conversation::with(['customer', 'agent', 'lastMessage'])->where('customer_id', $customer->id)->whereDate('created_at', now()->format('Y-m-d'))->latest();
 
         if ($pagination) {
             $conversations = $query->paginate($perPage, ['*'], 'page', $page);
