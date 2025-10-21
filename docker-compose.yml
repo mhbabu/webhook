@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   app:
     build:
@@ -15,16 +17,16 @@ services:
       - db
       - redis
     ports:
-      - "8081:8080" # WebSocket server exposed
+      - "9000:9000" # PHP-FPM exposed for Nginx to connect
 
   webserver:
     image: nginx:alpine
     container_name: webhook-nginx
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "8080:80"   # Host 8080 → Nginx 80
     volumes:
-      - /home/babu/webhook:/home/babu/webhook
+      - /home/babu/webhook:/var/www/html/webhook
       - /home/babu/webhook/docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - app
