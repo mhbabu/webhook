@@ -1,9 +1,11 @@
-FROM php:8.3-fpm
+# Use official PHP 7.4 FPM image as base
+FROM php:7.4-fpm
 
-# Arguments for user creation
-ARG USER=babu
-ARG UID=1000
-ARG GID=1000
+# Set working directory
+WORKDIR /var/www/html/webhook
+
+# Avoid interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -16,45 +18,27 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     supervisor \
+    less \
+    zlib1g-dev \
+    libcurl4-gnutls-dev \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libxpm-dev \
+    libwebp-dev \
+    libicu-dev \
+    locales \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
-RUN docker-php-ext-install \
-    pdo_mysql \
-    mbstring \
-    exif \
-    pcntl \
-    bcmath \
-    gd \
-    zip
+RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
-# Install Redis extension
-RUN pecl install redis \
-    && docker-php-ext-enable redis
+# Set permissions for Laravel
+RUN chown -R www-data:www-data /var/www/html/webhook \
+    && chmod -R 755 /var/www/html/webhook
 
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# Copy existing application code
+COPY . .
 
-# Create user matching host
-RUN groupadd -g ${GID} ${USER} \
-    && useradd -u ${UID} -g ${GID} -m ${USER}
-
-# Set working directory
-WORKDIR /home/babu/webhook
-
-# Copy Supervisor configuration
-COPY docker/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
-
-# Ensure proper permissions for Laravel storage & cache
-RUN mkdir -p storage bootstrap/cache \
-    && chown -R ${USER}:${USER} storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
-
-# Switch to non-root user
-USER ${USER}
-
-# Expose ports
-EXPOSE 9000 8080
-
-# Start Supervisor
-CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]
+# Expose port 9000 and start PHP-FPM
+EXPOSE 9000
+CMD ["php-fpm"]
