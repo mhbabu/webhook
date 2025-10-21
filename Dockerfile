@@ -2,13 +2,26 @@ FROM php:8.3-fpm
 
 WORKDIR /var/www/html/webhook
 
+# Set non-interactive mode for apt
+ENV DEBIAN_FRONTEND=noninteractive
+
 # Install required system dependencies (openssh-client removed)
-RUN apt-get update && apt-get install -y \
-    git curl zip unzip libzip-dev libpng-dev libonig-dev libxml2-dev \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    zip unzip \
+    libzip-dev \
+    libpng-dev libpng-tools \
+    libonig-dev \
+    libxml2-dev \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libwebp-dev \
+    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
 # Install Redis PHP extension
 RUN pecl install redis && docker-php-ext-enable redis
