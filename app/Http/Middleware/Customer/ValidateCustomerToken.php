@@ -10,7 +10,13 @@ class ValidateCustomerToken
 {
     public function handle(Request $request, Closure $next)
     {
-        $token = $request->token;
+        // ✅ Read token from header
+        $authorizationHeader = $request->header('Authorization');
+        $token = null;
+
+        if ($authorizationHeader && preg_match('/Bearer\s+(.*)$/i', $authorizationHeader, $matches)) {
+            $token = $matches[1];
+        }
 
         if (!$token) {
             return response()->json(['status' => false, 'message' => 'Authorization token not provided.'], 401);

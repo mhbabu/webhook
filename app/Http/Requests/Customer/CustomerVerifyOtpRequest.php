@@ -29,7 +29,7 @@ class CustomerVerifyOtpRequest extends FormRequest
                         ->exists();
 
                     if (! $exists) {
-                        $fail('The provided email does not exist for the website platform.');
+                        $fail('The provided email does not exist.');
                     }
                 },
             ],

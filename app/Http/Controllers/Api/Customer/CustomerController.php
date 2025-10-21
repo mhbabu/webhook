@@ -76,13 +76,20 @@ class CustomerController extends Controller
         }
     }
 
-
     public function verifyOtp(CustomerVerifyOtpRequest $request)
     {
         $data = $request->validated();
 
+        // Find Customer
+        $platformId = Platform::where('name', 'website')->value('id');
+        $customer   = Customer::where('platform_id', $platformId)->where('email', $data['email'])->first();
+        
+        if (!$customer) {
+            return jsonResponse('Customer not found.', false, null, 404);
+        }
+
         // Find the OTP record
-        $otpRecord = OtpVerification::where('otp', $data['otp'])->first();
+        $otpRecord = OtpVerification::where('otp', $data['otp'])->where('customer_id', $customer->id)->first();
 
         if (!$otpRecord) {
             return jsonResponse('Invalid OTP.', false, null, 422);

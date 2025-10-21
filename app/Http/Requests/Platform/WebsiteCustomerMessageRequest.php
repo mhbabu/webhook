@@ -8,30 +8,33 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 
 class WebsiteCustomerMessageRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     */
     public function rules(): array
     {
         return [
-            'token'         => ['required', 'string'],
-            'content'       => ['required', 'string'],
-            'attachments'   => ['nullable', 'array'],
-            'attachments.*' => ['nullable', 'file', 'mimes:jpeg,jpg,png,gif,webp,mp3,wav,mp4,mov,avi,flv,pdf,doc,docx', 'max:5120'], // Max 5MB per file (5120 KB) 
+            // ✅ content is optional but required if attachments are missing
+            'content'       => ['nullable', 'string', 'required_without:attachments'],
+
+            // ✅ attachments are optional but required if content is missing
+            'attachments'   => ['nullable', 'array', 'required_without:content'],
+            'attachments.*' => ['nullable', 'file', 'mimes:jpeg,jpg,png,gif,webp,mp3,wav,mp4,mov,avi,flv,pdf,doc,docx', 'max:5120'], // 5MB max per file
         ];
     }
 
-    /**
-     * Handle a failed validation attempt.
-     */
+    public function messages(): array
+    {
+        return [
+            'content.required_without'     => 'You must provide either message content or at least one attachment.',
+            'attachments.required_without' => 'You must provide either message content or at least one attachment.',
+            'attachments.*.mimes'          => 'Only image, audio, video, or document files are allowed.',
+            'attachments.*.max'            => 'Each file must not exceed 5MB.',
+        ];
+    }
+
     protected function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(response()->json([

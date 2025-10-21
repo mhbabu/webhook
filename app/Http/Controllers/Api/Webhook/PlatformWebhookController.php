@@ -578,7 +578,7 @@ class PlatformWebhookController extends Controller
         $data = $request->all();
         Log::info('Website Incoming Request', ['data' => $data]);
 
-        $platform     = Platform::whereRaw('LOWER(name) = ?', ['website'])->firstOrFail();
+        $platform     = Platform::whereRaw('LOWER(name) = ?', ['website'])->first();
         $platformName = strtolower($platform->name);
         $customer     = Customer::find($request->auth_customer->id);
 

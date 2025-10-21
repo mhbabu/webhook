@@ -14,7 +14,8 @@ class CustomerInfoResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $token = $this->is_verified && $this->token ? $this->token : null;
+        $token          = $this->is_verified && $this->token ? $this->token : null;
+        $tokenExpiresAt = $this->is_verified && $this->token_expires_at ? $this->token_expires_at : null;
         return [
             'id'                 => $this->id,
             'name'               => $this->name ?? null,
@@ -23,6 +24,7 @@ class CustomerInfoResource extends JsonResource
             'type'               => 'customer',
             'is_verified'        => $this->is_verified == 1 ? true : false,
             'token'              => $token,
+            'token_expires_at'   => $tokenExpiresAt,
             'profile_photo'      => $this->getFirstMediaUrl('profile_photo') ?: null,
         ];
     }
