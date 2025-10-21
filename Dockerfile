@@ -32,13 +32,18 @@ RUN apt-get update && apt-get install -y \
 # Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
-# Set permissions for Laravel
-RUN chown -R www-data:www-data /var/www/html/webhook \
-    && chmod -R 755 /var/www/html/webhook
+# Install Composer globally
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Copy existing application code
 COPY . .
 
-# Expose port 9000 and start PHP-FPM
+# Set permissions for Laravel
+RUN chown -R www-data:www-data /var/www/html/webhook \
+    && chmod -R 755 /var/www/html/webhook
+
+# Expose port 9000 for PHP-FPM
 EXPOSE 9000
+
+# Start PHP-FPM
 CMD ["php-fpm"]
