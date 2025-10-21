@@ -36,10 +36,14 @@ WORKDIR /var/www/html/webhook
 # Copy Supervisor configuration
 COPY docker/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
 
-# Ensure proper permissions for Laravel storage & cache
+# Ensure Laravel storage & cache exist and are writable
 RUN mkdir -p storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
+
+# Add this to ensure mounted volume files are accessible
+RUN chown -R www-data:www-data /var/www/html/webhook \
+    && chmod -R 755 /var/www/html/webhook
 
 # Expose ports
 EXPOSE 9000 8080
