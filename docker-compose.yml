@@ -15,7 +15,6 @@ services:
       - automatrix
     depends_on:
       - db
-      - kafka
       - redis
     ports:
       - "8080:8080" # Reverb WebSocket server exposed here
