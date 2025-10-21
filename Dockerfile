@@ -1,11 +1,6 @@
-# Use official PHP 8.3 FPM image as base
 FROM php:8.3-fpm
 
-# Set working directory
 WORKDIR /var/www/html/webhook
-
-# Avoid interactive prompts during package installation
-ENV DEBIAN_FRONTEND=noninteractive
 
 # Install essential system dependencies
 RUN apt-get update && apt-get install -y \
@@ -17,23 +12,31 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions required by Laravel
+# Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
-# Install Composer globally
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Install Redis extension
+RUN pecl install redis && docker-php-ext-enable redis
 
-# Copy existing application code
+# Install Composer globally
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Copy Supervisor configuration
+COPY docker/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
+
+# Copy app code
 COPY . .
 
-# Set permissions for Laravel
-RUN chown -R www-data:www-data /var/www/html/webhook \
-    && chmod -R 755 /var/www/html/webhook
+# Set proper permissions for Laravel
+RUN mkdir -p storage bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
 
-# Expose port 9000 for PHP-FPM
-EXPOSE 9000
+# Expose ports
+EXPOSE 9000 8080
 
-# Start PHP-FPM
-CMD ["php-fpm"]
+# Start Supervisor
+CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]
