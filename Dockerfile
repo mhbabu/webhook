@@ -1,5 +1,5 @@
-# Use official PHP 7.4 FPM image as base
-FROM php:7.4-fpm
+# Use official PHP 8.3 FPM image as base
+FROM php:8.3-fpm
 
 # Set working directory
 WORKDIR /var/www/html/webhook
