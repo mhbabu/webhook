@@ -15,7 +15,7 @@ class CustomerInfoResource extends JsonResource
     public function toArray(Request $request): array
     {
         $token          = $this->is_verified && $this->token ? $this->token : null;
-        $tokenExpiresAt = $this->is_verified && $this->token_expires_at ? $this->token_expires_at : null;
+        $tokenExpiresAt = $this->is_verified && $this->token_expires_at ? $this->token_expires_at->toDateTimeString() : null;
         return [
             'id'                 => $this->id,
             'name'               => $this->name ?? null,
