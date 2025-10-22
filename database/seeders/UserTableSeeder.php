@@ -74,7 +74,7 @@ class UserTableSeeder extends Seeder
             'max_limit'           => 5,
             'current_limit'       => 5
         ]);
-        $agent->platforms()->sync([1, 2, 3]);
+        $agent->platforms()->sync([1, 2, 3, 5]);
 
         // Agent
         $agent = User::create([
