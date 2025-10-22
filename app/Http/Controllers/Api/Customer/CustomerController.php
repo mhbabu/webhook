@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Customer\CustomerVerifyOtpRequest;
 use App\Http\Requests\Customer\InitiateChatRequest;
 use App\Http\Requests\Customer\ResendCustomerOtpRequest;
+use App\Http\Resources\Customer\CustomerConversationInfoResource;
 use App\Http\Resources\Customer\CustomerInfoResource;
 use App\Http\Resources\Message\ConversationResource;
 use App\Mail\Customer\SendCustomerOtp;
@@ -166,9 +167,8 @@ class CustomerController extends Controller
             return jsonResponse('Invalid customer token.', false, null, 401);
         }
 
-        
-        $conversations      = Conversation::with(['customer', 'agent', 'lastMessage'])->where('customer_id', $customer->id)->whereDate('created_at', now()->format('Y-m-d'))->latest()->get();
+        $conversations = Conversation::with(['customer', 'agent', 'lastMessage'])->where('customer_id', $customer->id)->whereDate('created_at', now()->format('Y-m-d'))->latest()->get();
 
-        return jsonResponse('Conversations retrieved successfully', true, ConversationResource::collection($conversations));
+        return jsonResponse('Conversations retrieved successfully', true, CustomerConversationInfoResource::collection($conversations));
     }
 }
