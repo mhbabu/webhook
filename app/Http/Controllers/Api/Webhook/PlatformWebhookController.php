@@ -91,14 +91,14 @@ class PlatformWebhookController extends Controller
                 ->where('platform', $platformName)
                 ->where(function ($q) {
                     $q->whereNull('end_at')
-                        ->orWhere('created_at', '>=', now()->subHours(config('services.conversation_expire_hours')));
+                        ->orWhere('created_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
                 })
                 ->latest()
                 ->first();
 
             $isNewConversation = false;
 
-            if (!$conversation || $conversation->end_at !== null || $conversation->created_at < now()->subHours(config('services.conversation_expire_hours'))) {
+            if (!$conversation || $conversation->end_at !== null || $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
                 $conversation = new Conversation();
                 $conversation->customer_id = $customer->id;
                 $conversation->platform    = $platformName;
@@ -421,14 +421,14 @@ class PlatformWebhookController extends Controller
                         ->where('platform', $platformName)
                         ->where(function ($query) {
                             $query->whereNull('end_at')
-                                ->orWhere('created_at', '>=', now()->subHours(config('services.conversation_expire_hours')));
+                                ->orWhere('created_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
                         })
                         ->latest()
                         ->first();
 
                     $isNewConversation = false;
 
-                    if (!$conversation || $conversation->end_at || $conversation->created_at < now()->subHours(config('services.conversation_expire_hours'))) {
+                    if (!$conversation || $conversation->end_at || $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
                         $conversation = new Conversation();
                         $conversation->customer_id = $customer->id;
                         $conversation->platform = $platformName;
@@ -590,14 +590,17 @@ class PlatformWebhookController extends Controller
                 ->where('platform', $platformName)
                 ->where(function ($q) {
                     $q->whereNull('end_at')
-                        ->orWhere('created_at', '>=', now()->subHours(config('services.conversation_expire_hours')));
+                        ->orWhere('created_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
                 })
                 ->latest()
                 ->first();
 
+
+            // dd($conversation);
+
             $isNewConversation = false;
 
-            if (!$conversation || $conversation->end_at || $conversation->created_at < now()->subHours(config('services.conversation_expire_hours'))) {
+            if (!$conversation || $conversation->end_at || $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
                 $conversation = Conversation::create([
                     'customer_id' => $customer->id,
                     'platform'    => $platformName,

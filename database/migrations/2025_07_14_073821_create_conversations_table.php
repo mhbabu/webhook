@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('customer_id')->nullable()->constrained('customers')->onDelete('cascade');
             $table->foreignId('agent_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->bigInteger('last_message_id')->nullable()->constrained('messages')->onDelete('set null');
             $table->string('platform')->nullable();
             $table->string('trace_id')->nullable();
             $table->timestamp('started_at')->useCurrent();

@@ -33,10 +33,6 @@ return new class extends Migration
             $table->unsignedBigInteger('parent_id')->nullable();
             $table->timestamps();
         });
-
-        Schema::table('conversations', function (Blueprint $table) {
-            $table->foreignId('last_message_id')->after('end_at')->nullable()->constrained('messages');
-        });
     }
 
     /**
