@@ -157,27 +157,17 @@ class CustomerController extends Controller
         }
     }
 
-    public function getCustomerWebsiteConversation(Request $request, $token)
+    public function getCustomerWebsiteConversation(Request $request)
     {
         $platformId = Platform::where('name', 'website')->value('id');
-        $customer   = Customer::where('platform_id', $platformId)->where('token', $token)->first();
+        $customer   = Customer::where('platform_id', $platformId)->where('id', $request->auth_customer->id)->first();
 
         if (!$customer) {
             return jsonResponse('Invalid customer token.', false, null, 401);
         }
 
-        $data    = $request->all();
-        $pagination = !isset($data['pagination']) || $data['pagination'] === 'true';
-        $page       = $data['page'] ?? 1;
-        $perPage    = $data['per_page'] ?? 10;
-        $query      = Conversation::with(['customer', 'agent', 'lastMessage'])->where('customer_id', $customer->id)->whereDate('created_at', now()->format('Y-m-d'))->latest();
-
-        if ($pagination) {
-            $conversations = $query->paginate($perPage, ['*'], 'page', $page);
-            return jsonResponseWithPagination('Conversations retrieved successfully', true, ConversationResource::collection($conversations)->response()->getData(true));
-        }
-
-        $conversations = $query->get();
+        
+        $conversations      = Conversation::with(['customer', 'agent', 'lastMessage'])->where('customer_id', $customer->id)->whereDate('created_at', now()->format('Y-m-d'))->latest()->get();
 
         return jsonResponse('Conversations retrieved successfully', true, ConversationResource::collection($conversations));
     }
