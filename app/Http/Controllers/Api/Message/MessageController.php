@@ -12,6 +12,7 @@ use App\Http\Resources\Message\MessageResource;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
+use App\Models\MessageAttachment;
 use App\Models\User;
 use App\Services\Platforms\FacebookService;
 use App\Services\Platforms\WhatsAppService;
@@ -465,6 +466,8 @@ class MessageController extends Controller
             return $this->sendMessengerMessageFromAgent($data, $attachments, $conversation, $customer);
         } elseif ($platformName === 'whatsapp') {
             return $this->sendWhatsAppMessageFromAgent($data, $attachments, $conversation, $customer);
+        } elseif ($platformName === 'website') {
+            return $this->sendWebsiteMessageFromAgent($data, $attachments, $conversation, $customer);
         }
 
         return jsonResponse('Unsupported platform', false, [], 422);
@@ -603,10 +606,10 @@ class MessageController extends Controller
 
             // Save attachment using the relationship
             $textMessage->attachments()->create([
-                'type'                 => $facebookService->resolveMediaType($mime),
-                'path'                 => $storedPath,
-                'mime'                 => $mime,
-                'size'                 => $file->getSize(),
+                'type'  => $facebookService->resolveMediaType($mime),
+                'path'  => $storedPath,
+                'mime'  => $mime,
+                'size'  => $file->getSize(),
             ]);
         }
 
@@ -618,5 +621,48 @@ class MessageController extends Controller
 
         // Step 4: Return message with attachments loaded
         return jsonResponse('Messenger message(s) sent successfully.', true, new MessageResource($textMessage->load('attachments')));
+    }
+
+    protected function sendWebsiteMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
+    {
+        // Save text message in DB
+        $message                      = new Message();
+        $message->conversation_id     = $conversation->id;
+        $message->sender_id           = auth()->id();
+        $message->sender_type         = User::class;
+        $message->receiver_type       = Customer::class;
+        $message->receiver_id         = $customer->id;
+        $message->type                = 'text';
+        $message->content             = $data['content'] ?? '';
+        $message->direction           = 'outgoing';
+        $message->save();
+
+        $conversation->update(['last_message_id' => $message->id]);
+
+        // Handle attachments if any (optional)
+
+        if (!empty($attachments)) {
+                $bulkInsert = [];
+
+            foreach ($attachments as $file) {
+                $path = $file->store('uploads/messages', 'public');
+                $fullPath = '/storage/' . $path;
+
+                    $attachmentPaths[] = $fullPath;
+
+                    $bulkInsert[] = [
+                        'message_id' => $message->id,
+                        'path'       => $fullPath,
+                        'type'       => $file->getClientOriginalExtension(),
+                        'mime'       => $file->getClientMimeType(),
+                        'size'       => $file->getSize(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+                MessageAttachment::insert($bulkInsert);
+            }
+
+        return jsonResponse('Website message sent successfully.', true, new MessageResource($message->load('attachments')));
     }
 }
