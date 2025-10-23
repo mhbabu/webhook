@@ -41,6 +41,10 @@ RUN mkdir -p storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
+# ✅ Create supervisor log & tmp directories (fixes your issue)
+RUN mkdir -p /var/log/supervisor /tmp \
+    && chmod -R 777 /var/log/supervisor /tmp
+
 # Expose ports
 EXPOSE 9000 8080
 
