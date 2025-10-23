@@ -494,8 +494,7 @@ class PlatformWebhookController extends Controller
                     }
 
                     // 6️⃣ Update conversation with latest message
-                    $conversation->last_message_id = $message->id;
-                    $conversation->save();
+                     $conversation->update(['last_message_id' => $message->id]);
 
                     // 7️⃣ Prepare payload
                     $payload = [
@@ -650,6 +649,9 @@ class PlatformWebhookController extends Controller
 
             // 🔄 Update conversation with last message
             $conversation->update(['last_message_id' => $message->id]);
+
+           $customer->token_expires_at = now()->addMinutes((int)config('services.conversation.website.token_expire_minutes'));
+           $customer->save();
 
             // 📦 Build payload
             $payload = [

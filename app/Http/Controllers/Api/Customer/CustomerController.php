@@ -31,7 +31,7 @@ class CustomerController extends Controller
 
         // Always generate a new OTP
         $otp          = rand(100000, 999999);
-        $otpExpiresAt = Carbon::now()->addMinutes((int) env('WEBSITE_CUSTOMER_OTP_EXPIRE_MINUTES', 2)); // OTP valid for 2 minutes
+        $otpExpiresAt = Carbon::now()->addMinutes((int)config('services.conversation.website.otp_expire_minutes')); // OTP valid for 2 minutes
 
         try {
             DB::beginTransaction();
@@ -107,7 +107,7 @@ class CustomerController extends Controller
             $customer = Customer::findOrFail($otpRecord->customer_id);
             $customer->is_verified = 1;
             $customer->token = Hash::make($customer->id . $customer->email . now());
-            $customer->token_expires_at = Carbon::now()->addMinutes((int) env('WEBSITE_CUSTOMER_TOKEN_EXPIRE_MINUTES', 60)); // Token valid for 60 minutes
+            $customer->token_expires_at = Carbon::now()->addMinutes((int)config('services.conversation.website.token_expire_minutes')); // Token valid for 10 minutes
             $customer->save();
 
             // Delete OTP record
@@ -167,8 +167,17 @@ class CustomerController extends Controller
             return jsonResponse('Invalid customer token.', false, null, 401);
         }
 
-        $conversations = Conversation::with(['customer', 'agent', 'lastMessage'])->where('customer_id', $customer->id)->whereDate('created_at', now()->format('Y-m-d'))->latest()->get();
+        $conversations = Conversation::with(['customer', 'agent', 'lastMessage'])
+                        ->where('customer_id', $customer->id)
+                        ->whereDate('created_at', now()->format('Y-m-d'))
+                        ->where(function ($query) {
+                            $query->whereNull('end_at')
+                                ->orWhere('created_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
+                        })
+                        ->where('platform', 'website')
+                        ->latest()
+                        ->first();
 
-        return jsonResponse('Conversations retrieved successfully', true, CustomerConversationInfoResource::collection($conversations));
+        return jsonResponse('Conversations retrieved successfully', true, new CustomerConversationInfoResource($conversations));
     }
 }

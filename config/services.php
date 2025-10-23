@@ -49,6 +49,10 @@ return [
 
     'conversation' => [
         'conversation_expire_hours' => env('CONVERSATION_EXPIRE_HOURS', 6),
+       'website' => [
+            'otp_expire_minutes' => env('WEBSITE_CUSTOMER_OTP_EXPIRE_MINUTES', 2),
+            'token_expire_minutes' => env('WEBSITE_CUSTOMER_TOKEN_EXPIRE_MINUTES', 10),
+       ],
     ],
 
 ];

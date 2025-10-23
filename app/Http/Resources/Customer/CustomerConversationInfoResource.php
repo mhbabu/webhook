@@ -32,7 +32,7 @@ class CustomerConversationInfoResource extends JsonResource
             'end_at'          => $this->end_at,
             'wrap_up_info'    => $this->wrapUp ? new WrapUpConversationResource($this->wrapUp) : null,
             'is_ended'        => (bool) $this->end_at,
-            'messages'        => MessageResource::collection($this->messages),
+            'messages'        => MessageResource::collection($this->messages->load('sender', 'receiver', 'attachments')),
         ];
     }
 }
