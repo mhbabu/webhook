@@ -36,23 +36,29 @@ return [
     ],
 
     'whatsapp' => [
-        'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'), 
+        'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
         'token' => env('WHATSAPP_ACCESS_TOKEN'),
-        'url'   => 'https://graph.facebook.com/v22.0/' . env('WHATSAPP_PHONE_NUMBER_ID') . '/messages',
+        'url' => 'https://graph.facebook.com/v22.0/'.env('WHATSAPP_PHONE_NUMBER_ID').'/messages',
     ],
 
     'facebook' => [
-        'fb_verify_token' => env('FB_VERIFY_TOKEN'), 
+        'fb_verify_token' => env('FB_VERIFY_TOKEN'),
         'token' => env('FB_PAGE_ACCESS_TOKEN'),
-        'url'   => 'https://graph.facebook.com/v18.0',
+        'url' => 'https://graph.facebook.com/v18.0',
     ],
-
+    'instagram' => [
+        'app_id' => env('INSTAGRAM_APP_ID'),
+        'app_secret' => env('INSTAGRAM_APP_SECRET'),
+        'page_id' => env('INSTAGRAM_PAGE_ID'),
+        'page_token' => env('INSTAGRAM_GRAPH_TOKEN'),
+        'verify_token' => env('INSTAGRAM_VERIFY_TOKEN'),
+    ],
     'conversation' => [
         'conversation_expire_hours' => env('CONVERSATION_EXPIRE_HOURS', 6),
-       'website' => [
+        'website' => [
             'otp_expire_minutes' => env('WEBSITE_CUSTOMER_OTP_EXPIRE_MINUTES', 2),
             'token_expire_minutes' => env('WEBSITE_CUSTOMER_TOKEN_EXPIRE_MINUTES', 10),
-       ],
+        ],
     ],
 
 ];

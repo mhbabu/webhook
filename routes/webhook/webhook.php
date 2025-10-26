@@ -1,9 +1,10 @@
 <?php
 
+use App\Http\Controllers\Api\Webhook\InstagramWebhookController;
 use App\Http\Controllers\Api\Webhook\PlatformWebhookController;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 Route::get('webhook/whatsapp', [PlatformWebhookController::class, 'verifyWhatsAppToken']); // webhook verification for wahtsapp
 Route::post('webhook/whatsapp', [PlatformWebhookController::class, 'incomingWhatsAppMessage']); // receive whatsapp webhook incoming message
@@ -11,18 +12,18 @@ Route::post('webhook/whatsapp', [PlatformWebhookController::class, 'incomingWhat
 Route::get('webhook/messenger', [PlatformWebhookController::class, 'verifyMessengerToken']); //  messenger token verification
 Route::post('webhook/messenger', [PlatformWebhookController::class, 'incomingMessengerMessage']); // receive messenger webhook response
 
+Route::get('webhook/instagram', [InstagramWebhookController::class, 'verifyInstagram']); // For for webhook verification
+Route::post('webhook/instagram', [InstagramWebhookController::class, 'receiveInstagramMessage']); // POST for message reception
+
 Route::get('webhook/facebook-page', [PlatformWebhookController::class, 'verifyFacebookPageToken']); //  facebook page token verification
 Route::post('webhook/facebook-page', [PlatformWebhookController::class, 'receiveFacebookPageEventData']); // receive facebook page event data
 
 Route::post('webhook/website', [PlatformWebhookController::class, 'receiveWebsitePageData'])->middleware('customer.token'); // receive website message data
 
-
 // Route::get('webhook/instagram', [PlatformWebhookController::class, 'verifyIntragram']); // For for webhook verification
 // Route::post('webhook/instagram', [PlatformWebhookController::class, 'receiveInstragramMsg']); // POST for message reception
 
-
-
-require __DIR__ .'/platform.php';
+require __DIR__.'/platform.php';
 
 Route::post('/auth-user-broadcasting', function (Request $request) {
     $user = Auth::user(); // Already authenticated via middleware
@@ -33,10 +34,10 @@ Route::post('/auth-user-broadcasting', function (Request $request) {
     $appKey = env('REVERB_APP_KEY');
     $appSecret = env('REVERB_APP_SECRET');
 
-    $stringToSign = $socketId . ':' . $channelName;
+    $stringToSign = $socketId.':'.$channelName;
     $signature = hash_hmac('sha256', $stringToSign, $appSecret);
 
     return response()->json([
-        'auth' => $appKey . ':' . $signature
+        'auth' => $appKey.':'.$signature,
     ]);
 })->middleware('auth:sanctum');
