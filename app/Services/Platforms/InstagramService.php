@@ -4,6 +4,7 @@ namespace App\Services\Platforms;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class InstagramService
 {
@@ -29,6 +30,10 @@ class InstagramService
 
         if ($response->successful()) {
             $data = $response->json();
+            Log::info('✅ Fetched Instagram user info', [
+                'senderId' => $senderId,
+                'data' => $data,
+            ]);
 
             return [
                 'id' => $data['id'] ?? null,
@@ -56,6 +61,53 @@ class InstagramService
         ]);
 
         return $response->json();
+    }
+
+    /**
+     * 🔹 Download attachment and store it locally
+     */
+    public function downloadAttachment(array $attachment): ?array
+    {
+        try {
+            $type = $attachment['type'] ?? 'file';
+            $payload = $attachment['payload'] ?? [];
+            $url = $payload['url'] ?? null;
+
+            if (! $url) {
+                return null;
+            }
+
+            $response = Http::get($url);
+            if (! $response->ok()) {
+                Log::error("❌ Failed to download Instagram attachment: {$url}");
+
+                return null;
+            }
+
+            $mime = $response->header('Content-Type') ?? 'application/octet-stream';
+            $extension = match (true) {
+                str_contains($mime, 'image/') => explode('/', $mime)[1],
+                str_contains($mime, 'video/') => explode('/', $mime)[1],
+                str_contains($mime, 'audio/') => explode('/', $mime)[1],
+                default => pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'bin',
+            };
+
+            $filename = 'attachments/igm_'.uniqid().'.'.$extension;
+
+            Storage::disk('public')->put($filename, $response->body());
+
+            return [
+                'attachment_id' => $url,
+                'path' => $filename,
+                'is_download' => 1,
+                'mime' => $mime,
+                'type' => $type,
+            ];
+        } catch (\Exception $e) {
+            Log::error('⚠️ Instagram attachment download failed: '.$e->getMessage());
+
+            return null;
+        }
     }
 
     public function postWithImage($message, $imageUrl)

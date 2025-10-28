@@ -25,13 +25,13 @@ class MessageController extends Controller
     public function agentConversationList(Request $request)
     {
         $agentId = auth()->id(); // authenticated agent
-        $data    = $request->all();
+        $data = $request->all();
 
-        $pagination = !isset($data['pagination']) || $data['pagination'] === 'true';
-        $page       = $data['page'] ?? 1;
-        $perPage    = $data['per_page'] ?? 10;
-        $query      = Conversation::with(['customer', 'agent', 'lastMessage'])->where('agent_id', $agentId)->latest();
-        $isEnded    = isset($data['is_ended']) &&  $data['is_ended'] === 'true' ? true : false;
+        $pagination = ! isset($data['pagination']) || $data['pagination'] === 'true';
+        $page = $data['page'] ?? 1;
+        $perPage = $data['per_page'] ?? 10;
+        $query = Conversation::with(['customer', 'agent', 'lastMessage'])->where('agent_id', $agentId)->latest();
+        $isEnded = isset($data['is_ended']) && $data['is_ended'] === 'true' ? true : false;
 
         if ($isEnded) {
             $query->whereNotNull('end_at'); // end conversation
@@ -43,6 +43,7 @@ class MessageController extends Controller
 
         if ($pagination) {
             $conversations = $query->paginate($perPage, ['*'], 'page', $page);
+
             return jsonResponseWithPagination('Conversations retrieved successfully', true, ConversationResource::collection($conversations)->response()->getData(true));
         }
 
@@ -53,15 +54,14 @@ class MessageController extends Controller
 
     public function getConversationWiseMessages(Request $request, $conversationId)
     {
-        $data         = $request->all();
-        $pagination   = !isset($data['pagination']) || $data['pagination'] === 'true';
-        $page         = $data['page'] ?? 1;
-        $perPage      = $data['per_page'] ?? 10;
+        $data = $request->all();
+        $pagination = ! isset($data['pagination']) || $data['pagination'] === 'true';
+        $page = $data['page'] ?? 1;
+        $perPage = $data['per_page'] ?? 10;
         $conversation = Conversation::with(['customer', 'agent', 'lastMessage', 'wrapUp'])->findOrFail($conversationId);
         $query = Message::with(['sender', 'receiver'])->where('conversation_id', $conversation->id)->where(function ($q) {
             $q->where('sender_id', auth()->id())->orWhere('receiver_id', auth()->id());
         })->latest();
-
 
         if ($pagination) {
             $messages = $query->paginate($perPage, ['*'], 'page', $page);
@@ -75,13 +75,13 @@ class MessageController extends Controller
                 true,
                 [
                     'conversation' => new ConversationResource($conversation),
-                    'messages'     => MessageResource::collection($messages),
-                    'pagination'   => [
+                    'messages' => MessageResource::collection($messages),
+                    'pagination' => [
                         'current_page' => $messages->currentPage(),
-                        'per_page'     => $messages->perPage(),
-                        'total'        => $messages->total(),
-                        'last_page'    => $messages->lastPage(),
-                    ]
+                        'per_page' => $messages->perPage(),
+                        'total' => $messages->total(),
+                        'last_page' => $messages->lastPage(),
+                    ],
                 ]
             );
         }
@@ -95,16 +95,17 @@ class MessageController extends Controller
     {
         $data = $request->all();
         Log::info('[IncomingMsg] Data', $data);
-        $agentId             = isset($data['agentId']) ? (int)$data['agentId'] : null;
+        $agentId = isset($data['agentId']) ? (int) $data['agentId'] : null;
         $agentAvailableScope = $data['availableScope'] ?? null;
-        $source              = strtolower($data['source'] ?? '');
-        $conversationId      = $data['messageData']['conversationId'] ?? null;
-        $messageId           = $data['messageData']['messageId'];
-        $conversationType    = $data['messageData']['conversationType'];
+        $source = strtolower($data['source'] ?? '');
+        $conversationId = $data['messageData']['conversationId'] ?? null;
+        $messageId = $data['messageData']['messageId'];
+        $conversationType = $data['messageData']['conversationType'];
 
         // Validate required fields
-        if (!$conversationId || !$agentId) {
+        if (! $conversationId || ! $agentId) {
             info('yes your dout is true');
+
             return jsonResponse('Missing required fields: conversationId or agentId.', false, null, 400);
         }
 
@@ -115,10 +116,10 @@ class MessageController extends Controller
         $user = User::find($agentId);
         $user->current_limit = $agentAvailableScope;
         $user->save();
-        Log::info('[UserData]' . json_encode($user));
+        Log::info('[UserData]'.json_encode($user));
 
         // Fetch conversation
-        $conversation = Conversation::find((int)$conversationId);
+        $conversation = Conversation::find((int) $conversationId);
         Log::info('[IncomingMsg] before conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
 
         if ($conversationType === 'new' || empty($conversation->agent_id)) {
@@ -126,15 +127,14 @@ class MessageController extends Controller
             $conversation->save();
         }
 
-
         Log::info('[IncomingMsg] after conversation', ['conversation' => $conversation,  'agentId' => $agentId]);
 
-        $convertedMsgId          = (int)$messageId;
-        $message                 = Message::find($convertedMsgId);
+        $convertedMsgId = (int) $messageId;
+        $message = Message::find($convertedMsgId);
 
         if ($conversationType === 'new' || empty($message->receiver_id)) {
-            $message->receiver_id    = $conversation->agent_id ?? $user->id;
-            $message->receiver_type  = User::class;
+            $message->receiver_id = $conversation->agent_id ?? $user->id;
+            $message->receiver_type = User::class;
             $message->save();
         }
 
@@ -146,17 +146,16 @@ class MessageController extends Controller
 
         $payload = [
             'conversation' => new ConversationInfoResource($conversation, $message),
-            'message'      => $message ? new MessageResource($message) : null,
+            'message' => $message ? new MessageResource($message) : null,
         ];
 
         $channelData = [
             'platform' => $source,
-            'agentId'  => $agentId,
+            'agentId' => $agentId,
         ];
 
         broadcast(new SocketIncomingMessage($payload, $channelData));
         // SocketIncomingMessage::dispatch($payload, $channelData);
-
 
         return jsonResponse('Message received successfully.', true, null);
         // } catch (\Exception $e) {
@@ -182,7 +181,7 @@ class MessageController extends Controller
         $data = $request->validated();
         $conversation = Conversation::find($data['conversation_id']);
 
-        if (!$conversation) {
+        if (! $conversation) {
             return jsonResponse('Conversation not found.', false, null, 404);
         }
 
@@ -198,9 +197,9 @@ class MessageController extends Controller
 
         // ✅ End the conversation
         $conversation->update([
-            'end_at'     => now(),
+            'end_at' => now(),
             'wrap_up_id' => $data['wrap_up_id'],
-            'ended_by'   => $user->id,
+            'ended_by' => $user->id,
         ]);
 
         // ✅ Update agent current_limit based on platform weight
@@ -219,13 +218,13 @@ class MessageController extends Controller
      * - Removes the ended platform from CONTACT_TYPE if no other active conversations
      * - Pushes platform into "omnitrix_agent:{id}" list
      *
-     * @param \App\Models\User $user
-     * @param string|null $endedPlatform
+     * @param  \App\Models\User  $user
+     * @param  string|null  $endedPlatform
      */
     private function updateUserInRedis($user, $conversation)
     {
-        $endedPlatform       = $conversation->platform;
-        $hashKey             = "agent:{$user->id}";
+        $endedPlatform = $conversation->platform;
+        $hashKey = "agent:{$user->id}";
         $removedConversation = "conversation:{$conversation->id}";
 
         // Fetch existing CONTACT_TYPE from Redis hash
@@ -242,53 +241,51 @@ class MessageController extends Controller
 
         // Remove platform only if no active conversations exist
         if ($endedPlatform && $activeConversations === 1 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
         }
 
         // Remove platform only if no active conversations exist
         if ($endedPlatform && $activeConversations === 0 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
         }
 
         // Prepare agent hash data
         $agentData = [
-            "AGENT_ID"        => $user->id,
-            "AGENT_TYPE"      => 'NORMAL',
-            "STATUS"          => $user->current_status,
-            "MAX_SCOPE"       => $user->max_limit,
-            "AVAILABLE_SCOPE" => $user->current_limit,
-            "CONTACT_TYPE"    => json_encode($contactTypes),
-            "SKILL"           => json_encode($user->platforms()->pluck('name')->map(fn($n) => strtolower($n))->toArray()),
-            "BUSYSINCE"       => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
+            'AGENT_ID' => $user->id,
+            'AGENT_TYPE' => 'NORMAL',
+            'STATUS' => $user->current_status,
+            'MAX_SCOPE' => $user->max_limit,
+            'AVAILABLE_SCOPE' => $user->current_limit,
+            'CONTACT_TYPE' => json_encode($contactTypes),
+            'SKILL' => json_encode($user->platforms()->pluck('name')->map(fn ($n) => strtolower($n))->toArray()),
+            'BUSYSINCE' => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
         ];
-
 
         // Save hash in Redis
         Redis::hMSet($hashKey, $agentData);
         Redis::del($removedConversation); // Remove ended conversation key
     }
 
-
     public function sendWhatsAppMessageFromAgent1(SendPlatformMessageRequest $request)
     {
-        $data         = $request->validated();
+        $data = $request->validated();
         $conversation = Conversation::find($data['conversation_id']);
-        $customer     = Customer::find($conversation->customer_id);
-        $phone        = $customer->phone;
+        $customer = Customer::find($conversation->customer_id);
+        $phone = $customer->phone;
 
         // Save message in DB
-        $message                    = new Message();
-        $message->conversation_id   = $conversation->id;
-        $message->sender_id         = auth()->id();
-        $message->sender_type       = User::class;
-        $message->receiver_type     = Customer::class;
-        $message->receiver_id       = $conversation->customer_id;
-        $message->type              = 'text';
-        $message->content           = $data['content'];
-        $message->direction         = 'outgoing';
+        $message = new Message;
+        $message->conversation_id = $conversation->id;
+        $message->sender_id = auth()->id();
+        $message->sender_type = User::class;
+        $message->receiver_type = Customer::class;
+        $message->receiver_id = $conversation->customer_id;
+        $message->type = 'text';
+        $message->content = $data['content'];
+        $message->direction = 'outgoing';
         $message->save();
 
-        $whatsAppService = new WhatsAppService();
+        $whatsAppService = new WhatsAppService;
 
         $mediaResponses = [];
 
@@ -316,16 +313,16 @@ class MessageController extends Controller
 
                     // Optionally: save each media as message
                     Message::create([
-                        'conversation_id'     => $conversation->id,
-                        'sender_id'           => auth()->id(),
-                        'sender_type'         => User::class,
-                        'receiver_type'       => Customer::class,
-                        'receiver_id'         => $conversation->customer_id,
-                        'type'                => $mediaType,
-                        'content'             => null,
-                        'direction'           => 'outgoing',
+                        'conversation_id' => $conversation->id,
+                        'sender_id' => auth()->id(),
+                        'sender_type' => User::class,
+                        'receiver_type' => Customer::class,
+                        'receiver_id' => $conversation->customer_id,
+                        'type' => $mediaType,
+                        'content' => null,
+                        'direction' => 'outgoing',
                         'platform_message_id' => $mediaResponse['messages'][0]['id'] ?? null,
-                        'parent_id'           => $data['parent_id'] ?? null,
+                        'parent_id' => $data['parent_id'] ?? null,
                     ]);
                 }
             }
@@ -333,49 +330,49 @@ class MessageController extends Controller
 
         // If text provided, send last (after media)
         $textResponse = null;
-        if (!empty($data['content'])) {
+        if (! empty($data['content'])) {
             $textResponse = $whatsAppService->sendTextMessage($phone, $data['content']);
             $message->update(['platform_message_id' => $textResponse['messages'][0]['id']]);
         }
 
         return jsonResponse('WhatsApp message(s) sent successfully.', true, [
-            'text_message'      => $message ? new MessageResource($message) : null,
-            'media_responses'   => $mediaResponses,
-            'text_response'     => $textResponse,
+            'text_message' => $message ? new MessageResource($message) : null,
+            'media_responses' => $mediaResponses,
+            'text_response' => $textResponse,
         ]);
     }
 
     public function sendMessagerMessageFromAgent1(SendPlatformMessageRequest $request)
     {
-        $data         = $request->validated();
+        $data = $request->validated();
         info(['$data' => $data]);
         $conversation = Conversation::find($data['conversation_id']);
-        $customer     = Customer::find($conversation->customer_id);
-        $recipientId  = $customer->platform_user_id; // make sure this field exists!
+        $customer = Customer::find($conversation->customer_id);
+        $recipientId = $customer->platform_user_id; // make sure this field exists!
 
-        $facebookService = new FacebookService();
-        $mediaResponses  = [];
+        $facebookService = new FacebookService;
+        $mediaResponses = [];
 
         // Save text message in DB first (for tracking platform_message_id later)
 
         $textMessage = Message::create([
-            'conversation_id'   => $conversation->id,
-            'sender_id'         => auth()->id(),
-            'sender_type'       => User::class,
-            'receiver_type'     => Customer::class,
-            'receiver_id'       => $customer->id,
-            'type'              => 'text',
-            'content'           => $data['content'],
-            'direction'         => 'outgoing',
-            'platform'          => 'messenger',
+            'conversation_id' => $conversation->id,
+            'sender_id' => auth()->id(),
+            'sender_type' => User::class,
+            'receiver_type' => Customer::class,
+            'receiver_id' => $customer->id,
+            'type' => 'text',
+            'content' => $data['content'],
+            'direction' => 'outgoing',
+            'platform' => 'messenger',
         ]);
 
         // Handle file uploads (attachments)
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $file) {
                 $storedPath = $file->store('messenger_temp', 'public');
-                $fullPath   = "messenger_temp/" . basename($storedPath);
-                $mime       = $file->getMimeType();
+                $fullPath = 'messenger_temp/'.basename($storedPath);
+                $mime = $file->getMimeType();
 
                 // Send via Facebook API
                 $response = $facebookService->sendAttachmentMessage($recipientId, $fullPath, $mime);
@@ -383,17 +380,17 @@ class MessageController extends Controller
 
                 // Save media message to DB
                 Message::create([
-                    'conversation_id'     => $conversation->id,
-                    'sender_id'           => auth()->id(),
-                    'sender_type'         => User::class,
-                    'receiver_type'       => Customer::class,
-                    'receiver_id'         => $customer->id,
-                    'type'                => $facebookService->resolveMediaType($mime),
-                    'content'             => null,
-                    'direction'           => 'outgoing',
-                    'platform'            => 'messenger',
+                    'conversation_id' => $conversation->id,
+                    'sender_id' => auth()->id(),
+                    'sender_type' => User::class,
+                    'receiver_type' => Customer::class,
+                    'receiver_id' => $customer->id,
+                    'type' => $facebookService->resolveMediaType($mime),
+                    'content' => null,
+                    'direction' => 'outgoing',
+                    'platform' => 'messenger',
                     'platform_message_id' => $response['message_id'] ?? null,
-                    'parent_id'           => $data['parent_id'] ?? null,
+                    'parent_id' => $data['parent_id'] ?? null,
                 ]);
             }
         }
@@ -403,14 +400,14 @@ class MessageController extends Controller
         if ($textMessage) {
             $textResponse = $facebookService->sendTextMessage($recipientId, $textMessage->content);
             $textMessage->update([
-                'platform_message_id' => $textResponse['message_id'] ?? null
+                'platform_message_id' => $textResponse['message_id'] ?? null,
             ]);
         }
 
         return jsonResponse('Messenger message(s) sent successfully.', true, [
-            'text_message'    => $textMessage ? new MessageResource($textMessage) : null,
+            'text_message' => $textMessage ? new MessageResource($textMessage) : null,
             'media_responses' => $mediaResponses,
-            'text_response'   => $textResponse,
+            'text_response' => $textResponse,
         ]);
     }
 
@@ -418,10 +415,8 @@ class MessageController extends Controller
      * Send message from agent to customer across platforms (WhatsApp, Messenger).
      * Handles conversation creation/expiration and message with attachments.
      *
-     * @param SendPlatformMessageRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-
     public function sendAgentMessageToCustomer(SendPlatformMessageRequest $request)
     {
         $data = $request->validated();
@@ -456,7 +451,7 @@ class MessageController extends Controller
         $attachments = $request->hasFile('attachments') ? $request->file('attachments') : [];
 
         Log::info('Agent sending message', [
-            'requestData'      => $data,
+            'requestData' => $data,
             // 'attachmentsCount' => count($attachments),
             // 'attachements'      => $attachments,
         ]);
@@ -464,6 +459,8 @@ class MessageController extends Controller
         // Step 5: Send based on platform
         if ($platformName === 'facebook_messenger') {
             return $this->sendMessengerMessageFromAgent($data, $attachments, $conversation, $customer);
+        } elseif ($platformName === 'instagram_messange') {
+            return $this->sendInstagramMessageFromAgent($data, $attachments, $conversation, $customer);
         } elseif ($platformName === 'whatsapp') {
             return $this->sendWhatsAppMessageFromAgent($data, $attachments, $conversation, $customer);
         } elseif ($platformName === 'website') {
@@ -476,7 +473,7 @@ class MessageController extends Controller
     protected function getOrCreateConversationForAgentCustomer(int $customerId, int $agentId, string $platformName): Conversation
     {
         $expireHours = config('services.conversation_expire_hours');
-        $now         = now();
+        $now = now();
 
         // 1️⃣ Try to find an active conversation first
         $conversation = Conversation::where('customer_id', $customerId)
@@ -490,12 +487,12 @@ class MessageController extends Controller
             ->first();
 
         // 2️⃣ Create new conversation if none found or expired/ended
-        if (!$conversation || $conversation->end_at !== null || $conversation->created_at < $now->subHours($expireHours)) {
+        if (! $conversation || $conversation->end_at !== null || $conversation->created_at < $now->subHours($expireHours)) {
             $conversation = Conversation::create([
                 'customer_id' => $customerId,
-                'agent_id'    => $agentId,
-                'platform'    => $platformName,
-                'trace_id'    => strtoupper(substr($platformName, 0, 2)) . '-' . now()->format('YmdHis') . '-' . uniqid(),
+                'agent_id' => $agentId,
+                'platform' => $platformName,
+                'trace_id' => strtoupper(substr($platformName, 0, 2)).'-'.now()->format('YmdHis').'-'.uniqid(),
             ]);
         }
 
@@ -507,26 +504,26 @@ class MessageController extends Controller
         $phone = $customer->phone;
 
         // Save text message in DB
-        $message                      = new Message();
-        $message->conversation_id     = $conversation->id;
-        $message->sender_id           = auth()->id();
-        $message->sender_type         = User::class;
-        $message->receiver_type       = Customer::class;
-        $message->receiver_id         = $customer->id;
-        $message->type                = 'text';
-        $message->content             = $data['content'] ?? '';
-        $message->direction           = 'outgoing';
+        $message = new Message;
+        $message->conversation_id = $conversation->id;
+        $message->sender_id = auth()->id();
+        $message->sender_type = User::class;
+        $message->receiver_type = Customer::class;
+        $message->receiver_id = $customer->id;
+        $message->type = 'text';
+        $message->content = $data['content'] ?? '';
+        $message->direction = 'outgoing';
         // $message->platform            = 'whatsapp';
         $message->save();
 
-        $whatsAppService = new WhatsAppService();
+        $whatsAppService = new WhatsAppService;
 
         $mediaResponses = [];
 
         foreach ($attachments as $file) {
             $storedPath = $file->store('wa_temp');
-            $fullPath   = storage_path("app/{$storedPath}");
-            $mime       = $file->getMimeType();
+            $fullPath = storage_path("app/{$storedPath}");
+            $mime = $file->getMimeType();
 
             // Upload media to WhatsApp
             $mediaId = $whatsAppService->uploadMedia($fullPath, $mime);
@@ -545,24 +542,24 @@ class MessageController extends Controller
 
                 // Save each media as message in DB
                 Message::create([
-                    'conversation_id'      => $conversation->id,
-                    'sender_id'            => auth()->id(),
-                    'sender_type'          => User::class,
-                    'receiver_type'        => Customer::class,
-                    'receiver_id'          => $customer->id,
-                    'type'                 => $mediaType,
-                    'content'              => null,
-                    'direction'            => 'outgoing',
-                    'platform'             => 'whatsapp',
-                    'platform_message_id'  => $mediaResponse['messages'][0]['id'] ?? null,
-                    'parent_id'            => $data['parent_id'] ?? null,
+                    'conversation_id' => $conversation->id,
+                    'sender_id' => auth()->id(),
+                    'sender_type' => User::class,
+                    'receiver_type' => Customer::class,
+                    'receiver_id' => $customer->id,
+                    'type' => $mediaType,
+                    'content' => null,
+                    'direction' => 'outgoing',
+                    'platform' => 'whatsapp',
+                    'platform_message_id' => $mediaResponse['messages'][0]['id'] ?? null,
+                    'parent_id' => $data['parent_id'] ?? null,
                 ]);
             }
         }
 
         // Send text message after media
         $textResponse = null;
-        if (!empty($data['content'])) {
+        if (! empty($data['content'])) {
             $textResponse = $whatsAppService->sendTextMessage($phone, $data['content']);
             $message->update(['platform_message_id' => $textResponse['messages'][0]['id'] ?? null]);
         }
@@ -577,20 +574,20 @@ class MessageController extends Controller
     protected function sendMessengerMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
     {
         $recipientId = $customer->platform_user_id;
-        $facebookService = new FacebookService();
+        $facebookService = new FacebookService;
         $mediaResponses = [];
 
         // Step 1: Save main text message
         $textMessage = Message::create([
             'conversation_id' => $conversation->id,
-            'sender_id'       => auth()->id(),
-            'sender_type'     => User::class,
-            'receiver_type'   => Customer::class,
-            'receiver_id'     => $customer->id,
-            'type'            => 'text',
-            'content'         => $data['content'] ?? '',
-            'direction'       => 'outgoing',
-            'platform'        => 'messenger',
+            'sender_id' => auth()->id(),
+            'sender_type' => User::class,
+            'receiver_type' => Customer::class,
+            'receiver_id' => $customer->id,
+            'type' => 'text',
+            'content' => $data['content'] ?? '',
+            'direction' => 'outgoing',
+            'platform' => 'messenger',
         ]);
 
         // Step 2: Handle attachments
@@ -606,10 +603,10 @@ class MessageController extends Controller
 
             // Save attachment using the relationship
             $textMessage->attachments()->create([
-                'type'  => $facebookService->resolveMediaType($mime),
-                'path'  => $storedPath,
-                'mime'  => $mime,
-                'size'  => $file->getSize(),
+                'type' => $facebookService->resolveMediaType($mime),
+                'path' => $storedPath,
+                'mime' => $mime,
+                'size' => $file->getSize(),
             ]);
         }
 
@@ -623,45 +620,94 @@ class MessageController extends Controller
         return jsonResponse('Messenger message(s) sent successfully.', true, new MessageResource($textMessage->load('attachments')));
     }
 
+    protected function sendInstagramMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
+    {
+        $recipientId = $customer->platform_user_id;
+        $instagramService = new InstagramService;
+        $mediaResponses = [];
+
+        // Step 1: Save main text message
+        $textMessage = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => auth()->id(),
+            'sender_type' => User::class,
+            'receiver_type' => Customer::class,
+            'receiver_id' => $customer->id,
+            'type' => 'text',
+            'content' => $data['content'] ?? '',
+            'direction' => 'outgoing',
+            'platform' => 'messenger',
+        ]);
+
+        // Step 2: Handle attachments
+        foreach ($attachments as $file) {
+            $storedPath = $file->store('messenger_temp', 'public');
+            $mime = $file->getMimeType();
+
+            // Send to Instagram
+            $response = $instagramService->sendAttachmentMessage($recipientId, $storedPath, $mime);
+            $mediaResponses[] = $response;
+
+            Log::info('Instagram Media Response', $response);
+
+            // Save attachment using the relationship
+            $textMessage->attachments()->create([
+                'type' => $instagramService->resolveMediaType($mime),
+                'path' => $storedPath,
+                'mime' => $mime,
+                'size' => $file->getSize(),
+            ]);
+        }
+
+        // Step 3: Send text after attachments
+        if ($textMessage->content) {
+            $textResponse = $instagramService->sendTextMessage($recipientId, $textMessage->content);
+            $textMessage->update(['platform_message_id' => $textResponse['message_id'] ?? null]);
+        }
+
+        // Step 4: Return message with attachments loaded
+        return jsonResponse('Instagram message(s) sent successfully.', true, new MessageResource($textMessage->load('attachments')));
+    }
+
     protected function sendWebsiteMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
     {
         // Save text message in DB
-        $message                      = new Message();
-        $message->conversation_id     = $conversation->id;
-        $message->sender_id           = auth()->id();
-        $message->sender_type         = User::class;
-        $message->receiver_type       = Customer::class;
-        $message->receiver_id         = $customer->id;
-        $message->type                = 'text';
-        $message->content             = $data['content'] ?? '';
-        $message->direction           = 'outgoing';
+        $message = new Message;
+        $message->conversation_id = $conversation->id;
+        $message->sender_id = auth()->id();
+        $message->sender_type = User::class;
+        $message->receiver_type = Customer::class;
+        $message->receiver_id = $customer->id;
+        $message->type = 'text';
+        $message->content = $data['content'] ?? '';
+        $message->direction = 'outgoing';
         $message->save();
 
         $conversation->update(['last_message_id' => $message->id]);
 
         // Handle attachments if any (optional)
 
-        if (!empty($attachments)) {
-                $bulkInsert = [];
+        if (! empty($attachments)) {
+            $bulkInsert = [];
 
             foreach ($attachments as $file) {
                 $path = $file->store('uploads/messages', 'public');
-                $fullPath = '/storage/' . $path;
+                $fullPath = '/storage/'.$path;
 
-                    $attachmentPaths[] = $fullPath;
+                $attachmentPaths[] = $fullPath;
 
-                    $bulkInsert[] = [
-                        'message_id' => $message->id,
-                        'path'       => $fullPath,
-                        'type'       => $file->getClientOriginalExtension(),
-                        'mime'       => $file->getClientMimeType(),
-                        'size'       => $file->getSize(),
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-                }
-                MessageAttachment::insert($bulkInsert);
+                $bulkInsert[] = [
+                    'message_id' => $message->id,
+                    'path' => $fullPath,
+                    'type' => $file->getClientOriginalExtension(),
+                    'mime' => $file->getClientMimeType(),
+                    'size' => $file->getSize(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
             }
+            MessageAttachment::insert($bulkInsert);
+        }
 
         return jsonResponse('Website message sent successfully.', true, new MessageResource($message->load('attachments')));
     }
