@@ -198,9 +198,9 @@ class MessageController extends Controller
 
         // ✅ End the conversation
         $conversation->update([
-            'end_at'     => now(),
-            'wrap_up_id' => $data['wrap_up_id'],
-            'ended_by'   => $user->id,
+            'end_at'           => now(),
+            'wrap_up_id'       => $data['wrap_up_id'],
+            'ended_by'         => $user->id,
         ]);
 
         // ✅ Update agent current_limit based on platform weight
