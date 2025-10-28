@@ -28,8 +28,8 @@ class EndConversationRequest extends FormRequest
     public function rules()
     {
         return [
-            'conversation_id' => ['required', 'exists:conversations,id'],
-            'wrap_up_id'      => ['required', 'exists:wrap_up_conversations,id'],
+            'conversation_id'  => ['required', 'exists:conversations,id'],
+            'wrap_up_id'       => ['required', 'exists:wrap_up_conversations,id']
         ];
     }
 

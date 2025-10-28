@@ -25,10 +25,10 @@ class ConversationResource extends JsonResource
                 'attachments' => $this->lastMessage->attachments ? MessageAttachmentResource::collection($this->lastMessage->attachments) : [], 
             ] : null,
 
-            'started_at'      => $this->started_at,
-            'end_at'          => $this->end_at,
-            'wrap_up_info'    => $this->wrapUp ? new WrapUpConversationResource($this->wrapUp) : null,
-            'is_ended'        => (bool) $this->end_at
+            'started_at'        => $this->started_at,
+            'end_at'            => $this->end_at,
+            'wrap_up_info'      => $this->wrapUp ? new WrapUpConversationResource($this->wrapUp) : null,
+            'is_ended'          => (bool) $this->end_at,
         ];
     }
 }

@@ -131,6 +131,7 @@ class MessageController extends Controller
 
         $convertedMsgId = (int) $messageId;
         $message = Message::find($convertedMsgId);
+        $message->update(['delivered_at' => now()]);
 
         if ($conversationType === 'new' || empty($message->receiver_id)) {
             $message->receiver_id = $conversation->agent_id ?? $user->id;
@@ -636,12 +637,12 @@ class MessageController extends Controller
             'type' => 'text',
             'content' => $data['content'] ?? '',
             'direction' => 'outgoing',
-            'platform' => 'messenger',
+            'platform' => 'instagram_messaging',
         ]);
 
         // Step 2: Handle attachments
         foreach ($attachments as $file) {
-            $storedPath = $file->store('messenger_temp', 'public');
+            $storedPath = $file->store('instagram_temp', 'public');
             $mime = $file->getMimeType();
 
             // Send to Instagram
