@@ -66,13 +66,12 @@ class PlatformWebhookController extends Controller
         $platformName = strtolower($platform->name);
 
         // Determine sender's phone and name
-        $rawPhone = $contacts['wa_id'] ?? ($messages[0]['from'] ?? null);
-        if (!$rawPhone) {
+        $phone = $contacts['wa_id'] ?? ($messages[0]['from'] ?? null);
+        if (!$phone) {
             Log::warning('Invalid or missing phone number in request.');
             return response()->json(['status' => 'invalid_phone'], 400);
         }
 
-        $phone      = '+88' . substr($rawPhone, -11); // normalize to last 11 digits
         $senderName = $contacts['profile']['name'] ?? $phone;
 
         // Collect all payloads to send after DB commit
@@ -89,16 +88,22 @@ class PlatformWebhookController extends Controller
             // 2️⃣ Find or create active conversation
             $conversation = Conversation::where('customer_id', $customer->id)
                 ->where('platform', $platformName)
-                ->where(function ($q) {
-                    $q->whereNull('end_at')
-                        ->orWhere('created_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
-                })
+                // ->where(function ($q) {
+                //     $q->whereNull('end_at')
+                //         ->orWhere('created_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
+                // })
                 ->latest()
                 ->first();
 
             $isNewConversation = false;
 
             if (!$conversation || $conversation->end_at !== null || $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
+
+                // Clean old conversation from Redis
+                if ($conversation) {
+                    updateUserInRedis($conversation->agent_id ? User::find($conversation->agent_id) : null, $conversation);
+                }
+
                 $conversation = new Conversation();
                 $conversation->customer_id = $customer->id;
                 $conversation->platform    = $platformName;
@@ -392,7 +397,7 @@ class PlatformWebhookController extends Controller
                 DB::transaction(function () use ($senderId, $senderName, $profilePic, $platformId, $platformName, $text, $attachments, $timestamp, $platformMessageId, $parentMessageId) {
                     // 1️⃣ Find or create the customer
                     $customer = Customer::where('platform_user_id', $senderId)->first();
-                    if (! $customer) {
+                    if (!$customer) {
                         $customer = Customer::create([
                             'platform_user_id' => $senderId,
                             'name'             => $senderName,
@@ -419,16 +424,22 @@ class PlatformWebhookController extends Controller
                     // 2️⃣ Find or create an active conversation
                     $conversation = Conversation::where('customer_id', $customer->id)
                         ->where('platform', $platformName)
-                        ->where(function ($query) {
-                            $query->whereNull('end_at')
-                                ->orWhere('created_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
-                        })
+                        // ->where(function ($query) {
+                        //     $query->whereNull('end_at')
+                        //         ->orWhere('created_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
+                        // })
                         ->latest()
                         ->first();
 
                     $isNewConversation = false;
 
                     if (!$conversation || $conversation->end_at || $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
+
+                        // Clean old conversation from Redis
+                        if ($conversation) {
+                            updateUserInRedis($conversation->agent_id ? User::find($conversation->agent_id) : null, $conversation);
+                        }
+
                         $conversation = new Conversation();
                         $conversation->customer_id = $customer->id;
                         $conversation->platform = $platformName;
@@ -494,7 +505,7 @@ class PlatformWebhookController extends Controller
                     }
 
                     // 6️⃣ Update conversation with latest message
-                     $conversation->update(['last_message_id' => $message->id]);
+                    $conversation->update(['last_message_id' => $message->id]);
 
                     // 7️⃣ Prepare payload
                     $payload = [
@@ -587,10 +598,10 @@ class PlatformWebhookController extends Controller
             // 🔄 Get or create conversation
             $conversation = Conversation::where('customer_id', $customer->id)
                 ->where('platform', $platformName)
-                ->where(function ($q) {
-                    $q->whereNull('end_at')
-                        ->orWhere('created_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
-                })
+                // ->where(function ($q) {
+                //     $q->whereNull('end_at')
+                //         ->orWhere('created_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
+                // })
                 ->latest()
                 ->first();
 
@@ -600,6 +611,12 @@ class PlatformWebhookController extends Controller
             $isNewConversation = false;
 
             if (!$conversation || $conversation->end_at || $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
+
+                // Clean old conversation from Redis
+                if ($conversation) {
+                    updateUserInRedis($conversation->agent_id ? User::find($conversation->agent_id) : null, $conversation);
+                }
+
                 $conversation = Conversation::create([
                     'customer_id' => $customer->id,
                     'platform'    => $platformName,
@@ -650,8 +667,8 @@ class PlatformWebhookController extends Controller
             // 🔄 Update conversation with last message
             $conversation->update(['last_message_id' => $message->id]);
 
-           $customer->token_expires_at = now()->addMinutes((int)config('services.conversation.website.token_expire_minutes'));
-           $customer->save();
+            $customer->token_expires_at = now()->addMinutes((int)config('services.conversation.website.token_expire_minutes'));
+            $customer->save();
 
             // 📦 Build payload
             $payload = [

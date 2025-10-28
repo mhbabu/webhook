@@ -246,7 +246,7 @@ class MessageController extends Controller
         }
 
         // Remove platform only if no active conversations exist
-        if ($endedPlatform && $activeConversations === 0 && in_array($endedPlatform, $contactTypes)) {
+        if ($endedPlatform && $activeConversations === 1 && in_array($endedPlatform, $contactTypes)) {
             $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
         }
 
