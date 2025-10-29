@@ -745,12 +745,12 @@ class PlatformWebhookController extends Controller
                 $timestamp = $event['timestamp'] ?? now()->timestamp;
                 $parentMessageId = $message['reply_to']['mid'] ?? null;
 
-                // // ✅ Skip echoes or outgoing messages
-                // if ($isEcho || $senderId === $instagramId) {
-                //     Log::info('🌀 Skipping echo or outgoing message.', compact('senderId', 'instagramId'));
+                // ✅ Skip echoes or outgoing messages
+                if ($isEcho || $senderId === $instagramId) {
+                    Log::info('🌀 Skipping echo or outgoing message.', compact('senderId', 'instagramId'));
 
-                //     continue;
-                // }
+                    continue;
+                }
 
                 // ✅ Ensure valid IDs
                 if (! $senderId || ! $platformMessageId) {
