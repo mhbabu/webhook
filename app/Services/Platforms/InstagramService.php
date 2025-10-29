@@ -12,6 +12,8 @@ class InstagramService
 
     protected $pageToken;
 
+    protected $verifyToken;
+
     public function __construct()
     {
         $this->pageId = config('services.instagram.page_id');
