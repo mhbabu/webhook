@@ -746,11 +746,11 @@ class PlatformWebhookController extends Controller
                 $parentMessageId = $message['reply_to']['mid'] ?? null;
 
                 // ✅ Skip echoes or outgoing messages
-                if ($isEcho || $senderId === $instagramId) {
-                    Log::info('🌀 Skipping echo or outgoing message.', compact('senderId', 'instagramId'));
+                // if ($isEcho || $senderId === $instagramId) {
+                //     Log::info('🌀 Skipping echo or outgoing message.', compact('senderId', 'instagramId'));
 
-                    continue;
-                }
+                //     continue;
+                // }
 
                 // ✅ Ensure valid IDs
                 if (! $senderId || ! $platformMessageId) {
