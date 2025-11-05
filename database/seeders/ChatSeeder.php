@@ -14,18 +14,18 @@ class ChatSeeder extends Seeder
     public function run(): void
     {
         // Create 5 agents and 5 customers
-        $agents = User::factory(5)->create();
-        $customers = Customer::factory(5)->create();
+        $agents = User::all();
+        $customers = Customer::factory(50)->create();
 
         // Create 3 conversations
-        $conversations = Conversation::factory(3)->make()->each(function ($conversation) use ($agents, $customers) {
+        $conversations = Conversation::factory(50)->make()->each(function ($conversation) use ($agents, $customers) {
             $conversation->agent_id = $agents->random()->id;
             $conversation->customer_id = $customers->random()->id;
             $conversation->save();
         });
 
         // Total of 10 messages randomly distributed across conversations
-        $totalMessages = 10;
+        $totalMessages = 500;
         $allMessages = collect();
 
         for ($i = 0; $i < $totalMessages; $i++) {
