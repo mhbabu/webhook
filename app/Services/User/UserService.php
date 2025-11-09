@@ -286,14 +286,20 @@ class UserService
         DB::beginTransaction();
 
         try {
-            // Update basic fields for all users
-            $fields = ['name', 'mobile', 'email', 'employee_id', 'max_limit', 'role_id'];
+            $authUser = auth()->user();
+            $isSuperAdmin = $authUser?->role?->name === 'Super Admin';
+
+            // Allow different updatable fields based on role
+            $fields = $isSuperAdmin
+                ? ['name', 'mobile', 'email', 'employee_id', 'max_limit', 'role_id']  // full access
+                : ['name', 'mobile'];  // limited access for non–Super Admins
+
             foreach ($fields as $field) {
                 if (isset($data[$field])) {
                     $user->$field = $data[$field];
 
-                    // If max_limit is updated, also update current_limit
-                    if ($field === 'max_limit') {
+                    // If max_limit is updated, also update current_limit (only for Super Admin)
+                    if ($isSuperAdmin && $field === 'max_limit') {
                         $user->current_limit = $data[$field];
                     }
                 }
@@ -302,25 +308,26 @@ class UserService
             // Save changes
             $user->save();
 
-            // Handle profile picture
+            // Handle profile picture (allowed for everyone)
             if (!empty($data['profile_picture'])) {
-                $user->clearMediaCollection('profile_pictures'); // remove old picture
+                $user->clearMediaCollection('profile_pictures');
                 $user->addMedia($data['profile_picture'])->toMediaCollection('profile_pictures');
             }
 
-            // Sync platforms if provided
-            if (!empty($data['platforms']) && is_array($data['platforms'])) {
+            // Sync platforms — only Super Admin can change platforms
+            if ($isSuperAdmin && !empty($data['platforms']) && is_array($data['platforms'])) {
                 $user->platforms()->sync(array_unique($data['platforms']));
             }
 
             DB::commit();
 
-            return ['message' => 'User updated successfully', 'status'  => true, 'data'    => new UserResource($user)];
+            return ['message' => 'User updated successfully', 'status'  => true, 'data' => new UserResource($user)];
         } catch (\Exception $e) {
             DB::rollBack();
             return ['message' => 'User update failed: ' . $e->getMessage(), 'status'  => false];
         }
     }
+
 
 
     /**

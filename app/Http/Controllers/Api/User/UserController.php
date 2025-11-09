@@ -132,8 +132,6 @@ class UserController extends Controller
     public function update(UpdateUserProfileRequest $request, User $user)
     {
         $data = $request->validated();
-        info('Updating user with data:', $data);
-
         $response = $this->userService->updateUserProfile($data, $user);
         return $this->jsonResponse($response['message'], $response['status'], $response['data'] ?? null);
     }
