@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Webhook\EmailController;
 use App\Http\Controllers\Api\Webhook\PlatformWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +22,9 @@ Route::post('webhook/website', [PlatformWebhookController::class, 'receiveWebsit
 
 // Route::get('webhook/instagram', [PlatformWebhookController::class, 'verifyIntragram']); // For for webhook verification
 // Route::post('webhook/instagram', [PlatformWebhookController::class, 'receiveInstragramMsg']); // POST for message reception
+Route::post('webhook/send-email', [EmailController::class, 'send']);
+Route::post('webhook/receive-email', [EmailController::class, 'receive']);
+Route::post('webhook/test-connection', [EmailController::class, 'testGmailImapConnection']);
 
 require __DIR__.'/platform.php';
 

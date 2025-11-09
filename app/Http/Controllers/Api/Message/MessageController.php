@@ -15,6 +15,7 @@ use App\Models\Message;
 use App\Models\MessageAttachment;
 use App\Models\User;
 use App\Services\Platforms\FacebookService;
+use App\Services\Platforms\InstagramService;
 use App\Services\Platforms\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -116,7 +117,7 @@ class MessageController extends Controller
         $user = User::find($agentId);
         $user->current_limit = $agentAvailableScope;
         $user->save();
-        Log::info('[UserData]' . json_encode($user));
+        Log::info('[UserData]'.json_encode($user));
 
         // Fetch conversation
         $conversation = Conversation::find((int) $conversationId);
@@ -242,12 +243,12 @@ class MessageController extends Controller
 
         // Remove platform only if no active conversations exist
         if ($endedPlatform && $activeConversations === 1 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
         }
 
         // Remove platform only if no active conversations exist
         if ($endedPlatform && $activeConversations === 0 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
         }
 
         // Prepare agent hash data
@@ -258,7 +259,7 @@ class MessageController extends Controller
             'MAX_SCOPE' => $user->max_limit,
             'AVAILABLE_SCOPE' => $user->current_limit,
             'CONTACT_TYPE' => json_encode($contactTypes),
-            'SKILL' => json_encode($user->platforms()->pluck('name')->map(fn($n) => strtolower($n))->toArray()),
+            'SKILL' => json_encode($user->platforms()->pluck('name')->map(fn ($n) => strtolower($n))->toArray()),
             'BUSYSINCE' => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
         ];
 
@@ -372,7 +373,7 @@ class MessageController extends Controller
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $file) {
                 $storedPath = $file->store('messenger_temp', 'public');
-                $fullPath = 'messenger_temp/' . basename($storedPath);
+                $fullPath = 'messenger_temp/'.basename($storedPath);
                 $mime = $file->getMimeType();
 
                 // Send via Facebook API
@@ -451,12 +452,10 @@ class MessageController extends Controller
         // Step 4: Extract attachments if any
         $attachments = $request->hasFile('attachments') ? $request->file('attachments') : [];
 
-
-
         Log::info('Agent sending message', [
             'requestData' => $data,
             'attachmentsCount' => count($attachments),
-            'attachements'      => $attachments,
+            'attachements' => $attachments,
         ]);
 
         // Step 5: Send based on platform
@@ -466,6 +465,8 @@ class MessageController extends Controller
             return $this->sendWhatsAppMessageFromAgent($data, $attachments, $conversation, $customer);
         } elseif ($platformName === 'website') {
             return $this->sendWebsiteMessageFromAgent($data, $attachments, $conversation, $customer);
+        } elseif ($platformName === 'instagram_message') {
+            return $this->sendInstagramMessageFromAgent($data, $attachments, $conversation, $customer);
         }
 
         return jsonResponse('Unsupported platform', false, [], 422);
@@ -493,7 +494,7 @@ class MessageController extends Controller
                 'customer_id' => $customerId,
                 'agent_id' => $agentId,
                 'platform' => $platformName,
-                'trace_id' => strtoupper(substr($platformName, 0, 2)) . '-' . now()->format('YmdHis') . '-' . uniqid(),
+                'trace_id' => strtoupper(substr($platformName, 0, 2)).'-'.now()->format('YmdHis').'-'.uniqid(),
             ]);
         }
 
@@ -516,17 +517,17 @@ class MessageController extends Controller
             'direction' => 'outgoing',
         ]);
 
-        $whatsAppService = new WhatsAppService();
+        $whatsAppService = new WhatsAppService;
         $mediaResponses = [];
 
         // Step 2: Process attachments
         foreach ($attachments as $file) {
             // Save file in 'public' disk to generate URL
             $storedPath = $file->store('attachments', 'public');
-            $fullPath   = storage_path("app/public/{$storedPath}"); // local path for WhatsApp
+            $fullPath = storage_path("app/public/{$storedPath}"); // local path for WhatsApp
             // $fileUrl    = asset("storage/{$storedPath}");           // URL to save in DB
-            $mime       = $file->getMimeType();
-            $size       = $file->getSize();
+            $mime = $file->getMimeType();
+            $size = $file->getSize();
 
             // Determine attachment type
             $type = match (true) {
@@ -538,10 +539,10 @@ class MessageController extends Controller
 
             // Step 3: Save attachment info in DB
             $attachment = $message->attachments()->create([
-                'type'         => $type,
-                'path'         => $storedPath,  // save URL, not local path
-                'mime'         => $mime,
-                'size'         => $size,
+                'type' => $type,
+                'path' => $storedPath,  // save URL, not local path
+                'mime' => $mime,
+                'size' => $size,
                 'is_available' => 1,
             ]);
 
@@ -560,7 +561,7 @@ class MessageController extends Controller
 
         // Step 5: Send text message if any content exists
         $textResponse = null;
-        if (!empty($data['content'])) {
+        if (! empty($data['content'])) {
             $textResponse = $whatsAppService->sendTextMessage($phone, $data['content']);
             $message->update([
                 'platform_message_id' => $textResponse['messages'][0]['id'] ?? null,
@@ -569,9 +570,9 @@ class MessageController extends Controller
 
         // Step 6: Return structured response
         return jsonResponse('WhatsApp message(s) sent successfully.', true, [
-            'text_message'    => $message ? new MessageResource($message) : null,
+            'text_message' => $message ? new MessageResource($message) : null,
             'media_responses' => $mediaResponses,
-            'text_response'   => $textResponse,
+            'text_response' => $textResponse,
         ]);
     }
 
@@ -647,7 +648,7 @@ class MessageController extends Controller
 
             foreach ($attachments as $file) {
                 $path = $file->store('uploads/messages', 'public');
-                $fullPath = '/storage/' . $path;
+                $fullPath = '/storage/'.$path;
 
                 $attachmentPaths[] = $fullPath;
 
@@ -665,5 +666,55 @@ class MessageController extends Controller
         }
 
         return jsonResponse('Website message sent successfully.', true, new MessageResource($message->load('attachments')));
+    }
+
+    protected function sendInstagramMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
+    {
+        $recipientId = $customer->platform_user_id;
+        $instagramService = new InstagramService;
+        $mediaResponses = [];
+
+        // Step 1: Save main text message
+        $textMessage = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => auth()->id(),
+            'sender_type' => User::class,
+            'receiver_type' => Customer::class,
+            'receiver_id' => $customer->id,
+            'type' => 'text',
+            'content' => $data['content'] ?? '',
+            'direction' => 'outgoing',
+            'platform' => 'instagram_message',
+        ]);
+
+        // Step 2: Handle attachments
+        foreach ($attachments as $file) {
+            $storedPath = $file->store('instagram_temp', 'public');
+            $mime = $file->getMimeType();
+
+            // Send to Instagram
+            $response = $instagramService->sendAttachmentMessage($recipientId, $storedPath, $mime);
+            $mediaResponses[] = $response;
+
+            Log::info('Instagram Media Response', $response);
+
+            // Save attachment using the relationship
+            $textMessage->attachments()->create([
+                'type' => $instagramService->resolveMediaType($mime),
+                'path' => $storedPath,
+                'mime' => $mime,
+                'size' => $file->getSize(),
+            ]);
+        }
+
+        return $mediaResponses;
+        // Step 3: Send text after attachments
+        if ($textMessage->content) {
+            return $textResponse = $instagramService->sendInstagramMessage($recipientId, $textMessage->content);
+            // $textMessage->update(['platform_message_id' => $textResponse['message_id'] ?? null]);
+        }
+
+        // Step 4: Return message with attachments loaded
+        return jsonResponse('Instagram message(s) sent successfully.', true, new MessageResource($textMessage->load('attachments')));
     }
 }
