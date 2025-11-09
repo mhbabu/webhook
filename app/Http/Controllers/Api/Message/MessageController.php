@@ -116,7 +116,7 @@ class MessageController extends Controller
         $user = User::find($agentId);
         $user->current_limit = $agentAvailableScope;
         $user->save();
-        Log::info('[UserData]'.json_encode($user));
+        Log::info('[UserData]' . json_encode($user));
 
         // Fetch conversation
         $conversation = Conversation::find((int) $conversationId);
@@ -242,12 +242,12 @@ class MessageController extends Controller
 
         // Remove platform only if no active conversations exist
         if ($endedPlatform && $activeConversations === 1 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
         }
 
         // Remove platform only if no active conversations exist
         if ($endedPlatform && $activeConversations === 0 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
         }
 
         // Prepare agent hash data
@@ -258,7 +258,7 @@ class MessageController extends Controller
             'MAX_SCOPE' => $user->max_limit,
             'AVAILABLE_SCOPE' => $user->current_limit,
             'CONTACT_TYPE' => json_encode($contactTypes),
-            'SKILL' => json_encode($user->platforms()->pluck('name')->map(fn ($n) => strtolower($n))->toArray()),
+            'SKILL' => json_encode($user->platforms()->pluck('name')->map(fn($n) => strtolower($n))->toArray()),
             'BUSYSINCE' => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
         ];
 
@@ -372,7 +372,7 @@ class MessageController extends Controller
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $file) {
                 $storedPath = $file->store('messenger_temp', 'public');
-                $fullPath = 'messenger_temp/'.basename($storedPath);
+                $fullPath = 'messenger_temp/' . basename($storedPath);
                 $mime = $file->getMimeType();
 
                 // Send via Facebook API
@@ -493,7 +493,7 @@ class MessageController extends Controller
                 'customer_id' => $customerId,
                 'agent_id' => $agentId,
                 'platform' => $platformName,
-                'trace_id' => strtoupper(substr($platformName, 0, 2)).'-'.now()->format('YmdHis').'-'.uniqid(),
+                'trace_id' => strtoupper(substr($platformName, 0, 2)) . '-' . now()->format('YmdHis') . '-' . uniqid(),
             ]);
         }
 
@@ -504,71 +504,74 @@ class MessageController extends Controller
     {
         $phone = $customer->phone;
 
-        // Save text message in DB
-        $message = new Message;
-        $message->conversation_id = $conversation->id;
-        $message->sender_id = auth()->id();
-        $message->sender_type = User::class;
-        $message->receiver_type = Customer::class;
-        $message->receiver_id = $customer->id;
-        $message->type = 'text';
-        $message->content = $data['content'] ?? '';
-        $message->direction = 'outgoing';
-        // $message->platform            = 'whatsapp';
-        $message->save();
+        // Step 1: Save the text message in DB
+        $message = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => auth()->id(),
+            'sender_type' => User::class,
+            'receiver_type' => Customer::class,
+            'receiver_id' => $customer->id,
+            'type' => 'text',
+            'content' => $data['content'] ?? '',
+            'direction' => 'outgoing',
+        ]);
 
-        $whatsAppService = new WhatsAppService;
-
+        $whatsAppService = new WhatsAppService();
         $mediaResponses = [];
 
+        // Step 2: Process attachments
         foreach ($attachments as $file) {
-            $storedPath = $file->store('wa_temp');
-            $fullPath = storage_path("app/{$storedPath}");
-            $mime = $file->getMimeType();
+            // Save file in 'public' disk to generate URL
+            $storedPath = $file->store('attachments', 'public');
+            $fullPath   = storage_path("app/public/{$storedPath}"); // local path for WhatsApp
+            // $fileUrl    = asset("storage/{$storedPath}");           // URL to save in DB
+            $mime       = $file->getMimeType();
+            $size       = $file->getSize();
 
-            // Upload media to WhatsApp
+            // Determine attachment type
+            $type = match (true) {
+                str_starts_with($mime, 'image/') => 'image',
+                str_starts_with($mime, 'video/') => 'video',
+                str_starts_with($mime, 'audio/') => 'audio',
+                default => 'document',
+            };
+
+            // Step 3: Save attachment info in DB
+            $attachment = $message->attachments()->create([
+                'type'         => $type,
+                'path'         => $storedPath,  // save URL, not local path
+                'mime'         => $mime,
+                'size'         => $size,
+                'is_available' => 1,
+            ]);
+
+            // Step 4: Upload file to WhatsApp
             $mediaId = $whatsAppService->uploadMedia($fullPath, $mime);
-
             if ($mediaId) {
-                $mediaType = match (true) {
-                    str_starts_with($mime, 'image/') => 'image',
-                    str_starts_with($mime, 'video/') => 'video',
-                    str_starts_with($mime, 'audio/') => 'audio',
-                    str_starts_with($mime, 'application/') => 'document',
-                    default => 'document',
-                };
-
-                $mediaResponse = $whatsAppService->sendMediaMessage($phone, $mediaId, $mediaType);
+                $mediaResponse = $whatsAppService->sendMediaMessage($phone, $mediaId, $type);
                 $mediaResponses[] = $mediaResponse;
 
-                // Save each media as message in DB
-                Message::create([
-                    'conversation_id' => $conversation->id,
-                    'sender_id' => auth()->id(),
-                    'sender_type' => User::class,
-                    'receiver_type' => Customer::class,
-                    'receiver_id' => $customer->id,
-                    'type' => $mediaType,
-                    'content' => null,
-                    'direction' => 'outgoing',
-                    'platform' => 'whatsapp',
-                    'platform_message_id' => $mediaResponse['messages'][0]['id'] ?? null,
-                    'parent_id' => $data['parent_id'] ?? null,
+                // Update attachment record with WhatsApp media ID
+                $attachment->update([
+                    'attachment_id' => $mediaResponse['messages'][0]['id'] ?? null,
                 ]);
             }
         }
 
-        // Send text message after media
+        // Step 5: Send text message if any content exists
         $textResponse = null;
-        if (! empty($data['content'])) {
+        if (!empty($data['content'])) {
             $textResponse = $whatsAppService->sendTextMessage($phone, $data['content']);
-            $message->update(['platform_message_id' => $textResponse['messages'][0]['id'] ?? null]);
+            $message->update([
+                'platform_message_id' => $textResponse['messages'][0]['id'] ?? null,
+            ]);
         }
 
+        // Step 6: Return structured response
         return jsonResponse('WhatsApp message(s) sent successfully.', true, [
-            'text_message' => $message ? new MessageResource($message) : null,
+            'text_message'    => $message ? new MessageResource($message) : null,
             'media_responses' => $mediaResponses,
-            'text_response' => $textResponse,
+            'text_response'   => $textResponse,
         ]);
     }
 
@@ -644,7 +647,7 @@ class MessageController extends Controller
 
             foreach ($attachments as $file) {
                 $path = $file->store('uploads/messages', 'public');
-                $fullPath = '/storage/'.$path;
+                $fullPath = '/storage/' . $path;
 
                 $attachmentPaths[] = $fullPath;
 
