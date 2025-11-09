@@ -315,8 +315,8 @@ class UserService
             }
 
             // Sync platforms — only Super Admin can change platforms
-            if ($isSuperAdmin && !empty($data['platforms']) && is_array($data['platforms'])) {
-                $user->platforms()->sync(array_unique($data['platforms']));
+            if ($isSuperAdmin && !empty($data['platform_ids']) && is_array($data['platform_ids'])) {
+                $user->platforms()->sync(array_unique($data['platform_ids']));
             }
 
             DB::commit();

@@ -39,8 +39,8 @@ class UpdateUserProfileRequest extends FormRequest
                 'employee_id' => ['required', 'string', 'max:255', Rule::unique('users', 'employee_id')->ignore($updatingUserId)],
                 'max_limit'   => ['required', 'integer', 'min:1'],
                 'role_id'     => ['nullable', 'integer', 'exists:roles,id'],
-                'platforms'   => ['required', 'array'],
-                'platforms.*' => ['integer', 'distinct', 'exists:platforms,id'],
+                'platform_ids'   => ['required', 'array'],
+                'platform_ids.*' => ['integer', 'distinct', 'exists:platforms,id'],
             ]);
         }
 
