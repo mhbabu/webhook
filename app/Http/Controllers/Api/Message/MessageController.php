@@ -505,67 +505,70 @@ class MessageController extends Controller
     {
         $phone = $customer->phone;
 
-        // Save text message in DB
-        $message = new Message;
-        $message->conversation_id = $conversation->id;
-        $message->sender_id = auth()->id();
-        $message->sender_type = User::class;
-        $message->receiver_type = Customer::class;
-        $message->receiver_id = $customer->id;
-        $message->type = 'text';
-        $message->content = $data['content'] ?? '';
-        $message->direction = 'outgoing';
-        // $message->platform            = 'whatsapp';
-        $message->save();
+        // Step 1: Save the text message in DB
+        $message = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => auth()->id(),
+            'sender_type' => User::class,
+            'receiver_type' => Customer::class,
+            'receiver_id' => $customer->id,
+            'type' => 'text',
+            'content' => $data['content'] ?? '',
+            'direction' => 'outgoing',
+        ]);
 
         $whatsAppService = new WhatsAppService;
-
         $mediaResponses = [];
 
+        // Step 2: Process attachments
         foreach ($attachments as $file) {
-            $storedPath = $file->store('wa_temp');
-            $fullPath = storage_path("app/{$storedPath}");
+            // Save file in 'public' disk to generate URL
+            $storedPath = $file->store('attachments', 'public');
+            $fullPath = storage_path("app/public/{$storedPath}"); // local path for WhatsApp
+            // $fileUrl    = asset("storage/{$storedPath}");           // URL to save in DB
             $mime = $file->getMimeType();
+            $size = $file->getSize();
 
-            // Upload media to WhatsApp
+            // Determine attachment type
+            $type = match (true) {
+                str_starts_with($mime, 'image/') => 'image',
+                str_starts_with($mime, 'video/') => 'video',
+                str_starts_with($mime, 'audio/') => 'audio',
+                default => 'document',
+            };
+
+            // Step 3: Save attachment info in DB
+            $attachment = $message->attachments()->create([
+                'type' => $type,
+                'path' => $storedPath,  // save URL, not local path
+                'mime' => $mime,
+                'size' => $size,
+                'is_available' => 1,
+            ]);
+
+            // Step 4: Upload file to WhatsApp
             $mediaId = $whatsAppService->uploadMedia($fullPath, $mime);
-
             if ($mediaId) {
-                $mediaType = match (true) {
-                    str_starts_with($mime, 'image/') => 'image',
-                    str_starts_with($mime, 'video/') => 'video',
-                    str_starts_with($mime, 'audio/') => 'audio',
-                    str_starts_with($mime, 'application/') => 'document',
-                    default => 'document',
-                };
-
-                $mediaResponse = $whatsAppService->sendMediaMessage($phone, $mediaId, $mediaType);
+                $mediaResponse = $whatsAppService->sendMediaMessage($phone, $mediaId, $type);
                 $mediaResponses[] = $mediaResponse;
 
-                // Save each media as message in DB
-                Message::create([
-                    'conversation_id' => $conversation->id,
-                    'sender_id' => auth()->id(),
-                    'sender_type' => User::class,
-                    'receiver_type' => Customer::class,
-                    'receiver_id' => $customer->id,
-                    'type' => $mediaType,
-                    'content' => null,
-                    'direction' => 'outgoing',
-                    'platform' => 'whatsapp',
-                    'platform_message_id' => $mediaResponse['messages'][0]['id'] ?? null,
-                    'parent_id' => $data['parent_id'] ?? null,
+                // Update attachment record with WhatsApp media ID
+                $attachment->update([
+                    'attachment_id' => $mediaResponse['messages'][0]['id'] ?? null,
                 ]);
             }
         }
 
-        // Send text message after media
+        // Step 5: Send text message if any content exists
         $textResponse = null;
         if (! empty($data['content'])) {
             $textResponse = $whatsAppService->sendTextMessage($phone, $data['content']);
-            $message->update(['platform_message_id' => $textResponse['messages'][0]['id'] ?? null]);
+            $message->update([
+                'platform_message_id' => $textResponse['messages'][0]['id'] ?? null,
+            ]);
         }
 
+        // Step 6: Return structured response
         return jsonResponse('WhatsApp message(s) sent successfully.', true, [
             'text_message' => $message ? new MessageResource($message) : null,
             'media_responses' => $mediaResponses,
