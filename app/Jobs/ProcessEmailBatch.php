@@ -12,23 +12,27 @@ class ProcessEmailBatch implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected $platform;
+    public $tries = 5; // max attempts
 
-    protected $emailData;
+    public $backoff = [10, 30, 60]; // seconds between retries
 
-    public function __construct($platform, $emailData)
+    protected $payload;
+
+    public function __construct(array $payload)
     {
-        $this->platform = $platform;
-        $this->emailData = $emailData;
+        $this->payload = $payload;
     }
 
     public function handle()
     {
-        Log::info('Processing email batch for platform: '.$this->platform, [
-            'emailData' => $this->emailData,
-        ]);
-        $platform = Platform::where('name', $this->platform)->firstOrFail();
-        // here will be parsing, store to DB etc.
-        // this logic will run from IMAP service for each incoming email
+        Log::info('📨 ProcessEmailBatch started', ['payload' => $this->payload]);
+
+        try {
+            app(DispatcherService::class)->send($this->payload);
+            Log::info('✅ ProcessEmailBatch sent successfully', ['conversationId' => $this->payload['conversationId']]);
+        } catch (\Throwable $e) {
+            Log::error('❌ ProcessEmailBatch failed: '.$e->getMessage(), ['payload' => $this->payload]);
+            throw $e; // rethrow to trigger retry
+        }
     }
 }
