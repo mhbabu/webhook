@@ -13,7 +13,8 @@
         "laravel/tinker": "^2.10.1",
         "predis/predis": "^3.2",
         "spatie/laravel-medialibrary": "^11.13",
-        "spatie/laravel-permission": "^6.21"
+        "spatie/laravel-permission": "^6.21",
+        "webklex/laravel-imap": "^6.2"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.6",

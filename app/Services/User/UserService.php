@@ -281,11 +281,14 @@ class UserService
     /**
      * Update user profile
      */
-    public function updateUserProfile(array $data, User $user): array
+    public function updateUserProfile(array $data, $userId): array
     {
         DB::beginTransaction();
 
         try {
+            // Fetch the user here
+            $user = User::findOrFail($userId);
+
             $authUser = auth()->user();
             $isSuperAdmin = $authUser?->role?->name === 'Super Admin';
 
