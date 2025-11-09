@@ -26,6 +26,7 @@ return new class extends Migration
             $table->timestamp('delivered_at')->nullable();
             $table->string('type')->default('text');
             $table->longText('content')->nullable();
+            $table->string('subject')->nullable();
             $table->enum('direction', ['incoming', 'outgoing']);
             $table->timestamp('read_at')->nullable();
             $table->string('read_by')->nullable();
