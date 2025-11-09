@@ -47,11 +47,14 @@ return [
         'url' => 'https://graph.facebook.com/v18.0',
     ],
     'instagram' => [
-        'app_id' => env('INSTAGRAM_APP_ID'),
-        'app_secret' => env('INSTAGRAM_APP_SECRET'),
-        'page_id' => env('INSTAGRAM_PAGE_ID'),
-        'page_token' => env('INSTAGRAM_GRAPH_TOKEN'),
-        'verify_token' => env('INSTAGRAM_VERIFY_TOKEN'),
+        'ig_business_id' => env('INSTAGRAM_BUSINESS_ID'),
+        'ig_page_token' => env('INSTAGRAM_PAGE_TOKEN'),
+        'ig_verify_token' => env('INSTAGRAM_VERIFY_TOKEN'),
+    ],
+    'graph' => [
+        'base_url' => 'https://graph.facebook.com',
+        'version' => 'v21.0',
+        'system_user_token' => env('SYSTEM_USER_TOKEN'),
     ],
     'conversation' => [
         'conversation_expire_hours' => env('CONVERSATION_EXPIRE_HOURS', 6),

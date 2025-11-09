@@ -13,10 +13,11 @@ class PlatformTableSeeder extends Seeder
         $platforms = [
             ['name' => 'whatsapp', 'status' => 1],
             ['name' => 'facebook_messenger', 'status' => 1],
-            ['name' => 'instagram_message', 'status' => 1],
             ['name' => 'facebook', 'status' => 1],
+            ['name' => 'instagram_message', 'status' => 1],
             ['name' => 'instagram', 'status' => 1],
             ['name' => 'website', 'status' => 1],
+            ['name' => 'email', 'status' => 1],
         ];
 
         foreach ($platforms as $platform) {

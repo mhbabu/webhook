@@ -15,6 +15,7 @@ use App\Models\Message;
 use App\Models\MessageAttachment;
 use App\Models\User;
 use App\Services\Platforms\FacebookService;
+use App\Services\Platforms\InstagramService;
 use App\Services\Platforms\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -453,8 +454,8 @@ class MessageController extends Controller
 
         Log::info('Agent sending message', [
             'requestData' => $data,
-            // 'attachmentsCount' => count($attachments),
-            // 'attachements'      => $attachments,
+            'attachmentsCount' => count($attachments),
+            'attachements' => $attachments,
         ]);
 
         // Step 5: Send based on platform
@@ -464,6 +465,8 @@ class MessageController extends Controller
             return $this->sendWhatsAppMessageFromAgent($data, $attachments, $conversation, $customer);
         } elseif ($platformName === 'website') {
             return $this->sendWebsiteMessageFromAgent($data, $attachments, $conversation, $customer);
+        } elseif ($platformName === 'instagram_message') {
+            return $this->sendInstagramMessageFromAgent($data, $attachments, $conversation, $customer);
         }
 
         return jsonResponse('Unsupported platform', false, [], 422);
@@ -660,5 +663,55 @@ class MessageController extends Controller
         }
 
         return jsonResponse('Website message sent successfully.', true, new MessageResource($message->load('attachments')));
+    }
+
+    protected function sendInstagramMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
+    {
+        $recipientId = $customer->platform_user_id;
+        $instagramService = new InstagramService;
+        $mediaResponses = [];
+
+        // Step 1: Save main text message
+        $textMessage = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => auth()->id(),
+            'sender_type' => User::class,
+            'receiver_type' => Customer::class,
+            'receiver_id' => $customer->id,
+            'type' => 'text',
+            'content' => $data['content'] ?? '',
+            'direction' => 'outgoing',
+            'platform' => 'instagram_message',
+        ]);
+
+        // Step 2: Handle attachments
+        foreach ($attachments as $file) {
+            $storedPath = $file->store('instagram_temp', 'public');
+            $mime = $file->getMimeType();
+
+            // Send to Instagram
+            $response = $instagramService->sendAttachmentMessage($recipientId, $storedPath, $mime);
+            $mediaResponses[] = $response;
+
+            Log::info('Instagram Media Response', $response);
+
+            // Save attachment using the relationship
+            $textMessage->attachments()->create([
+                'type' => $instagramService->resolveMediaType($mime),
+                'path' => $storedPath,
+                'mime' => $mime,
+                'size' => $file->getSize(),
+            ]);
+        }
+
+        return $mediaResponses;
+        // Step 3: Send text after attachments
+        if ($textMessage->content) {
+            return $textResponse = $instagramService->sendInstagramMessage($recipientId, $textMessage->content);
+            // $textMessage->update(['platform_message_id' => $textResponse['message_id'] ?? null]);
+        }
+
+        // Step 4: Return message with attachments loaded
+        return jsonResponse('Instagram message(s) sent successfully.', true, new MessageResource($textMessage->load('attachments')));
     }
 }
