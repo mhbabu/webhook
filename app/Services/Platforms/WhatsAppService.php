@@ -136,23 +136,28 @@ class WhatsAppService
         }
     }
 
-    public function uploadMedia($filePath, $mimeType): ?string
+    public function uploadMedia(string $filePath, string $mimeType): ?string
     {
         $url = "https://graph.facebook.com/v18.0/" . config('services.whatsapp.phone_number_id') . "/media";
 
-        $response = Http::withToken($this->token)->attach(
-            'file',
-            fopen($filePath, 'r'),
-            basename($filePath)
-        )->post($url, [
-            'messaging_product' => 'whatsapp',
-            'type' => $mimeType,
-        ]);
+        $response = Http::withToken($this->token)
+            ->attach(
+                'file',
+                fopen($filePath, 'r'),            // pass the local path
+                basename($filePath)
+            )
+            ->post($url, [
+                'messaging_product' => 'whatsapp',
+                'type' => $mimeType,
+            ]);
 
         Log::info('WhatsApp Upload Media Response:', $response->json());
 
         return $response->successful() ? $response->json('id') : null;
     }
+
+
+
 
     public function sendMediaMessage(string $to, string $mediaId, string $type = 'image'): array
     {
