@@ -16,20 +16,35 @@ class UpdateUserProfileRequest extends FormRequest
 
     public function rules(): array
     {
-        // Get the user ID from route model binding
-        $updatingUserId = $this->route('user')->id ?? null;
+        // The user being updated
+        $user           = $this->route('user');
+        $updatingUserId = $user->id ?? null;
 
-        return [
+        // Authenticated user's role
+        $authRoleName = auth()->user()?->role?->name ?? null;
+
+        info('Authenticated Role: ' . $authRoleName);
+
+        // Base (default) rules for non–Super Admins
+        $rules = [
             'name'            => ['required', 'string', 'max:255'],
-            'email'           => ['required', 'email', Rule::unique('users', 'email')->ignore($updatingUserId)],
             'mobile'          => ['required', 'regex:/^01[3-9][0-9]{8}$/', Rule::unique('users', 'mobile')->ignore($updatingUserId)],
-            'employee_id'     => ['required', 'string', 'max:255', Rule::unique('users', 'employee_id')->ignore($updatingUserId)],
-            'max_limit'       => ['required', 'integer', 'min:1'],
-            'role_id'         => ['nullable', 'integer', 'exists:roles,id'],
-            'platforms'       => ['required', 'array'],
-            'platforms.*'     => ['integer', 'distinct', 'exists:platforms,id'],
             'profile_picture' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ];
+
+        // If the authenticated user is Super Admin, apply full validation
+        if ($authRoleName === 'Super Admin') {
+            $rules = array_merge($rules, [
+                'email'       => ['required', 'email', Rule::unique('users', 'email')->ignore($updatingUserId)],
+                'employee_id' => ['required', 'string', 'max:255', Rule::unique('users', 'employee_id')->ignore($updatingUserId)],
+                'max_limit'   => ['required', 'integer', 'min:1'],
+                'role_id'     => ['nullable', 'integer', 'exists:roles,id'],
+                'platforms'   => ['required', 'array'],
+                'platforms.*' => ['integer', 'distinct', 'exists:platforms,id'],
+            ]);
+        }
+
+        return $rules;
     }
 
     public function messages(): array
