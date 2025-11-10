@@ -652,8 +652,8 @@ class MessageController extends Controller
 
             foreach ($attachments as $file) {
 
-                $mime     = $file->getClientMimeType();
-                $path     = $file->store('uploads/messages', 'public');
+                $mime = $file->getClientMimeType();
+                $path = $file->store('uploads/messages', 'public');
                 $fullPath = '/storage/' . $path;
 
                 $attachmentPaths[] = $fullPath;
@@ -661,7 +661,7 @@ class MessageController extends Controller
                 $bulkInsert[] = [
                     'message_id'   => $message->id,
                     'path'         => $fullPath,
-                    'type'         => $mime,
+                    'type'         => $file->getClientOriginalExtension(),
                     'mime'         => $mime,
                     'size'         => $file->getSize(),
                     'is_available' => 1,

@@ -1097,7 +1097,7 @@ class PlatformWebhookController extends Controller
                     $bulkInsert[] = [
                         'message_id' => $message->id,
                         'path' => $fullPath,
-                        'type' => $mime,
+                        'type' => $file->getClientOriginalExtension(),
                         'mime' => $mime,
                         'size' => $file->getSize(),
                         'created_at' => now(),
