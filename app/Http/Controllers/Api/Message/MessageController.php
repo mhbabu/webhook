@@ -439,6 +439,7 @@ class MessageController extends Controller
         }
 
         $platformName = strtolower($customer->platform->name);
+        $platformName = $customer->platform->name;
 
         // Step 3: Check if conversation expired or ended
         // $expireHours = config('services.conversation_expire_hours');
@@ -696,30 +697,31 @@ class MessageController extends Controller
         ]);
 
         // Step 2: Handle attachments
-        foreach ($attachments as $file) {
-            $storedPath = $file->store('instagram_temp', 'public');
-            $mime = $file->getMimeType();
+        // foreach ($attachments as $file) {
+        //     $storedPath = $file->store('instagram_temp', 'public');
+        //     $mime = $file->getMimeType();
 
-            // Send to Instagram
-            $response = $instagramService->sendAttachmentMessage($recipientId, $storedPath, $mime);
-            $mediaResponses[] = $response;
+        //     // Send to Instagram
+        //     $response = $instagramService->sendAttachmentMessage($recipientId, $storedPath, $mime);
+        //     info('Instagram Media Response', $response);
+        //     $mediaResponses[] = $response;
 
-            Log::info('Instagram Media Response', $response);
+        //     Log::info('Instagram Media Response', $response);
 
-            // Save attachment using the relationship
-            $textMessage->attachments()->create([
-                'type' => $instagramService->resolveMediaType($mime),
-                'path' => $storedPath,
-                'mime' => $mime,
-                'size' => $file->getSize(),
-            ]);
-        }
+        //     // Save attachment using the relationship
+        //     $textMessage->attachments()->create([
+        //         'type' => $instagramService->resolveMediaType($mime),
+        //         'path' => $storedPath,
+        //         'mime' => $mime,
+        //         'size' => $file->getSize(),
+        //     ]);
+        // }
 
-        return $mediaResponses;
         // Step 3: Send text after attachments
         if ($textMessage->content) {
-            return $textResponse = $instagramService->sendInstagramMessage($recipientId, $textMessage->content);
-            // $textMessage->update(['platform_message_id' => $textResponse['message_id'] ?? null]);
+            $textResponse = $instagramService->sendInstagramMessage($recipientId, $textMessage->content);
+            $textMessage->update(['platform_message_id' => $textResponse['message_id']]);
+            info('Instagram Text Response', $textResponse);
         }
 
         // Step 4: Return message with attachments loaded
