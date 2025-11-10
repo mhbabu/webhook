@@ -110,23 +110,21 @@ if (!function_exists('storeAndDetectAttachment')) {
     /**
      * Store a file and detect its type.
      *
-     * @param UploadedFile $file
+     * @param \Illuminate\Http\UploadedFile $file
      * @param string $disk
      * @param string $folder
      * @return array
      */
     function storeAndDetectAttachment(UploadedFile $file, string $disk = 'public', string $folder = 'uploads/messages'): array
     {
-        // Store the file
+        // Store file (returns relative path, e.g. 'uploads/messages/filename.png')
         $path = $file->store($folder, $disk);
-        $fullPath = '/storage/' . $path; // URL for DB
-        $localPath = storage_path("app/{$disk}/{$path}"); // Local path for processing
 
-        // Get file info
+        // File info
         $mime = $file->getClientMimeType();
         $size = $file->getSize();
 
-        // Detect type based on MIME
+        // Detect type
         $type = match (true) {
             str_starts_with($mime, 'image/') => 'image',
             str_starts_with($mime, 'video/') => 'video',
@@ -135,8 +133,8 @@ if (!function_exists('storeAndDetectAttachment')) {
         };
 
         return [
-            'path'       => $fullPath,  // for DB
-            'local_path' => $localPath, // for processing (e.g., WhatsApp upload)
+            'path'       => $path, // ✅ store only relative path (no '/storage/', no domain)
+            'local_path' => storage_path("app/{$disk}/{$path}"),
             'type'       => $type,
             'mime'       => $mime,
             'size'       => $size,

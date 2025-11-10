@@ -830,7 +830,7 @@ class PlatformWebhookController extends Controller
     public function receiveWebsitePageData(WebsiteCustomerMessageRequest $request)
     {
         $data = $request->all();
-        Log::info('Website Incoming Request', ['data' => $data]);
+        Log::info('🌐 Website Incoming Request', ['data' => $data]);
 
         $platform = Platform::whereRaw('LOWER(name) = ?', ['website'])->first();
         $platformName = strtolower($platform->name);
@@ -839,7 +839,7 @@ class PlatformWebhookController extends Controller
         $payloadsToSend = [];
 
         DB::transaction(function () use ($customer, $platformName, &$payloadsToSend, $request) {
-            // 🔄 Get or create conversation
+            // 🗨️ Get or create conversation
             $conversation = Conversation::where('customer_id', $customer->id)
                 ->where('platform', $platformName)
                 ->latest()
@@ -847,21 +847,29 @@ class PlatformWebhookController extends Controller
 
             $isNewConversation = false;
 
-            if (!$conversation || $conversation->end_at || $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
+            if (
+                !$conversation ||
+                $conversation->end_at ||
+                $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))
+            ) {
                 if ($conversation) {
-                    updateUserInRedis($conversation->agent_id ? User::find($conversation->agent_id) : null, $conversation);
+                    updateUserInRedis(
+                        $conversation->agent_id ? User::find($conversation->agent_id) : null,
+                        $conversation
+                    );
                 }
 
                 $conversation = Conversation::create([
                     'customer_id' => $customer->id,
-                    'platform' => $platformName,
-                    'trace_id' => 'WEB-' . now()->format('YmdHis') . '-' . uniqid(),
-                    'agent_id' => null,
+                    'platform'    => $platformName,
+                    'trace_id'    => 'WEB-' . now()->format('YmdHis') . '-' . uniqid(),
+                    'agent_id'    => null,
                 ]);
+
                 $isNewConversation = true;
             }
 
-            // 📨 Create the message
+            // 💬 Create message
             $message = Message::create([
                 'conversation_id' => $conversation->id,
                 'sender_id'       => $customer->id,
@@ -875,7 +883,7 @@ class PlatformWebhookController extends Controller
 
             $attachmentPaths = [];
 
-            // 📎 Save attachments if available
+            // 📎 Handle attachments
             if ($request->hasFile('attachments')) {
                 $bulkInsert = [];
 
@@ -884,7 +892,7 @@ class PlatformWebhookController extends Controller
 
                     $bulkInsert[] = [
                         'message_id'   => $message->id,
-                        'path'         => $info['path'],
+                        'path'         => $info['path'], // ✅ relative path only
                         'type'         => $info['type'],
                         'mime'         => $info['mime'],
                         'size'         => $info['size'],
@@ -899,11 +907,13 @@ class PlatformWebhookController extends Controller
                 MessageAttachment::insert($bulkInsert);
             }
 
-            // 🔄 Update conversation with last message
+            // 🆙 Update conversation last message
             $conversation->update(['last_message_id' => $message->id]);
 
-            $customer->token_expires_at = now()->addMinutes((int) config('services.conversation.website.token_expire_minutes'));
-            $customer->save();
+            // 🔑 Extend customer token
+            $customer->update([
+                'token_expires_at' => now()->addMinutes((int) config('services.conversation.website.token_expire_minutes')),
+            ]);
 
             // 📦 Build payload
             $payload = [
@@ -925,15 +935,15 @@ class PlatformWebhookController extends Controller
 
             $payloadsToSend[] = $payload;
 
-            // 📨 Dispatch payloads after commit
+            // 🚀 Dispatch payloads after DB commit
             DB::afterCommit(function () use ($payloadsToSend) {
                 foreach ($payloadsToSend as $payload) {
                     Log::info('✅ Dispatching Website Payload After Commit', ['payload' => $payload]);
-                    $this->sendToDispatcher($payload); // Define this method or dispatch a job
+                    $this->sendToDispatcher($payload);
                 }
             });
         });
 
-        return jsonResponse('Message received', true);
+        return jsonResponse('Message received successfully', true);
     }
 }
