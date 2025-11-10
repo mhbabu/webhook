@@ -42,7 +42,7 @@ class UserTableSeeder extends Seeder
             'max_limit'           => 5,
             'current_limit'       => 5
         ]);
-        $admin->platforms()->sync([1, 2, 3, 4]);
+        $admin->platforms()->sync([1, 2, 3, 4, 5, 6]);
 
         // Supervisor
         $supervisor = User::create([
