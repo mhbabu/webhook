@@ -647,8 +647,6 @@ class MessageController extends Controller
 
         $conversation->update(['last_message_id' => $message->id]);
 
-        $attachmentPaths = [];
-
         // Step 2: Handle attachments using helper
         if (!empty($attachments)) {
             $bulkInsert = [];
@@ -667,8 +665,6 @@ class MessageController extends Controller
                     'created_at'   => now(),
                     'updated_at'   => now(),
                 ];
-
-                $attachmentPaths[] = $info['path'];
             }
 
             MessageAttachment::insert($bulkInsert);
@@ -679,8 +675,6 @@ class MessageController extends Controller
 
         return jsonResponse('Website message sent successfully.', true, new MessageResource($message));
     }
-
-
 
     protected function sendInstagramMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
     {

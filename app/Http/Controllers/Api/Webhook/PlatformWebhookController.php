@@ -866,7 +866,7 @@ class PlatformWebhookController extends Controller
                 'conversation_id' => $conversation->id,
                 'sender_id'       => $customer->id,
                 'sender_type'     => Customer::class,
-                'type'            => $request->input('content') ? 'text' : null,
+                'type'            => !empty($request->content) ? 'text' : null,
                 'content'         => $request->input('content'),
                 'direction'       => 'incoming',
                 'receiver_type'   => User::class,
