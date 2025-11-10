@@ -632,50 +632,55 @@ class MessageController extends Controller
             'data' => $data,
             'attachmentsCount' => count($attachments),
         ]);
-        // Save text message in DB
-        $message                        = new Message;
-        $message->conversation_id       = $conversation->id;
-        $message->sender_id             = auth()->id();
-        $message->sender_type           = User::class;
-        $message->receiver_type         = Customer::class;
-        $message->receiver_id           = $customer->id;
-        $message->type                  = 'text';
-        $message->content               = $data['content'] ?? '';
-        $message->direction             = 'outgoing';
-        $message->save();
+
+        // Step 1: Save text message in DB
+        $message = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id'       => auth()->id(),
+            'sender_type'     => User::class,
+            'receiver_type'   => Customer::class,
+            'receiver_id'     => $customer->id,
+            'type'            => $data['content'] ? 'text' : null,
+            'content'         => $data['content'] ?? null,
+            'direction'       => 'outgoing',
+        ]);
 
         $conversation->update(['last_message_id' => $message->id]);
 
-        // Handle attachments if any (optional)
+        $attachmentPaths = [];
 
-        if (! empty($attachments)) {
+        // Step 2: Handle attachments using helper
+        if (!empty($attachments)) {
             $bulkInsert = [];
 
             foreach ($attachments as $file) {
-
-                $mime = $file->getClientMimeType();
-                $path = $file->store('uploads/messages', 'public');
-                $fullPath = '/storage/' . $path;
-
-                $attachmentPaths[] = $fullPath;
+                // Use helper to store file and detect type
+                $info = storeAndDetectAttachment($file, 'public', 'uploads/website/attachments');
 
                 $bulkInsert[] = [
                     'message_id'   => $message->id,
-                    'path'         => $fullPath,
-                    'type'         => $file->getClientOriginalExtension(),
-                    'mime'         => $mime,
-                    'size'         => $file->getSize(),
+                    'path'         => $info['path'],
+                    'type'         => $info['type'],
+                    'mime'         => $info['mime'],
+                    'size'         => $info['size'],
                     'is_available' => 1,
                     'created_at'   => now(),
                     'updated_at'   => now(),
                 ];
+
+                $attachmentPaths[] = $info['path'];
             }
+
             MessageAttachment::insert($bulkInsert);
         }
 
+        // Step 3: Return message with attachments
         $message->refresh()->load('attachments');
+
         return jsonResponse('Website message sent successfully.', true, new MessageResource($message));
     }
+
+
 
     protected function sendInstagramMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
     {
