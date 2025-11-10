@@ -178,6 +178,10 @@ class CustomerController extends Controller
                         ->latest()
                         ->first();
 
+        if (!$conversations) {
+            return jsonResponse('No conversation exist.', false, null, 200);
+        }                
+
         return jsonResponse('Conversations retrieved successfully', true, new CustomerConversationInfoResource($conversations));
     }
 }

@@ -109,7 +109,7 @@ class PlatformWebhookController extends Controller
                 $conversation = new Conversation;
                 $conversation->customer_id = $customer->id;
                 $conversation->platform = $platformName;
-                $conversation->trace_id = 'WA-'.now()->format('YmdHis').'-'.uniqid();
+                $conversation->trace_id = 'WA-' . now()->format('YmdHis') . '-' . uniqid();
                 $conversation->agent_id = null;
                 $conversation->save();
 
@@ -203,7 +203,7 @@ class PlatformWebhookController extends Controller
 
                 // Save attachments if available
                 if (! empty($attachments)) {
-                    $bulkInsert = array_map(fn ($att) => [
+                    $bulkInsert = array_map(fn($att) => [
                         'message_id' => $message->id,
                         'attachment_id' => $att['attachment_id'],
                         'path' => $att['path'],
@@ -298,7 +298,7 @@ class PlatformWebhookController extends Controller
                 $conversation = Conversation::create([
                     'customer_id' => $customer->id,
                     'platform' => $platformName,
-                    'trace_id' => 'WA-'.now()->format('YmdHis').'-'.uniqid(),
+                    'trace_id' => 'WA-' . now()->format('YmdHis') . '-' . uniqid(),
                     'agent_id' => null,
                 ]);
 
@@ -388,7 +388,7 @@ class PlatformWebhookController extends Controller
 
                 // Store attachments if present
                 if (! empty($attachments)) {
-                    $bulkInsert = array_map(fn ($att) => [
+                    $bulkInsert = array_map(fn($att) => [
                         'message_id' => $message->id,
                         'attachment_id' => $att['attachment_id'],
                         'path' => $att['path'],
@@ -441,7 +441,7 @@ class PlatformWebhookController extends Controller
     private function sendToDispatcher(array $payload): void
     {
         try {
-            $response = Http::acceptJson()->post(config('dispatcher.url').config('dispatcher.endpoints.handler'), $payload);
+            $response = Http::acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
 
             if ($response->ok()) {
                 Log::info('[CUSTOMER MESSAGE FORWARDED]', $payload);
@@ -586,12 +586,12 @@ class PlatformWebhookController extends Controller
                             $response = Http::get($profilePic);
                             if ($response->ok()) {
                                 $extension = pathinfo(parse_url($profilePic, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
-                                $filename = "profile_photos/ig_{$customer->id}.".$extension;
+                                $filename = "profile_photos/ig_{$customer->id}." . $extension;
                                 Storage::disk('public')->put($filename, $response->body());
                                 $customer->update(['profile_photo' => $filename]);
                             }
                         } catch (\Exception $e) {
-                            Log::error('⚠️ Failed to download Instagram profile photo: '.$e->getMessage());
+                            Log::error('⚠️ Failed to download Instagram profile photo: ' . $e->getMessage());
                         }
                     }
 
@@ -614,7 +614,7 @@ class PlatformWebhookController extends Controller
                         $conversation = Conversation::create([
                             'customer_id' => $customer->id,
                             'platform' => $platformName,
-                            'trace_id' => 'IGM-'.now()->format('YmdHis').'-'.uniqid(),
+                            'trace_id' => 'IGM-' . now()->format('YmdHis') . '-' . uniqid(),
                         ]);
                         $isNewConversation = true;
                     }
@@ -856,7 +856,7 @@ class PlatformWebhookController extends Controller
                             $response = Http::get($profilePic);
                             if ($response->ok()) {
                                 $extension = pathinfo(parse_url($profilePic, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
-                                $filename = "profile_photos/fb_{$customer->id}.".$extension;
+                                $filename = "profile_photos/fb_{$customer->id}." . $extension;
                                 Storage::disk('public')->put($filename, $response->body());
                                 $customer->update(['profile_photo' => $filename]);
                                 Log::info('📷 Profile photo downloaded', ['customer_id' => $customer->id, 'path' => $filename]);
@@ -881,7 +881,7 @@ class PlatformWebhookController extends Controller
                         $conversation = Conversation::create([
                             'customer_id' => $customer->id,
                             'platform' => $platformName,
-                            'trace_id' => 'FB-'.now()->format('YmdHis').'-'.uniqid(),
+                            'trace_id' => 'FB-' . now()->format('YmdHis') . '-' . uniqid(),
                         ]);
                         $isNewConversation = true;
                         Log::info('🆕 New conversation created', ['conversation_id' => $conversation->id]);
@@ -933,7 +933,7 @@ class PlatformWebhookController extends Controller
 
                     // 5️⃣ Attach files to message
                     if (! empty($storedAttachments)) {
-                        $bulkInsert = array_map(fn ($att) => [
+                        $bulkInsert = array_map(fn($att) => [
                             'message_id' => $message->id,
                             'attachment_id' => $att['attachment_id'],
                             'path' => $att['path'],
@@ -1063,7 +1063,7 @@ class PlatformWebhookController extends Controller
                 $conversation = Conversation::create([
                     'customer_id' => $customer->id,
                     'platform' => $platformName,
-                    'trace_id' => 'WEB-'.now()->format('YmdHis').'-'.uniqid(),
+                    'trace_id' => 'WEB-' . now()->format('YmdHis') . '-' . uniqid(),
                     'agent_id' => null,
                 ]);
                 $isNewConversation = true;
@@ -1088,8 +1088,9 @@ class PlatformWebhookController extends Controller
                 $bulkInsert = [];
 
                 foreach ($request->file('attachments') as $file) {
-                    $path = $file->store('uploads/messages', 'public');
-                    $fullPath = '/storage/'.$path;
+                    $mime     = $file->getClientMimeType();
+                    $path     = $file->store('uploads/messages', 'public');
+                    $fullPath = '/storage/' . $path;
 
                     $attachmentPaths[] = $fullPath;
 
@@ -1097,7 +1098,7 @@ class PlatformWebhookController extends Controller
                         'message_id' => $message->id,
                         'path' => $fullPath,
                         'type' => $file->getClientOriginalExtension(),
-                        'mime' => $file->getClientMimeType(),
+                        'mime' => $mime,
                         'size' => $file->getSize(),
                         'created_at' => now(),
                         'updated_at' => now(),

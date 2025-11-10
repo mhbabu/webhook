@@ -16,31 +16,42 @@ class UpdateUserProfileRequest extends FormRequest
 
     public function rules(): array
     {
-        // The user being updated
-        $user           = $this->route('user');
-        $updatingUserId = $user->id ?? null;
+        // Get the target user ID from route (works for {userId} or {user})
+        $user = $this->route('userId') ?? $this->route('user');
+        $userId = $user?->id ?? $user; // if it's a model, take id; otherwise use as-is
 
         // Authenticated user's role
         $authRoleName = auth()->user()?->role?->name ?? null;
 
-        info('Authenticated Role: ' . $authRoleName);
-
-        // Base (default) rules for non–Super Admins
+        // Base rules for all users
         $rules = [
             'name'            => ['required', 'string', 'max:255'],
-            'mobile'          => ['required', 'regex:/^01[3-9][0-9]{8}$/', Rule::unique('users', 'mobile')->ignore($updatingUserId)],
+            'mobile'          => [
+                'required',
+                'regex:/^01[3-9][0-9]{8}$/',
+                Rule::unique('users', 'mobile')->ignore($userId, 'id'),
+            ],
             'profile_picture' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ];
 
-        // If the authenticated user is Super Admin, apply full validation
+        // Super Admin rules
         if ($authRoleName === 'Super Admin') {
             $rules = array_merge($rules, [
-                'email'       => ['required', 'email', Rule::unique('users', 'email')->ignore($updatingUserId)],
-                'employee_id' => ['required', 'string', 'max:255', Rule::unique('users', 'employee_id')->ignore($updatingUserId)],
+                'email'       => [
+                    'required',
+                    'email',
+                    Rule::unique('users', 'email')->ignore($userId, 'id'),
+                ],
+                'employee_id' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    Rule::unique('users', 'employee_id')->ignore($userId, 'id'),
+                ],
                 'max_limit'   => ['required', 'integer', 'min:1'],
                 'role_id'     => ['nullable', 'integer', 'exists:roles,id'],
-                'platforms'   => ['required', 'array'],
-                'platforms.*' => ['integer', 'distinct', 'exists:platforms,id'],
+                'platform_ids'   => ['required', 'array'],
+                'platform_ids.*' => ['integer', 'distinct', 'exists:platforms,id'],
             ]);
         }
 

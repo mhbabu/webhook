@@ -281,11 +281,14 @@ class UserService
     /**
      * Update user profile
      */
-    public function updateUserProfile(array $data, User $user): array
+    public function updateUserProfile(array $data, $userId): array
     {
         DB::beginTransaction();
 
         try {
+            // Fetch the user here
+            $user = User::findOrFail($userId);
+
             $authUser = auth()->user();
             $isSuperAdmin = $authUser?->role?->name === 'Super Admin';
 
@@ -315,8 +318,8 @@ class UserService
             }
 
             // Sync platforms — only Super Admin can change platforms
-            if ($isSuperAdmin && !empty($data['platforms']) && is_array($data['platforms'])) {
-                $user->platforms()->sync(array_unique($data['platforms']));
+            if ($isSuperAdmin && !empty($data['platform_ids']) && is_array($data['platform_ids'])) {
+                $user->platforms()->sync(array_unique($data['platform_ids']));
             }
 
             DB::commit();
