@@ -153,9 +153,8 @@ class EmailService
                 // persist + we need conversation outside closure
                 DB::transaction(function () use (
                     $uid, $platformId, $platformName, $fromMail, $subject, $textBody, $htmlBody,
-                    &$conversation
+                    &$conversation, &$payload
                 ) {
-
                     $customer = Customer::firstOrCreate([
                         'email' => $fromMail,
                         'platform_id' => $platformId,
@@ -195,21 +194,24 @@ class EmailService
                 // payload unified
                 $payload = [
                     'source' => 'email',
-                    'traceId' => $conversation->trace_id,
-                    'conversationId' => $conversation->id,
-                    'timestamp' => $timestamp,
+                    'traceId' => $conversation->trace_id ?? null,
+                    'conversationId' => $conversation->id ?? null,
+                    // 'conversationType' => $isNewConversation ? 'new' : 'old',
+                    'senderEmail' => $fromMail,
                     'subject' => $subject,
-                    'text_body' => $textBody,
-                    'html_body' => $htmlBody,
-                    'attachments' => $attachmentsArr,
-                    'api_key' => config('dispatcher.messenger_api_key'),
+                    // 'text_body' => $textBody,
+                    // 'html_body' => $htmlBody,
+                    // 'attachments' => $attachmentsArr,
                 ];
 
-                Log::info('📥 New email received', [
-                    'platform_message_id' => $uid,
-                    'from' => $fromMail,
-                    'subject' => $subject,
-                ]);
+                // Log::info('📥 New email received', [
+                //     'platform_message_id' => $uid,
+                //     'from' => $fromMail,
+                //     'subject' => $subject,
+                // ]);
+
+                Log::info('📥 New email received', ['payload' => $payload]);
+
                 DB::afterCommit(function () use ($payload) {
                     ProcessEmailBatch::dispatch($payload)->onQueue('dispatcher');
                 });
