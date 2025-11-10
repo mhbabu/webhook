@@ -25,8 +25,9 @@ return new class extends Migration
             $table->string('receiver_type')->nullable();
             $table->timestamp('delivered_at')->nullable();
             $table->string('type')->default('text');
-            $table->longText('content')->nullable();
             $table->string('subject')->nullable();
+            $table->longText('content')->nullable();
+            $table->longText('html_content')->nullable();
             $table->enum('direction', ['incoming', 'outgoing']);
             $table->timestamp('read_at')->nullable();
             $table->string('read_by')->nullable();
