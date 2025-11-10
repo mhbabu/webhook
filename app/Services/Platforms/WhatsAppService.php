@@ -156,9 +156,6 @@ class WhatsAppService
         return $response->successful() ? $response->json('id') : null;
     }
 
-
-
-
     public function sendMediaMessage(string $to, string $mediaId, string $type = 'image'): array
     {
         $payload = [
