@@ -55,209 +55,6 @@ class PlatformWebhookController extends Controller
         return response('Verification token mismatch', 403);
     }
 
-<<<<<<< HEAD
-    public function incomingWhatsAppMessage1(Request $request)
-    {
-        // Capture and log the entire incoming request
-        $data = $request->all();
-        Log::info('WhatsApp Incoming Request', ['data' => $data]);
-
-        $entry = $data['entry'][0]['changes'][0]['value'] ?? [];
-        $statuses = $entry['statuses'] ?? [];
-        $messages = $entry['messages'] ?? [];
-        $contacts = $entry['contacts'][0] ?? null;
-
-        // Find WhatsApp platform
-        $platform = Platform::whereRaw('LOWER(name) = ?', ['whatsapp'])->first();
-        $platformId = $platform->id;
-        $platformName = strtolower($platform->name);
-
-        // Determine sender's phone and name
-        $phone = $contacts['wa_id'] ?? ($messages[0]['from'] ?? null);
-        if (! $phone) {
-            Log::warning('Invalid or missing phone number in request.');
-
-            return response()->json(['status' => 'invalid_phone'], 400);
-        }
-
-        $senderName = $contacts['profile']['name'] ?? $phone;
-
-        // Collect all payloads to send after DB commit
-        $payloadsToSend = [];
-
-        DB::transaction(function () use ($statuses, $messages, $phone, $senderName, $platformId, $platformName, &$payloadsToSend) {
-
-            // 1️⃣ Get or create customer
-            $customer = Customer::firstOrCreate(
-                ['phone' => $phone, 'platform_id' => $platformId],
-                ['name' => $senderName]
-            );
-
-            // 2️⃣ Find or create active conversation
-            $conversation = Conversation::where('customer_id', $customer->id)
-                ->where('platform', $platformName)
-                // ->where(function ($q) {
-                //     $q->whereNull('end_at')
-                //         ->orWhere('created_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
-                // })
-                ->latest()
-                ->first();
-
-            $isNewConversation = false;
-
-            if (! $conversation || $conversation->end_at !== null || $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
-
-                // Clean old conversation from Redis
-                if ($conversation) {
-                    updateUserInRedis($conversation->agent_id ? User::find($conversation->agent_id) : null, $conversation);
-                }
-
-                $conversation = new Conversation;
-                $conversation->customer_id = $customer->id;
-                $conversation->platform = $platformName;
-                $conversation->trace_id = 'WA-'.now()->format('YmdHis').'-'.uniqid();
-                $conversation->agent_id = null;
-                $conversation->save();
-
-                $isNewConversation = true;
-            }
-
-            // 3️⃣ Handle statuses
-            foreach ($statuses as $status) {
-                $payloadsToSend[] = [
-                    'source' => 'whatsapp',
-                    'traceId' => $conversation->trace_id,
-                    'conversationId' => $conversation->id,
-                    'conversationType' => $isNewConversation ? 'new' : 'old',
-                    'sender' => $phone,
-                    'api_key' => config('dispatcher.whatsapp_api_key'),
-                    'timestamp' => $status['timestamp'] ?? time(),
-                    'message' => $status['status'] ?? '',
-                    'attachmentId' => [],
-                    'attachments' => [],
-                    'subject' => 'WhatsApp Status Update',
-                ];
-            }
-
-            // 4️⃣ Handle incoming messages
-            foreach ($messages as $msg) {
-                $type = $msg['type'] ?? '';
-
-                // Skip unsupported types
-                if (! in_array($type, ['text', 'image', 'video', 'document', 'audio'])) {
-                    Log::info('Skipped unsupported WhatsApp message type', ['type' => $type, 'msg' => $msg]);
-
-                    continue;
-                }
-
-                $caption = null;
-                $mediaIds = [];
-                $attachments = [];
-                $timestamp = $msg['timestamp'] ?? time();
-
-                if ($type === 'text') {
-                    $caption = $msg['text']['body'] ?? '';
-                } else {
-                    $mediaId = $msg[$type]['id'] ?? null;
-
-                    if ($mediaId) {
-                        $mediaIds[] = $mediaId;
-
-                        $mediaData = $this->whatsAppService->getMediaUrlAndDownload($mediaId);
-                        if ($mediaData) {
-                            $attachments[] = [
-                                'attachment_id' => $mediaId,
-                                'path' => $mediaData['full_path'],
-                                'is_download' => 1,
-                                'mime' => $mediaData['mime'] ?? null,
-                                'size' => $mediaData['size'] ?? null,
-                                'type' => $mediaData['type'],
-                            ];
-                        } else {
-                            Log::error("Media download failed for ID: {$mediaId}");
-                        }
-                    }
-
-                    if (! $caption && ! empty($msg[$type]['caption'])) {
-                        $caption = $msg[$type]['caption'];
-                    }
-                }
-
-                // Handle reply context
-                $platformMessageId = $msg['id'] ?? null;
-                $parentPlatformMessageId = $msg['context']['id'] ?? null;
-                $parentId = null;
-
-                if ($parentPlatformMessageId) {
-                    $parent = Message::where('platform_message_id', $parentPlatformMessageId)->first();
-                    $parentId = $parent?->id;
-                }
-
-                // Store message
-                $message = Message::create([
-                    'conversation_id' => $conversation->id,
-                    'sender_id' => $customer->id,
-                    'sender_type' => Customer::class,
-                    'type' => $type,
-                    'content' => $caption,
-                    'direction' => 'incoming',
-                    'receiver_type' => User::class,
-                    'receiver_id' => $conversation->agent_id ?? null,
-                    'platform_message_id' => $platformMessageId,
-                    'parent_id' => $parentId,
-                ]);
-
-                // Save attachments if available
-                if (! empty($attachments)) {
-                    $bulkInsert = array_map(fn ($att) => [
-                        'message_id' => $message->id,
-                        'attachment_id' => $att['attachment_id'],
-                        'path' => $att['path'],
-                        'type' => $att['type'],
-                        'mime' => $att['mime'],
-                        'size' => $att['size'],
-                        'is_available' => $att['is_download'],
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ], $attachments);
-
-                    MessageAttachment::insert($bulkInsert);
-                }
-
-                // Update conversation
-                $conversation->update(['last_message_id' => $message->id]);
-
-                // Build payload
-                $payloadsToSend[] = [
-                    'source' => 'whatsapp',
-                    'traceId' => $conversation->trace_id,
-                    'conversationId' => $conversation->id,
-                    'conversationType' => $isNewConversation ? 'new' : 'old',
-                    'sender' => $phone,
-                    'api_key' => config('dispatcher.whatsapp_api_key'),
-                    'timestamp' => $timestamp,
-                    'message' => $caption ?? null,
-                    'attachmentId' => $mediaIds,
-                    'attachments' => array_column($attachments, 'path'),
-                    'subject' => "Customer Message from $senderName",
-                    'messageId' => $message->id,
-                ];
-            }
-
-            // ✅ Send all payloads only after transaction commit
-            DB::afterCommit(function () use ($payloadsToSend) {
-                foreach ($payloadsToSend as $payload) {
-                    Log::info('✅ Dispatching WhatsApp Payload After Commit', ['payload' => $payload]);
-                    $this->sendToDispatcher($payload);
-                }
-            });
-        });
-
-        return jsonResponse(! empty($messages) ? 'Message received' : 'Status received', true);
-    }
-
-=======
->>>>>>> 248280ca2905d08137aa046ad259599ae1e288a3
     public function incomingWhatsAppMessage(Request $request)
     {
         $data = $request->all();
@@ -753,7 +550,7 @@ class PlatformWebhookController extends Controller
 
     protected function sendInstagramMessage($recipientId, $message)
     {
-        $accessToken = env('INSTAGRAM_GRAPH_TOKEN'); // Page access token
+        $accessToken = env('INSTAGRAM_PAGE_TOKEN'); // Page access token
         $url = 'https://graph.facebook.com/v24.0/me/messages';
 
         $payload = [
@@ -1056,7 +853,7 @@ class PlatformWebhookController extends Controller
             $isNewConversation = false;
 
             if (
-                !$conversation ||
+                ! $conversation ||
                 $conversation->end_at ||
                 $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))
             ) {
@@ -1069,15 +866,9 @@ class PlatformWebhookController extends Controller
 
                 $conversation = Conversation::create([
                     'customer_id' => $customer->id,
-<<<<<<< HEAD
                     'platform' => $platformName,
                     'trace_id' => 'WEB-'.now()->format('YmdHis').'-'.uniqid(),
                     'agent_id' => null,
-=======
-                    'platform'    => $platformName,
-                    'trace_id'    => 'WEB-' . now()->format('YmdHis') . '-' . uniqid(),
-                    'agent_id'    => null,
->>>>>>> 248280ca2905d08137aa046ad259599ae1e288a3
                 ]);
 
                 $isNewConversation = true;
@@ -1086,13 +877,13 @@ class PlatformWebhookController extends Controller
             // 💬 Create message
             $message = Message::create([
                 'conversation_id' => $conversation->id,
-                'sender_id'       => $customer->id,
-                'sender_type'     => Customer::class,
-                'type'            => !empty($request->content) ? 'text' : null,
-                'content'         => $request->input('content'),
-                'direction'       => 'incoming',
-                'receiver_type'   => User::class,
-                'receiver_id'     => $conversation->agent_id ?? null,
+                'sender_id' => $customer->id,
+                'sender_type' => Customer::class,
+                'type' => ! empty($request->content) ? 'text' : null,
+                'content' => $request->input('content'),
+                'direction' => 'incoming',
+                'receiver_type' => User::class,
+                'receiver_id' => $conversation->agent_id ?? null,
             ]);
 
             $attachmentPaths = [];
@@ -1102,25 +893,17 @@ class PlatformWebhookController extends Controller
                 $bulkInsert = [];
 
                 foreach ($request->file('attachments') as $file) {
-<<<<<<< HEAD
-                    $mime = $file->getClientMimeType();
-                    $path = $file->store('uploads/messages', 'public');
-                    $fullPath = '/storage/'.$path;
-
-                    $attachmentPaths[] = $fullPath;
-=======
                     $info = storeAndDetectAttachment($file, 'public', 'uploads/website/attachments');
->>>>>>> 248280ca2905d08137aa046ad259599ae1e288a3
 
                     $bulkInsert[] = [
-                        'message_id'   => $message->id,
-                        'path'         => $info['path'], // ✅ relative path only
-                        'type'         => $info['type'],
-                        'mime'         => $info['mime'],
-                        'size'         => $info['size'],
+                        'message_id' => $message->id,
+                        'path' => $info['path'], // ✅ relative path only
+                        'type' => $info['type'],
+                        'mime' => $info['mime'],
+                        'size' => $info['size'],
                         'is_available' => 1,
-                        'created_at'   => now(),
-                        'updated_at'   => now(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ];
 
                     $attachmentPaths[] = $info['path'];
@@ -1139,19 +922,19 @@ class PlatformWebhookController extends Controller
 
             // 📦 Build payload
             $payload = [
-                'source'           => 'website',
-                'traceId'          => $conversation->trace_id,
-                'conversationId'   => $conversation->id,
+                'source' => 'website',
+                'traceId' => $conversation->trace_id,
+                'conversationId' => $conversation->id,
                 'conversationType' => $isNewConversation ? 'new' : 'old',
-                'sender'           => $customer->email ?? $customer->phone,
-                'api_key'          => config('dispatcher.website_api_key'),
-                'timestamp'        => time(),
-                'message'          => $message->content,
-                'subject'          => 'Customer Message from Website',
-                'messageId'        => $message->id,
+                'sender' => $customer->email ?? $customer->phone,
+                'api_key' => config('dispatcher.website_api_key'),
+                'timestamp' => time(),
+                'message' => $message->content,
+                'subject' => 'Customer Message from Website',
+                'messageId' => $message->id,
             ];
 
-            if (!empty($attachmentPaths)) {
+            if (! empty($attachmentPaths)) {
                 $payload['attachments'] = $attachmentPaths;
             }
 
