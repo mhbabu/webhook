@@ -10,6 +10,7 @@ use App\Models\Message;
 use App\Models\MessageAttachment;
 use App\Models\Platform;
 use App\Models\User;
+use App\Services\Platforms\EmailService;
 use App\Services\Platforms\FacebookService;
 use App\Services\Platforms\InstagramService;
 use App\Services\Platforms\WhatsAppService;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Webklex\IMAP\Facades\Client;
 
 class PlatformWebhookController extends Controller
 {
@@ -27,11 +29,14 @@ class PlatformWebhookController extends Controller
 
     protected $instagramService;
 
-    public function __construct(WhatsAppService $whatsAppService, FacebookService $facebookService, InstagramService $instagramService)
+    protected $EmailService;
+
+    public function __construct(WhatsAppService $whatsAppService, FacebookService $facebookService, InstagramService $instagramService, EmailService $EmailService)
     {
         $this->whatsAppService = $whatsAppService;
         $this->facebookService = $facebookService;
         $this->instagramService = $instagramService;
+        $this->EmailService = $EmailService;
     }
 
     // Meta webhook callbackUrl verification endpoint
@@ -109,7 +114,7 @@ class PlatformWebhookController extends Controller
                 $conversation = new Conversation;
                 $conversation->customer_id = $customer->id;
                 $conversation->platform = $platformName;
-                $conversation->trace_id = 'WA-' . now()->format('YmdHis') . '-' . uniqid();
+                $conversation->trace_id = 'WA-'.now()->format('YmdHis').'-'.uniqid();
                 $conversation->agent_id = null;
                 $conversation->save();
 
@@ -203,7 +208,7 @@ class PlatformWebhookController extends Controller
 
                 // Save attachments if available
                 if (! empty($attachments)) {
-                    $bulkInsert = array_map(fn($att) => [
+                    $bulkInsert = array_map(fn ($att) => [
                         'message_id' => $message->id,
                         'attachment_id' => $att['attachment_id'],
                         'path' => $att['path'],
@@ -298,7 +303,7 @@ class PlatformWebhookController extends Controller
                 $conversation = Conversation::create([
                     'customer_id' => $customer->id,
                     'platform' => $platformName,
-                    'trace_id' => 'WA-' . now()->format('YmdHis') . '-' . uniqid(),
+                    'trace_id' => 'WA-'.now()->format('YmdHis').'-'.uniqid(),
                     'agent_id' => null,
                 ]);
 
@@ -388,7 +393,7 @@ class PlatformWebhookController extends Controller
 
                 // Store attachments if present
                 if (! empty($attachments)) {
-                    $bulkInsert = array_map(fn($att) => [
+                    $bulkInsert = array_map(fn ($att) => [
                         'message_id' => $message->id,
                         'attachment_id' => $att['attachment_id'],
                         'path' => $att['path'],
@@ -441,7 +446,7 @@ class PlatformWebhookController extends Controller
     private function sendToDispatcher(array $payload): void
     {
         try {
-            $response = Http::acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
+            $response = Http::acceptJson()->post(config('dispatcher.url').config('dispatcher.endpoints.handler'), $payload);
 
             if ($response->ok()) {
                 Log::info('[CUSTOMER MESSAGE FORWARDED]', $payload);
@@ -586,12 +591,12 @@ class PlatformWebhookController extends Controller
                             $response = Http::get($profilePic);
                             if ($response->ok()) {
                                 $extension = pathinfo(parse_url($profilePic, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
-                                $filename = "profile_photos/ig_{$customer->id}." . $extension;
+                                $filename = "profile_photos/ig_{$customer->id}.".$extension;
                                 Storage::disk('public')->put($filename, $response->body());
                                 $customer->update(['profile_photo' => $filename]);
                             }
                         } catch (\Exception $e) {
-                            Log::error('⚠️ Failed to download Instagram profile photo: ' . $e->getMessage());
+                            Log::error('⚠️ Failed to download Instagram profile photo: '.$e->getMessage());
                         }
                     }
 
@@ -614,7 +619,7 @@ class PlatformWebhookController extends Controller
                         $conversation = Conversation::create([
                             'customer_id' => $customer->id,
                             'platform' => $platformName,
-                            'trace_id' => 'IGM-' . now()->format('YmdHis') . '-' . uniqid(),
+                            'trace_id' => 'IGM-'.now()->format('YmdHis').'-'.uniqid(),
                         ]);
                         $isNewConversation = true;
                     }
@@ -856,7 +861,7 @@ class PlatformWebhookController extends Controller
                             $response = Http::get($profilePic);
                             if ($response->ok()) {
                                 $extension = pathinfo(parse_url($profilePic, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
-                                $filename = "profile_photos/fb_{$customer->id}." . $extension;
+                                $filename = "profile_photos/fb_{$customer->id}.".$extension;
                                 Storage::disk('public')->put($filename, $response->body());
                                 $customer->update(['profile_photo' => $filename]);
                                 Log::info('📷 Profile photo downloaded', ['customer_id' => $customer->id, 'path' => $filename]);
@@ -881,7 +886,7 @@ class PlatformWebhookController extends Controller
                         $conversation = Conversation::create([
                             'customer_id' => $customer->id,
                             'platform' => $platformName,
-                            'trace_id' => 'FB-' . now()->format('YmdHis') . '-' . uniqid(),
+                            'trace_id' => 'FB-'.now()->format('YmdHis').'-'.uniqid(),
                         ]);
                         $isNewConversation = true;
                         Log::info('🆕 New conversation created', ['conversation_id' => $conversation->id]);
@@ -933,7 +938,7 @@ class PlatformWebhookController extends Controller
 
                     // 5️⃣ Attach files to message
                     if (! empty($storedAttachments)) {
-                        $bulkInsert = array_map(fn($att) => [
+                        $bulkInsert = array_map(fn ($att) => [
                             'message_id' => $message->id,
                             'attachment_id' => $att['attachment_id'],
                             'path' => $att['path'],
@@ -1063,7 +1068,7 @@ class PlatformWebhookController extends Controller
                 $conversation = Conversation::create([
                     'customer_id' => $customer->id,
                     'platform' => $platformName,
-                    'trace_id' => 'WEB-' . now()->format('YmdHis') . '-' . uniqid(),
+                    'trace_id' => 'WEB-'.now()->format('YmdHis').'-'.uniqid(),
                     'agent_id' => null,
                 ]);
                 $isNewConversation = true;
@@ -1088,9 +1093,9 @@ class PlatformWebhookController extends Controller
                 $bulkInsert = [];
 
                 foreach ($request->file('attachments') as $file) {
-                    $mime     = $file->getClientMimeType();
-                    $path     = $file->store('uploads/messages', 'public');
-                    $fullPath = '/storage/' . $path;
+                    $mime = $file->getClientMimeType();
+                    $path = $file->store('uploads/messages', 'public');
+                    $fullPath = '/storage/'.$path;
 
                     $attachmentPaths[] = $fullPath;
 
@@ -1144,5 +1149,174 @@ class PlatformWebhookController extends Controller
         });
 
         return jsonResponse('Message received', true);
+    }
+
+    public function receiveEmailData1(Request $request)
+    {
+        $receiveMail = $this->EmailService->receiveEmail();
+
+        Log::info('Receive Email:', [
+            'data' => $receiveMail,
+        ]);
+
+        return response()->json(['status' => 'processed']);
+    }
+
+    public function receiveEmailData(Request $request)
+    {
+        $platform = Platform::whereRaw('LOWER(name) = ?', ['email'])->first();
+        $platformId = $platform->id ?? null;
+        $platformName = strtolower($platform->name ?? 'email');
+
+        $client = Client::account('gmail');
+
+        try {
+            $client->connect();
+            Log::info('✅ Gmail IMAP connected successfully!');
+        } catch (\Throwable $e) {
+            Log::error('❌ Gmail IMAP connection failed: '.$e->getMessage());
+
+            return false;
+        }
+
+        try {
+            $inbox = $client->getFolder('INBOX');
+
+            $messages = $inbox->messages()
+                ->seen()
+                ->limit(1)
+                ->leaveUnread()
+                ->fetchOrderDesc()
+                ->get();
+
+            // $messages = $inbox->messages()
+            //     ->unseen()           // ✅ only unread (unseen) messages
+            //     ->limit(2)           // limit to 2 emails
+            //     ->leaveUnread()      // ✅ do not mark as seen after fetch
+            //     ->fetchOrderDesc()   // get newest first
+            //     ->get();
+
+            foreach ($messages as $imapMsg) {
+                $messageId = $imapMsg->getMessageId()->toString();
+
+                Log::info('📥 Processing email: ', [
+                    'subject' => $imapMsg->getSubject()->toString(),
+                    'from' => (string) optional($imapMsg->getFrom()->first())->mail,
+                    'from_name' => (string) optional($imapMsg->getFrom()->first())->personal,
+                    'to' => implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getTo()->all())),
+                    'cc' => implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getCc()->all())),
+                    'bcc' => implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getBcc()->all())),
+                    // 'date_sent' => $imapMsg->getDate()->toDateTimeString(),
+                    'message_id' => $imapMsg->getMessageId()->toString(),
+                    'thread_id' => $imapMsg->getThreadId()->toString(),
+                    'uid' => $imapMsg->getUid(),
+                    // 'flags' => $imapMsg->getFlags()->toString(),
+                    'mailbox' => (string) $imapMsg->getMailbox(),
+                    'source' => (string) $imapMsg->getSource(),
+                    'attachments_count' => count($imapMsg->getAttachments()),
+                    'body_length' => strlen((string) $imapMsg->getHTMLBody()),
+
+                    'direction' => 'incoming',
+                ]);
+
+                if (Message::where('platform_message_id', $messageId)->exists()) {
+                    continue;
+                }
+                // $uid = $imapMsg->getUid()->toString();
+                // $threadId = $imapMsg->getThreadId();
+                $fromName = (string) optional($imapMsg->getFrom()->first())->personal;
+                $fromMail = (string) optional($imapMsg->getFrom()->first())->mail;
+                $toMails = implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getTo()->all()));
+                $ccMails = implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getCc()->all()));
+                $subject = (string) $imapMsg->getSubject();
+                $htmlBody = (string) $imapMsg->getHTMLBody();
+                $timestamp = now()->timestamp;
+
+                // attachments safe
+                $attachmentsArr = [];
+                $storagePath = 'mail_attachments/'.now()->format('Ymd');
+
+                foreach ($imapMsg->getAttachments() as $att) {
+                    $filename = uniqid().'_'.$att->name;
+                    $path = storage_path('app/'.$storagePath.'/'.$filename);
+
+                    if (! is_dir(dirname($path))) {
+                        mkdir(dirname($path), 0777, true);
+                    }
+
+                    file_put_contents($path, $att->content);
+                    $attachmentsArr[] = $storagePath.'/'.$filename;
+                }
+
+                // persist + we need conversation outside closure
+                $message = DB::transaction(function () use (
+                    $platformId, $platformName, $fromMail, $ccMails, $subject, $htmlBody, $messageId, $fromName, &$conversation
+                ) {
+                    $customer = Customer::firstOrCreate([
+                        'email' => $fromMail,
+                        'platform_id' => $platformId,
+                        'name' => $fromName,
+                    ]);
+
+                    $conversation = Conversation::firstOrCreate(
+                        [
+                            'customer_id' => $customer->id,
+                            'platform' => $platformName,
+                        ],
+                        [
+                            'trace_id' => 'mail-'.now()->format('YmdHis').'-'.uniqid(),
+                        ]
+                    );
+
+                    return Message::create([
+                        'conversation_id' => $conversation->id,
+                        'platform_id' => $platformId,
+                        'sender_id' => $customer->id,
+                        'sender_type' => Customer::class,
+                        'cc_email' => $ccMails,
+                        'type' => 'text',
+                        'platform_message_id' => $messageId,
+                        'subject' => $subject,
+                        'content' => $htmlBody,
+                        'direction' => 'incoming',
+                    ]);
+                });
+
+                // payload unified
+                $payload = [
+                    'source' => 'email',
+                    'traceId' => $conversation->trace_id,
+                    'conversationId' => $conversation->id,
+                    // 'conversationType' => $isNewConversation ? 'new' : 'old',
+                    'conversationType' => 'new',
+                    'api_key' => config('dispatcher.email_api_key'),
+                    'timestamp' => $timestamp,
+                    'senderName' => $fromName,
+                    'sender' => $fromMail,
+                    'cc' => $ccMails,
+                    'subject' => $subject,
+                    'html_body' => $htmlBody,
+                    'attachments' => $attachmentsArr,
+                    'messageId' => $message->id,
+                ];
+
+                // $payload = json_encode($json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+                Log::info('📥 New email received', ['payload' => $payload]);
+
+                DB::afterCommit(function () use ($payload) {
+                    Log::info('✅ Dispatching email Payload After Commit', ['payload' => $payload]);
+                    $this->sendToDispatcher($payload);
+                });
+
+                $imapMsg->setFlag('Seen');
+            }
+
+        } catch (\Throwable $e) {
+            Log::error('IMAP Read error: '.$e->getMessage());
+        }
+
+        $client->disconnect();
+
+        return true;
     }
 }

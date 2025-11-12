@@ -117,7 +117,7 @@ class MessageController extends Controller
         $user = User::find($agentId);
         $user->current_limit = $agentAvailableScope;
         $user->save();
-        Log::info('[UserData]' . json_encode($user));
+        Log::info('[UserData]'.json_encode($user));
 
         // Fetch conversation
         $conversation = Conversation::find((int) $conversationId);
@@ -243,12 +243,12 @@ class MessageController extends Controller
 
         // Remove platform only if no active conversations exist
         if ($endedPlatform && $activeConversations === 1 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
         }
 
         // Remove platform only if no active conversations exist
         if ($endedPlatform && $activeConversations === 0 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
         }
 
         // Prepare agent hash data
@@ -259,7 +259,7 @@ class MessageController extends Controller
             'MAX_SCOPE' => $user->max_limit,
             'AVAILABLE_SCOPE' => $user->current_limit,
             'CONTACT_TYPE' => json_encode($contactTypes),
-            'SKILL' => json_encode($user->platforms()->pluck('name')->map(fn($n) => strtolower($n))->toArray()),
+            'SKILL' => json_encode($user->platforms()->pluck('name')->map(fn ($n) => strtolower($n))->toArray()),
             'BUSYSINCE' => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
         ];
 
@@ -373,7 +373,7 @@ class MessageController extends Controller
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $file) {
                 $storedPath = $file->store('messenger_temp', 'public');
-                $fullPath = 'messenger_temp/' . basename($storedPath);
+                $fullPath = 'messenger_temp/'.basename($storedPath);
                 $mime = $file->getMimeType();
 
                 // Send via Facebook API
@@ -423,7 +423,7 @@ class MessageController extends Controller
     {
         $data = $request->validated();
         $agentId = auth()->id();
-
+        Log::info(['$data' => $data]);
         // Step 1: Find conversation
         $conversation = Conversation::find($data['conversation_id']);
 
@@ -433,7 +433,7 @@ class MessageController extends Controller
 
         // Step 2: Get customer from conversation
         $customer = Customer::find($conversation->customer_id);
-
+        Log::info(['$customer' => $customer]);
         if (! $customer) {
             return jsonResponse('Customer not found', false, [], 404);
         }
@@ -468,6 +468,8 @@ class MessageController extends Controller
             return $this->sendWebsiteMessageFromAgent($data, $attachments, $conversation, $customer);
         } elseif ($platformName === 'instagram_message') {
             return $this->sendInstagramMessageFromAgent($data, $attachments, $conversation, $customer);
+        } elseif ($platformName === 'email') {
+            return $this->sendEmailMessageFromAgent($data, $attachments, $conversation, $customer);
         }
 
         return jsonResponse('Unsupported platform', false, [], 422);
@@ -495,7 +497,7 @@ class MessageController extends Controller
                 'customer_id' => $customerId,
                 'agent_id' => $agentId,
                 'platform' => $platformName,
-                'trace_id' => strtoupper(substr($platformName, 0, 2)) . '-' . now()->format('YmdHis') . '-' . uniqid(),
+                'trace_id' => strtoupper(substr($platformName, 0, 2)).'-'.now()->format('YmdHis').'-'.uniqid(),
             ]);
         }
 
@@ -633,15 +635,15 @@ class MessageController extends Controller
             'attachmentsCount' => count($attachments),
         ]);
         // Save text message in DB
-        $message                        = new Message;
-        $message->conversation_id       = $conversation->id;
-        $message->sender_id             = auth()->id();
-        $message->sender_type           = User::class;
-        $message->receiver_type         = Customer::class;
-        $message->receiver_id           = $customer->id;
-        $message->type                  = 'text';
-        $message->content               = $data['content'] ?? '';
-        $message->direction             = 'outgoing';
+        $message = new Message;
+        $message->conversation_id = $conversation->id;
+        $message->sender_id = auth()->id();
+        $message->sender_type = User::class;
+        $message->receiver_type = Customer::class;
+        $message->receiver_id = $customer->id;
+        $message->type = 'text';
+        $message->content = $data['content'] ?? '';
+        $message->direction = 'outgoing';
         $message->save();
 
         $conversation->update(['last_message_id' => $message->id]);
@@ -655,25 +657,26 @@ class MessageController extends Controller
 
                 $mime = $file->getClientMimeType();
                 $path = $file->store('uploads/messages', 'public');
-                $fullPath = '/storage/' . $path;
+                $fullPath = '/storage/'.$path;
 
                 $attachmentPaths[] = $fullPath;
 
                 $bulkInsert[] = [
-                    'message_id'   => $message->id,
-                    'path'         => $fullPath,
-                    'type'         => $file->getClientOriginalExtension(),
-                    'mime'         => $mime,
-                    'size'         => $file->getSize(),
+                    'message_id' => $message->id,
+                    'path' => $fullPath,
+                    'type' => $file->getClientOriginalExtension(),
+                    'mime' => $mime,
+                    'size' => $file->getSize(),
                     'is_available' => 1,
-                    'created_at'   => now(),
-                    'updated_at'   => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ];
             }
             MessageAttachment::insert($bulkInsert);
         }
 
         $message->refresh()->load('attachments');
+
         return jsonResponse('Website message sent successfully.', true, new MessageResource($message));
     }
 
@@ -726,5 +729,59 @@ class MessageController extends Controller
 
         // Step 4: Return message with attachments loaded
         return jsonResponse('Instagram message(s) sent successfully.', true, new MessageResource($textMessage->load('attachments')));
+    }
+
+    protected function sendEmailMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
+    {
+        info('Sending email message from agent', [
+            'data' => $data,
+            'attachmentsCount' => count($attachments),
+        ]);
+        // Save text message in DB
+        $message = new Message;
+        $message->conversation_id = $conversation->id;
+        $message->sender_id = auth()->id();
+        $message->sender_type = User::class;
+        $message->receiver_type = Customer::class;
+        $message->receiver_id = $customer->id;
+        $message->type = 'text';
+        $message->content = $data['content'] ?? '';
+        $message->cc_email = $data['cc_email'] ?? '';
+        $message->subject = $data['subject'] ?? '';
+        $message->direction = 'outgoing';
+        $message->save();
+
+        $conversation->update(['last_message_id' => $message->id]);
+
+        // Handle attachments if any (optional)
+
+        if (! empty($attachments)) {
+            $bulkInsert = [];
+
+            foreach ($attachments as $file) {
+
+                $mime = $file->getClientMimeType();
+                $path = $file->store('uploads/messages', 'public');
+                $fullPath = '/storage/'.$path;
+
+                $attachmentPaths[] = $fullPath;
+
+                $bulkInsert[] = [
+                    'message_id' => $message->id,
+                    'path' => $fullPath,
+                    'type' => $file->getClientOriginalExtension(),
+                    'mime' => $mime,
+                    'size' => $file->getSize(),
+                    'is_available' => 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+            MessageAttachment::insert($bulkInsert);
+        }
+
+        $message->refresh()->load('attachments');
+
+        return jsonResponse('Email message sent successfully.', true, new MessageResource($message));
     }
 }
