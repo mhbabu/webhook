@@ -2,6 +2,7 @@
 
 use App\Enums\PlatformTypeWiseWeightage;
 use App\Models\Conversation;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Redis;
 
 /**
@@ -98,11 +99,49 @@ if (!function_exists('getAgentActiveConversationsCount')) {
         return Conversation::where('agent_id', $agentId)
             ->where(function ($query) {
                 $query->whereNull('end_at')
-                      ->orWhere('end_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
+                    ->orWhere('end_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
             })
             ->count();
     }
 }
+
+
+if (!function_exists('storeAndDetectAttachment')) {
+    /**
+     * Store a file and detect its type.
+     *
+     * @param \Illuminate\Http\UploadedFile $file
+     * @param string $disk
+     * @param string $folder
+     * @return array
+     */
+    function storeAndDetectAttachment(UploadedFile $file, string $disk = 'public', string $folder = 'uploads/messages'): array
+    {
+        // Store file (returns relative path, e.g. 'uploads/messages/filename.png')
+        $path = $file->store($folder, $disk);
+
+        // File info
+        $mime = $file->getClientMimeType();
+        $size = $file->getSize();
+
+        // Detect type
+        $type = match (true) {
+            str_starts_with($mime, 'image/') => 'image',
+            str_starts_with($mime, 'video/') => 'video',
+            str_starts_with($mime, 'audio/') => 'audio',
+            default => 'document',
+        };
+
+        return [
+            'path'       => $path, // ✅ store only relative path (no '/storage/', no domain)
+            'local_path' => storage_path("app/{$disk}/{$path}"),
+            'type'       => $type,
+            'mime'       => $mime,
+            'size'       => $size,
+        ];
+    }
+}
+
 
 /**
  * Update or insert agent (user) data in Redis.
@@ -133,7 +172,7 @@ if (!function_exists('updateUserInRedis')) {
             ->where('platform', $endedPlatform)
             ->where(function ($query) {
                 $query->whereNull('end_at')
-                      ->orWhere('end_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
+                    ->orWhere('end_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
             })
             ->count();
 
@@ -168,4 +207,3 @@ if (!function_exists('updateUserInRedis')) {
         Redis::del($removedConversation);
     }
 }
-

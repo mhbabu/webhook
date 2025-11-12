@@ -24,7 +24,7 @@ return new class extends Migration
             $table->unsignedBigInteger('receiver_id')->nullable();
             $table->string('receiver_type')->nullable();
             $table->timestamp('delivered_at')->nullable();
-            $table->string('type')->default('text');
+            $table->string('type')->nullable();
             $table->string('subject')->nullable();
             $table->longText('content')->nullable();
             $table->enum('direction', ['incoming', 'outgoing']);

@@ -55,6 +55,7 @@ class PlatformWebhookController extends Controller
         return response('Verification token mismatch', 403);
     }
 
+<<<<<<< HEAD
     public function incomingWhatsAppMessage1(Request $request)
     {
         // Capture and log the entire incoming request
@@ -255,6 +256,8 @@ class PlatformWebhookController extends Controller
         return jsonResponse(! empty($messages) ? 'Message received' : 'Status received', true);
     }
 
+=======
+>>>>>>> 248280ca2905d08137aa046ad259599ae1e288a3
     public function incomingWhatsAppMessage(Request $request)
     {
         $data = $request->all();
@@ -1035,7 +1038,7 @@ class PlatformWebhookController extends Controller
     public function receiveWebsitePageData(WebsiteCustomerMessageRequest $request)
     {
         $data = $request->all();
-        Log::info('Website Incoming Request', ['data' => $data]);
+        Log::info('🌐 Website Incoming Request', ['data' => $data]);
 
         $platform = Platform::whereRaw('LOWER(name) = ?', ['website'])->first();
         $platformName = strtolower($platform->name);
@@ -1044,111 +1047,126 @@ class PlatformWebhookController extends Controller
         $payloadsToSend = [];
 
         DB::transaction(function () use ($customer, $platformName, &$payloadsToSend, $request) {
-            // 🔄 Get or create conversation
+            // 🗨️ Get or create conversation
             $conversation = Conversation::where('customer_id', $customer->id)
                 ->where('platform', $platformName)
-                // ->where(function ($q) {
-                //     $q->whereNull('end_at')
-                //         ->orWhere('created_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
-                // })
                 ->latest()
                 ->first();
 
-            // dd($conversation);
-
             $isNewConversation = false;
 
-            if (! $conversation || $conversation->end_at || $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
-
-                // Clean old conversation from Redis
+            if (
+                !$conversation ||
+                $conversation->end_at ||
+                $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))
+            ) {
                 if ($conversation) {
-                    updateUserInRedis($conversation->agent_id ? User::find($conversation->agent_id) : null, $conversation);
+                    updateUserInRedis(
+                        $conversation->agent_id ? User::find($conversation->agent_id) : null,
+                        $conversation
+                    );
                 }
 
                 $conversation = Conversation::create([
                     'customer_id' => $customer->id,
+<<<<<<< HEAD
                     'platform' => $platformName,
                     'trace_id' => 'WEB-'.now()->format('YmdHis').'-'.uniqid(),
                     'agent_id' => null,
+=======
+                    'platform'    => $platformName,
+                    'trace_id'    => 'WEB-' . now()->format('YmdHis') . '-' . uniqid(),
+                    'agent_id'    => null,
+>>>>>>> 248280ca2905d08137aa046ad259599ae1e288a3
                 ]);
+
                 $isNewConversation = true;
             }
 
-            // 📨 Create the message
+            // 💬 Create message
             $message = Message::create([
                 'conversation_id' => $conversation->id,
-                'sender_id' => $customer->id,
-                'sender_type' => Customer::class,
-                'type' => 'text',
-                'content' => $request->input('content'),
-                'direction' => 'incoming',
-                'receiver_type' => User::class,
-                'receiver_id' => $conversation->agent_id ?? null,
+                'sender_id'       => $customer->id,
+                'sender_type'     => Customer::class,
+                'type'            => !empty($request->content) ? 'text' : null,
+                'content'         => $request->input('content'),
+                'direction'       => 'incoming',
+                'receiver_type'   => User::class,
+                'receiver_id'     => $conversation->agent_id ?? null,
             ]);
 
             $attachmentPaths = [];
 
-            // 📎 Save attachments if available
+            // 📎 Handle attachments
             if ($request->hasFile('attachments')) {
                 $bulkInsert = [];
 
                 foreach ($request->file('attachments') as $file) {
+<<<<<<< HEAD
                     $mime = $file->getClientMimeType();
                     $path = $file->store('uploads/messages', 'public');
                     $fullPath = '/storage/'.$path;
 
                     $attachmentPaths[] = $fullPath;
+=======
+                    $info = storeAndDetectAttachment($file, 'public', 'uploads/website/attachments');
+>>>>>>> 248280ca2905d08137aa046ad259599ae1e288a3
 
                     $bulkInsert[] = [
-                        'message_id' => $message->id,
-                        'path' => $fullPath,
-                        'type' => $file->getClientOriginalExtension(),
-                        'mime' => $mime,
-                        'size' => $file->getSize(),
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'message_id'   => $message->id,
+                        'path'         => $info['path'], // ✅ relative path only
+                        'type'         => $info['type'],
+                        'mime'         => $info['mime'],
+                        'size'         => $info['size'],
+                        'is_available' => 1,
+                        'created_at'   => now(),
+                        'updated_at'   => now(),
                     ];
+
+                    $attachmentPaths[] = $info['path'];
                 }
 
                 MessageAttachment::insert($bulkInsert);
             }
 
-            // 🔄 Update conversation with last message
+            // 🆙 Update conversation last message
             $conversation->update(['last_message_id' => $message->id]);
 
-            $customer->token_expires_at = now()->addMinutes((int) config('services.conversation.website.token_expire_minutes'));
-            $customer->save();
+            // 🔑 Extend customer token
+            $customer->update([
+                'token_expires_at' => now()->addMinutes((int) config('services.conversation.website.token_expire_minutes')),
+            ]);
 
             // 📦 Build payload
             $payload = [
-                'source' => 'website',
-                'traceId' => $conversation->trace_id,
-                'conversationId' => $conversation->id,
+                'source'           => 'website',
+                'traceId'          => $conversation->trace_id,
+                'conversationId'   => $conversation->id,
                 'conversationType' => $isNewConversation ? 'new' : 'old',
-                'sender' => $customer->email ?? $customer->phone,
-                'api_key' => config('dispatcher.website_api_key'),
-                'timestamp' => time(),
-                'message' => $message->content,
-                'subject' => 'Customer Message from Website',
-                'messageId' => $message->id,
+                'sender'           => $customer->email ?? $customer->phone,
+                'api_key'          => config('dispatcher.website_api_key'),
+                'timestamp'        => time(),
+                'message'          => $message->content,
+                'subject'          => 'Customer Message from Website',
+                'messageId'        => $message->id,
             ];
 
-            if (! empty($attachmentPaths)) {
+            if (!empty($attachmentPaths)) {
                 $payload['attachments'] = $attachmentPaths;
             }
 
             $payloadsToSend[] = $payload;
 
-            // 📨 Dispatch payloads after commit
+            // 🚀 Dispatch payloads after DB commit
             DB::afterCommit(function () use ($payloadsToSend) {
                 foreach ($payloadsToSend as $payload) {
                     Log::info('✅ Dispatching Website Payload After Commit', ['payload' => $payload]);
-                    $this->sendToDispatcher($payload); // Define this method or dispatch a job
+                    $this->sendToDispatcher($payload);
                 }
             });
         });
 
-        return jsonResponse('Message received', true);
+        return jsonResponse('Message received successfully', true);
     }
 
     public function receiveEmailData1(Request $request)
