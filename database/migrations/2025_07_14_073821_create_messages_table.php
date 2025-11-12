@@ -19,7 +19,7 @@ return new class extends Migration
             // Polymorphic sender
             $table->unsignedBigInteger('sender_id')->nullable();
             $table->string('sender_type')->nullable();
-
+            $table->string('cc_email')->nullable();
             // Optional receiver
             $table->unsignedBigInteger('receiver_id')->nullable();
             $table->string('receiver_type')->nullable();
@@ -27,11 +27,11 @@ return new class extends Migration
             $table->string('type')->nullable();
             $table->string('subject')->nullable();
             $table->longText('content')->nullable();
-            $table->longText('html_content')->nullable();
             $table->enum('direction', ['incoming', 'outgoing']);
             $table->timestamp('read_at')->nullable();
             $table->string('read_by')->nullable();
             $table->string('platform_message_id')->unique()->nullable();
+            $table->string('remarks')->nullable();
             $table->unsignedBigInteger('parent_id')->nullable();
             $table->timestamps();
         });

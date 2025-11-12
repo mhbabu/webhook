@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Message;
 use App\Models\Platform;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Webklex\IMAP\Facades\Client;
@@ -27,67 +28,6 @@ class EmailService
                 }
             }
         });
-
-        return true;
-    }
-
-    public function fetchUnreadEmails()
-    {
-        \Log::info('IMAP CRON Triggered');
-
-        $client = Webklex\IMAP\Facades\Client::account('gmail');
-
-        try {
-            $client->connect();
-            \Log::info('✅ Gmail IMAP connected successfully!');
-        } catch (\Throwable $e) {
-            \Log::error('❌ Gmail IMAP connection failed: '.$e->getMessage());
-
-            return false;
-        }
-
-        // Get all folders (INBOX, Sent, etc.)
-        $folders = $client->getFolders();
-
-        foreach ($folders as $folder) {
-            // Fetch unseen messages in this folder
-            $messages = $folder->messages()->unseen()->get();
-            \Log::info("Folder: {$folder->name}, Unread Messages: ".count($messages));
-
-            foreach ($messages as $message) {
-                $emailData = [
-                    'message_id' => $message->getMessageId(),
-                    'from' => $message->getFrom()[0]->mail ?? null,
-                    'to' => implode(',', $message->getTo()->pluck('mail')->toArray()),
-                    'subject' => $message->getSubject(),
-                    'text_body' => $message->getTextBody(),
-                    'html_body' => $message->getHTMLBody(),
-                    'attachments' => [],
-                ];
-
-                // Process attachments
-                foreach ($message->getAttachments() as $att) {
-                    $emailData['attachments'][] = [
-                        'name' => $att->getName(),
-                        'content' => $att->getContent(), // optionally save to storage
-                    ];
-                }
-
-                // Log each unread email
-                \Log::info('📥 New unread email fetched', [
-                    'message_id' => $emailData['message_id'],
-                    'from' => $emailData['from'],
-                    'subject' => $emailData['subject'],
-                    'folder' => $folder->name,
-                ]);
-
-                // Dispatch job to store/process email
-                ProcessEmailBatch::dispatch($emailData);
-
-                // Mark as read
-                $message->setFlag('Seen');
-            }
-        }
 
         return true;
     }
@@ -114,23 +54,44 @@ class EmailService
 
             $messages = $inbox->messages()
                 ->seen()
-                ->limit(5)
+                ->limit(2)
                 ->leaveUnread()
                 ->fetchOrderDesc()
                 ->get();
 
             foreach ($messages as $imapMsg) {
 
-                $uid = $imapMsg->getUid();
+                Log::info('📥 Processing email: ', [
+                    'subject' => $imapMsg->getSubject(),
+                    'from' => (string) optional($imapMsg->getFrom()->first())->mail,
+                    'from_name' => (string) optional($imapMsg->getFrom()->first())->personal,
+                    'to' => implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getTo()->all())),
+                    'cc' => implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getCc()->all())),
+                    'bcc' => implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getBcc()->all())),
+                    // 'date_sent' => $imapMsg->getDate()->toDateTimeString(),
+                    'message_id' => $imapMsg->getMessageId(),
+                    'thread_id' => $imapMsg->getThreadId(),
+                    'uid' => $imapMsg->getUid(),
+                    'flags' => $imapMsg->getFlags(),
+                    'mailbox' => $imapMsg->getMailbox(),
+                    'source' => $imapMsg->getSource(),
+                    'attachments_count' => count($imapMsg->getAttachments()),
+                    'body_length' => strlen((string) $imapMsg->getHTMLBody()),
 
-                if (Message::where('platform_message_id', $uid)->exists()) {
+                    'direction' => 'incoming',
+                ]);
+                $messageId = $imapMsg->getMessageId();
+
+                if (Message::where('platform_message_id', $messageId)->exists()) {
                     continue;
                 }
-
+                $uid = $imapMsg->getUid();
+                $threadId = $imapMsg->getThreadId();
+                $fromName = (string) optional($imapMsg->getFrom()->first())->personal;
                 $fromMail = (string) optional($imapMsg->getFrom()->first())->mail;
                 $toMails = implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getTo()->all()));
+                $ccMails = implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getCc()->all()));
                 $subject = (string) $imapMsg->getSubject();
-                $textBody = (string) $imapMsg->getTextBody();
                 $htmlBody = (string) $imapMsg->getHTMLBody();
                 $timestamp = now()->timestamp;
 
@@ -152,12 +113,13 @@ class EmailService
 
                 // persist + we need conversation outside closure
                 DB::transaction(function () use (
-                    $uid, $platformId, $platformName, $fromMail, $subject, $textBody, $htmlBody,
+                    $platformId, $platformName, $fromMail, $subject, $htmlBody, $messageId, $fromName,
                     &$conversation, &$payload
                 ) {
                     $customer = Customer::firstOrCreate([
                         'email' => $fromMail,
                         'platform_id' => $platformId,
+                        'name' => $fromName,
                     ]);
 
                     $conversation = Conversation::where('customer_id', $customer->id)
@@ -182,12 +144,12 @@ class EmailService
                         'platform_id' => $platformId,
                         'sender_id' => $customer->id,
                         'sender_type' => Customer::class,
-                        'platform_message_id' => $uid,
+                        'cc_email' => $ccMails,
+                        'platform_message_id' => $messageId,
                         'subject' => $subject,
-                        'content' => $textBody,
-                        'html_content' => $htmlBody,
+                        'content' => $htmlBody,
                         'direction' => 'incoming',
-                        'status' => 'received',
+                        // 'status' => 'received',
                     ]);
                 });
 
@@ -197,25 +159,24 @@ class EmailService
                     'traceId' => $conversation->trace_id ?? null,
                     'conversationId' => $conversation->id ?? null,
                     // 'conversationType' => $isNewConversation ? 'new' : 'old',
+                    'conversationType' => 'new',
+                    'api_key' => config('dispatcher.email_api_key'),
+                    'senderName' => $fromName,
                     'senderEmail' => $fromMail,
+                    'ccEmail' => $ccMails,
                     'subject' => $subject,
-                    // 'text_body' => $textBody,
-                    // 'html_body' => $htmlBody,
-                    // 'attachments' => $attachmentsArr,
+                    'html_body' => $htmlBody,
+                    'attachments' => $attachmentsArr,
                 ];
 
-                // Log::info('📥 New email received', [
-                //     'platform_message_id' => $uid,
-                //     'from' => $fromMail,
-                //     'subject' => $subject,
-                // ]);
-
-                Log::info('📥 New email received', ['payload' => $payload]);
+                // $payload = json_encode($json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+                // Log::info('📥 New email received', ['payload' => $payload]);
 
                 DB::afterCommit(function () use ($payload) {
-                    ProcessEmailBatch::dispatch($payload)->onQueue('dispatcher');
+                    // ProcessEmailBatch::dispatch($payload)->onQueue('dispatcher');
+                    Log::info('✅ Dispatching email Payload After Commit', ['payload' => $payload]);
+                    // $this->sendToDispatcher($payload);
                 });
-
                 $imapMsg->setFlag('Seen');
             }
 
