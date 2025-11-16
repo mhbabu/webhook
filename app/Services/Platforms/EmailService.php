@@ -15,7 +15,7 @@ use Webklex\IMAP\Facades\Client;
 
 class EmailService
 {
-    public function sendEmail($to, $subject, $message, $attachments = [])
+    public function sendEmail1($to, $subject, $message, $attachments = [])
     {
         Mail::send([], [], function ($mail) use ($to, $subject, $message, $attachments) {
             $mail->to($to)
@@ -30,6 +30,43 @@ class EmailService
         });
 
         return true;
+    }
+
+    public function sendEmail($to, $subject, $htmlMessage, $attachments = [])
+    {
+        $response = [];
+
+        Mail::send([], [], function ($mail) use ($to, $subject, $htmlMessage, $attachments, &$response) {
+
+            $mail->to($to)
+                ->subject($subject)
+                ->html($htmlMessage);
+
+            // Attach local storage files
+            if (! empty($attachments)) {
+                foreach ($attachments as $filePath) {
+                    // Storage path: mail_attachments/20251116/uuid.pdf
+                    $absolutePath = storage_path('app/public/'.$filePath);
+
+                    if (file_exists($absolutePath)) {
+                        $mail->attach($absolutePath);
+                        $response['attached'][] = $filePath;
+                    } else {
+                        $response['missing'][] = $filePath;
+                    }
+                }
+            }
+        });
+
+        // Uniform response structure (like Instagram)
+        return [
+            'success' => true,
+            'to' => $to,
+            'subject' => $subject,
+            'attachments' => $response['attached'] ?? [],
+            'missing_files' => $response['missing'] ?? [],
+            'sent_at' => now()->toDateTimeString(),
+        ];
     }
 
     public function receiveEmail1()

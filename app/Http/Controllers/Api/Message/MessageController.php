@@ -14,6 +14,7 @@ use App\Models\Customer;
 use App\Models\Message;
 use App\Models\MessageAttachment;
 use App\Models\User;
+use App\Services\Platforms\EmailService;
 use App\Services\Platforms\FacebookService;
 use App\Services\Platforms\InstagramService;
 use App\Services\Platforms\WhatsAppService;
@@ -738,7 +739,11 @@ class MessageController extends Controller
             'attachmentsCount' => count($attachments),
         ]);
 
-        // Save text message in DB
+        /**
+         * --------------------------------------------------
+         * 1. CREATE MESSAGE (before sending)
+         * --------------------------------------------------
+         */
         $message = Message::create([
             'conversation_id' => $conversation->id,
             'sender_id' => auth()->id(),
@@ -756,59 +761,88 @@ class MessageController extends Controller
         $conversation->update(['last_message_id' => $message->id]);
 
         /**
-         * ---------------------------
-         * Handle Attachments (Updated)
-         * ---------------------------
+         * --------------------------------------------------
+         * 2. PROCESS ATTACHMENTS
+         *  - Save files
+         *  - Insert DB records
+         *  - Build $savedPaths for EmailService
+         * --------------------------------------------------
          */
-        if (! empty($attachments)) {
+        $savedPaths = [];
+        $attachmentRows = [];
+        $storagePath = 'mail_attachments/'.now()->format('Ymd');
 
-            $bulkInsert = [];
-            $storagePath = 'mail_attachments/'.now()->format('Ymd'); // same as IMAP
+        foreach ($attachments as $file) {
 
-            foreach ($attachments as $file) {
-
-                // Define extension
-                $ext = strtolower($file->getClientOriginalExtension());
-
-                // Generate UUID filename
-                $filename = Str::uuid().'.'.$ext;
-
-                // Full relative path for storage/app/public
-                $relativePath = $storagePath.'/'.$filename;
-
-                // Save file
-                Storage::disk('public')->put($relativePath, file_get_contents($file));
-
-                // Determine correct MIME type
-                $mime = match ($ext) {
-                    'jpg', 'jpeg' => 'image/jpeg',
-                    'png' => 'image/png',
-                    'gif' => 'image/gif',
-                    'pdf' => 'application/pdf',
-                    'doc' => 'application/msword',
-                    'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    'xls' => 'application/vnd.ms-excel',
-                    'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    default => $file->getClientMimeType(),
-                };
-
-                $bulkInsert[] = [
-                    'message_id' => $message->id,
-                    'path' => $relativePath,   // same format as IMAP attachments
-                    'type' => $mime,
-                    'mime' => $mime,
-                    'size' => $file->getSize(),
-                    'is_available' => true,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
+            if (! $file instanceof \Illuminate\Http\UploadedFile) {
+                continue;
             }
 
-            MessageAttachment::insert($bulkInsert);
+            $ext = strtolower($file->getClientOriginalExtension());
+            $filename = Str::uuid().'.'.$ext;
+            $relativePath = $storagePath.'/'.$filename;
+
+            // Save file to storage/app/public
+            Storage::disk('public')->put($relativePath, file_get_contents($file));
+
+            // Generate MIME
+            $mime = match ($ext) {
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'pdf' => 'application/pdf',
+                'doc' => 'application/msword',
+                'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'xls' => 'application/vnd.ms-excel',
+                'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                default => $file->getClientMimeType(),
+            };
+
+            $attachmentRows[] = [
+                'message_id' => $message->id,
+                'path' => $relativePath,
+                'type' => $mime,
+                'mime' => $mime,
+                'size' => $file->getSize(),
+                'is_available' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+
+            // Add to sendMail()
+            $savedPaths[] = $relativePath;
         }
 
-        $message->refresh()->load('attachments');
+        if (! empty($attachmentRows)) {
+            MessageAttachment::insert($attachmentRows);
+        }
 
-        return jsonResponse('Email message sent successfully.', true, new MessageResource($message));
+        /**
+         * --------------------------------------------------
+         * 3. SEND EMAIL (after attachments saved)
+         * --------------------------------------------------
+         */
+        $EmailService = new EmailService;
+
+        $emailResponse = $EmailService->sendEmail(
+            $customer->email,
+            $data['subject'],
+            $data['content'],
+            $savedPaths  // <-- final correct file paths
+        );
+
+        info('Email Response', $emailResponse);
+
+        // Optional: Save message platform_message_id
+        $message->update([
+            'platform_message_id' => $emailResponse['sent_at'],
+        ]);
+
+        /**
+         * --------------------------------------------------
+         * 4. RETURN RESPONSE
+         * --------------------------------------------------
+         */
+        return jsonResponse('Email message sent successfully.', true, new MessageResource($message->load('attachments')));
     }
 }
