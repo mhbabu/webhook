@@ -42,7 +42,7 @@ class UserTableSeeder extends Seeder
             'max_limit'           => 5,
             'current_limit'       => 5
         ]);
-        $admin->platforms()->sync([1, 2, 3, 4, 5, 6]);
+        $admin->platforms()->sync([1, 2, 3, 4, 5, 6, 7]);
 
         // Supervisor
         $supervisor = User::create([
@@ -90,7 +90,7 @@ class UserTableSeeder extends Seeder
             'max_limit'           => 2,
             'current_limit'       => 2
         ]);
-        $agent->platforms()->sync([2, 3]);
+        $agent->platforms()->sync([2, 3, 7]);
 
         $agent = User::create([
             'name'                => 'Imran Islam',
@@ -120,6 +120,6 @@ class UserTableSeeder extends Seeder
             'max_limit'           => 2,
             'current_limit'       => 2
         ]);
-        $agent->platforms()->sync([1]);
+        $agent->platforms()->sync([1, 7]);
     }
 }
