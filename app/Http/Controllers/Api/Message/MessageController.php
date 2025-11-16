@@ -20,6 +20,8 @@ use App\Services\Platforms\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class MessageController extends Controller
 {
@@ -735,46 +737,73 @@ class MessageController extends Controller
             'data' => $data,
             'attachmentsCount' => count($attachments),
         ]);
+
         // Save text message in DB
-        $message = new Message;
-        $message->conversation_id = $conversation->id;
-        $message->sender_id = auth()->id();
-        $message->sender_type = User::class;
-        $message->receiver_type = Customer::class;
-        $message->receiver_id = $customer->id;
-        $message->type = 'text';
-        $message->content = $data['content'] ?? '';
-        $message->cc_email = $data['cc_email'] ?? '';
-        $message->subject = $data['subject'] ?? '';
-        $message->direction = 'outgoing';
-        $message->save();
+        $message = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => auth()->id(),
+            'sender_type' => User::class,
+            'receiver_type' => Customer::class,
+            'receiver_id' => $customer->id,
+            'type' => 'text',
+            'content' => $data['content'] ?? '',
+            'cc_email' => $data['cc_email'] ?? '',
+            'subject' => $data['subject'] ?? '',
+            'direction' => 'outgoing',
+            'platform' => 'email',
+        ]);
 
         $conversation->update(['last_message_id' => $message->id]);
 
-        // Handle attachments if any (optional)
-
+        /**
+         * ---------------------------
+         * Handle Attachments (Updated)
+         * ---------------------------
+         */
         if (! empty($attachments)) {
+
             $bulkInsert = [];
+            $storagePath = 'mail_attachments/'.now()->format('Ymd'); // same as IMAP
 
             foreach ($attachments as $file) {
 
-                $mime = $file->getClientMimeType();
-                $path = $file->store('uploads/messages', 'public');
-                $fullPath = '/storage/'.$path;
+                // Define extension
+                $ext = strtolower($file->getClientOriginalExtension());
 
-                $attachmentPaths[] = $fullPath;
+                // Generate UUID filename
+                $filename = Str::uuid().'.'.$ext;
+
+                // Full relative path for storage/app/public
+                $relativePath = $storagePath.'/'.$filename;
+
+                // Save file
+                Storage::disk('public')->put($relativePath, file_get_contents($file));
+
+                // Determine correct MIME type
+                $mime = match ($ext) {
+                    'jpg', 'jpeg' => 'image/jpeg',
+                    'png' => 'image/png',
+                    'gif' => 'image/gif',
+                    'pdf' => 'application/pdf',
+                    'doc' => 'application/msword',
+                    'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'xls' => 'application/vnd.ms-excel',
+                    'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    default => $file->getClientMimeType(),
+                };
 
                 $bulkInsert[] = [
                     'message_id' => $message->id,
-                    'path' => $fullPath,
-                    'type' => $file->getClientOriginalExtension(),
+                    'path' => $relativePath,   // same format as IMAP attachments
+                    'type' => $mime,
                     'mime' => $mime,
                     'size' => $file->getSize(),
-                    'is_available' => 1,
+                    'is_available' => true,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
             }
+
             MessageAttachment::insert($bulkInsert);
         }
 

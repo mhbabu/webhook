@@ -45,9 +45,11 @@ class MessageResource extends JsonResource
 
                 return null;
             }),
-
             'attachments' => $this->attachments ? MessageAttachmentResource::collection($this->attachments) : [],
             'read_at' => $this->read_at ? $this->read_at->toDateTimeString() : null,
+            'cc_email' => $this->cc_email ?? null,
+            'subject' => $this->subject ?? null,
+            'remarks' => $this->remarks ?? null,
             'created_at' => $this->created_at->toDateTimeString(),
             'updated_at' => $this->updated_at->toDateTimeString(),
         ];
