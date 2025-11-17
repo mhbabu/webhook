@@ -32,20 +32,22 @@ class EmailService
         return true;
     }
 
-    public function sendEmail($to, $subject, $htmlMessage, $attachments = [])
+    public function sendEmail($to, $subject, $htmlMessage, $attachments = [], $cc = [])
     {
         $response = [];
 
-        Mail::send([], [], function ($mail) use ($to, $subject, $htmlMessage, $attachments, &$response) {
+        Mail::send([], [], function ($mail) use ($to, $subject, $htmlMessage, $attachments, $cc, &$response) {
 
             $mail->to($to)
                 ->subject($subject)
                 ->html($htmlMessage);
 
-            // Attach local storage files
+            if (! empty($cc)) {
+                $mail->cc($cc); // <-- CC ARRAY
+            }
+
             if (! empty($attachments)) {
                 foreach ($attachments as $filePath) {
-                    // Storage path: mail_attachments/20251116/uuid.pdf
                     $absolutePath = storage_path('app/public/'.$filePath);
 
                     if (file_exists($absolutePath)) {
@@ -58,10 +60,10 @@ class EmailService
             }
         });
 
-        // Uniform response structure (like Instagram)
         return [
             'success' => true,
             'to' => $to,
+            'cc' => $cc,
             'subject' => $subject,
             'attachments' => $response['attached'] ?? [],
             'missing_files' => $response['missing'] ?? [],

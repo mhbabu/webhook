@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Api\Webhook\EmailController;
 use App\Http\Controllers\Api\Webhook\PlatformWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,11 +19,8 @@ Route::post('webhook/facebook-page', [PlatformWebhookController::class, 'receive
 
 Route::post('webhook/website', [PlatformWebhookController::class, 'receiveWebsitePageData'])->middleware('customer.token'); // receive website message data
 
-// Route::get('webhook/instagram', [PlatformWebhookController::class, 'verifyIntragram']); // For for webhook verification
-// Route::post('webhook/instagram', [PlatformWebhookController::class, 'receiveInstragramMsg']); // POST for message reception
-Route::post('webhook/send-email', [EmailController::class, 'send']);
 Route::post('webhook/receive-email', [PlatformWebhookController::class, 'receiveEmailData']);
-Route::post('webhook/test-connection', [EmailController::class, 'testGmailImapConnection']);
+Route::get('/attachments/{attachment}/download', [PlatformWebhookController::class, 'download'])->name('attachments.download');
 
 require __DIR__.'/platform.php';
 

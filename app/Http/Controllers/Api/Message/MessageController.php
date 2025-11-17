@@ -426,7 +426,6 @@ class MessageController extends Controller
     {
         $data = $request->validated();
         $agentId = auth()->id();
-        Log::info(['$data' => $data]);
         // Step 1: Find conversation
         $conversation = Conversation::find($data['conversation_id']);
 
@@ -436,7 +435,6 @@ class MessageController extends Controller
 
         // Step 2: Get customer from conversation
         $customer = Customer::find($conversation->customer_id);
-        Log::info(['$customer' => $customer]);
         if (! $customer) {
             return jsonResponse('Customer not found', false, [], 404);
         }
@@ -823,12 +821,17 @@ class MessageController extends Controller
          * --------------------------------------------------
          */
         $EmailService = new EmailService;
+        // ---- 4. Prepare CC ----
+        $ccEmail = ! empty($data['cc_email'])
+        ? array_map('trim', explode(',', $data['cc_email']))
+        : [];
 
         $emailResponse = $EmailService->sendEmail(
             $customer->email,
             $data['subject'],
             $data['content'],
-            $savedPaths  // <-- final correct file paths
+            $savedPaths,  // attachments
+            $ccEmail      // CC array
         );
 
         info('Email Response', $emailResponse);
@@ -840,7 +843,7 @@ class MessageController extends Controller
 
         /**
          * --------------------------------------------------
-         * 4. RETURN RESPONSE
+         * 5. RETURN RESPONSE
          * --------------------------------------------------
          */
         return jsonResponse('Email message sent successfully.', true, new MessageResource($message->load('attachments')));
