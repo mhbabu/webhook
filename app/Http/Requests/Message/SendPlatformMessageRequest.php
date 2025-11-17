@@ -19,7 +19,7 @@ class SendPlatformMessageRequest extends FormRequest
             'conversation_id' => ['required', 'integer', 'exists:conversations,id'],
             'parent_id' => ['nullable', 'integer', 'exists:messages,id'],
             'content' => ['nullable', 'string'],
-            'cc_email' => ['nullable', 'string'],
+            'cc_email' => ['nullable', 'array'],
             'subject' => ['nullable', 'string'],
             'attachments' => ['nullable', 'array'],
             'attachments.*' => ['file', 'max:10240'], // max 10MB each

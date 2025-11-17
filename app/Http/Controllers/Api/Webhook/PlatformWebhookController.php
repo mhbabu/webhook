@@ -1127,7 +1127,8 @@ class PlatformWebhookController extends Controller
             $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
             // Generate safe unique filename
-            $filename = Str::uuid().'_'.$att->name.'.'.$extension;
+            // $filename = Str::uuid().'_'.$att->name.'.'.$extension;
+            $filename = Str::uuid().'.'.$extension;
 
             // Storage folder: storage/app/public/mail_attachments/YYYYMMDD/
             $storagePath = 'mail_attachments/'.now()->format('Ymd');
@@ -1169,5 +1170,25 @@ class PlatformWebhookController extends Controller
         }
 
         return $attachmentsArr;
+    }
+
+    public function download(MessageAttachment $attachment)
+    {
+        $relativePath = $attachment->path;
+        $absolutePath = storage_path('app/public/'.$relativePath);
+
+        if (! file_exists($absolutePath)) {
+            return abort(404, 'Attachment file not found.');
+        }
+
+        // Use original file name if you want to give user-friendly name
+        $filename = basename($absolutePath);
+
+        // Correct MIME type
+        $mime = $attachment->mime ?? 'application/octet-stream';
+
+        return response()->download($absolutePath, $filename, [
+            'Content-Type' => $mime,
+        ]);
     }
 }
