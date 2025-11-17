@@ -756,7 +756,8 @@ class MessageController extends Controller
             'platform' => 'email',
         ]);
 
-        $conversation->update(['last_message_id' => $message->id]);
+        // $conversation->update(['last_message_id' => $message->id]);
+        $conversation->update(['end_at' => now()]); // Auto-end email conversations
 
         /**
          * --------------------------------------------------

@@ -20,7 +20,7 @@ Route::post('webhook/facebook-page', [PlatformWebhookController::class, 'receive
 Route::post('webhook/website', [PlatformWebhookController::class, 'receiveWebsitePageData'])->middleware('customer.token'); // receive website message data
 
 Route::post('webhook/receive-email', [PlatformWebhookController::class, 'receiveEmailData']);
-Route::get('/attachments/{attachment}/download', [PlatformWebhookController::class, 'download'])->name('attachments.download');
+// Route::get('attachments/{attachment}/download', [PlatformWebhookController::class, 'download'])->name('attachments.download');
 
 require __DIR__.'/platform.php';
 

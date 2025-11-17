@@ -1022,7 +1022,8 @@ class PlatformWebhookController extends Controller
 
         $client->disconnect();
 
-        return true;
+        // return true;
+        return jsonResponse('Message received successfully', true);
     }
 
     /**
