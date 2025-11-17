@@ -15,15 +15,14 @@ class MessageResource extends JsonResource
      *
      * @return array<string, mixed>
      */
-    
     public function toArray($request): array
     {
         return [
             'id' => $this->id,
             'conversation_id' => $this->conversation_id,
-            'content'         => $this->content,
-            'type'            => $this->type,
-            'direction'       => $this->direction,
+            'content' => $this->content,
+            'type' => $this->type,
+            'direction' => $this->direction,
 
             'sender' => $this->whenLoaded('sender', function () {
                 if ($this->sender_type === User::class) {
@@ -46,14 +45,13 @@ class MessageResource extends JsonResource
 
                 return null;
             }),
-
             'attachments' => $this->attachments ? MessageAttachmentResource::collection($this->attachments) : [],
             'read_at' => $this->read_at ? $this->read_at->toDateTimeString() : null,
-            'cc_email'        => $this->cc_email ?? null,
-            'subject'         => $this->subject ?? null,
-            'remarks'         => $this->remarks ?? null,
-            'created_at'      => $this->created_at->toDateTimeString(),
-            'updated_at'      => $this->updated_at->toDateTimeString(),
+            'cc_email' => $this->cc_email ?? null,
+            'subject' => $this->subject ?? null,
+            'remarks' => $this->remarks ?? null,
+            'created_at' => $this->created_at->toDateTimeString(),
+            'updated_at' => $this->updated_at->toDateTimeString(),
         ];
     }
 }

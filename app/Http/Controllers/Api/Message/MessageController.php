@@ -14,12 +14,15 @@ use App\Models\Customer;
 use App\Models\Message;
 use App\Models\MessageAttachment;
 use App\Models\User;
+use App\Services\Platforms\EmailService;
 use App\Services\Platforms\FacebookService;
 use App\Services\Platforms\InstagramService;
 use App\Services\Platforms\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class MessageController extends Controller
 {
@@ -735,51 +738,111 @@ class MessageController extends Controller
             'data' => $data,
             'attachmentsCount' => count($attachments),
         ]);
-        // Save text message in DB
-        $message = new Message;
-        $message->conversation_id = $conversation->id;
-        $message->sender_id = auth()->id();
-        $message->sender_type = User::class;
-        $message->receiver_type = Customer::class;
-        $message->receiver_id = $customer->id;
-        $message->type = 'text';
-        $message->content = $data['content'] ?? '';
-        $message->cc_email = $data['cc_email'] ?? '';
-        $message->subject = $data['subject'] ?? '';
-        $message->direction = 'outgoing';
-        $message->save();
+
+        /**
+         * --------------------------------------------------
+         * 1. CREATE MESSAGE (before sending)
+         * --------------------------------------------------
+         */
+        $message = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => auth()->id(),
+            'sender_type' => User::class,
+            'receiver_type' => Customer::class,
+            'receiver_id' => $customer->id,
+            'type' => 'text',
+            'content' => $data['content'] ?? '',
+            'cc_email' => $data['cc_email'] ?? '',
+            'subject' => $data['subject'] ?? '',
+            'direction' => 'outgoing',
+            'platform' => 'email',
+        ]);
 
         $conversation->update(['last_message_id' => $message->id]);
 
-        // Handle attachments if any (optional)
+        /**
+         * --------------------------------------------------
+         * 2. PROCESS ATTACHMENTS
+         *  - Save files
+         *  - Insert DB records
+         *  - Build $savedPaths for EmailService
+         * --------------------------------------------------
+         */
+        $savedPaths = [];
+        $attachmentRows = [];
+        $storagePath = 'mail_attachments/'.now()->format('Ymd');
 
-        if (! empty($attachments)) {
-            $bulkInsert = [];
+        foreach ($attachments as $file) {
 
-            foreach ($attachments as $file) {
-
-                $mime = $file->getClientMimeType();
-                $path = $file->store('uploads/messages', 'public');
-                $fullPath = '/storage/'.$path;
-
-                $attachmentPaths[] = $fullPath;
-
-                $bulkInsert[] = [
-                    'message_id' => $message->id,
-                    'path' => $fullPath,
-                    'type' => $file->getClientOriginalExtension(),
-                    'mime' => $mime,
-                    'size' => $file->getSize(),
-                    'is_available' => 1,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
+            if (! $file instanceof \Illuminate\Http\UploadedFile) {
+                continue;
             }
-            MessageAttachment::insert($bulkInsert);
+
+            $ext = strtolower($file->getClientOriginalExtension());
+            $filename = Str::uuid().'.'.$ext;
+            $relativePath = $storagePath.'/'.$filename;
+
+            // Save file to storage/app/public
+            Storage::disk('public')->put($relativePath, file_get_contents($file));
+
+            // Generate MIME
+            $mime = match ($ext) {
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'pdf' => 'application/pdf',
+                'doc' => 'application/msword',
+                'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'xls' => 'application/vnd.ms-excel',
+                'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                default => $file->getClientMimeType(),
+            };
+
+            $attachmentRows[] = [
+                'message_id' => $message->id,
+                'path' => $relativePath,
+                'type' => $mime,
+                'mime' => $mime,
+                'size' => $file->getSize(),
+                'is_available' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+
+            // Add to sendMail()
+            $savedPaths[] = $relativePath;
         }
 
-        $message->refresh()->load('attachments');
+        if (! empty($attachmentRows)) {
+            MessageAttachment::insert($attachmentRows);
+        }
 
-        return jsonResponse('Email message sent successfully.', true, new MessageResource($message));
+        /**
+         * --------------------------------------------------
+         * 3. SEND EMAIL (after attachments saved)
+         * --------------------------------------------------
+         */
+        $EmailService = new EmailService;
+
+        $emailResponse = $EmailService->sendEmail(
+            $customer->email,
+            $data['subject'],
+            $data['content'],
+            $savedPaths  // <-- final correct file paths
+        );
+
+        info('Email Response', $emailResponse);
+
+        // Optional: Save message platform_message_id
+        $message->update([
+            'platform_message_id' => $emailResponse['sent_at'],
+        ]);
+
+        /**
+         * --------------------------------------------------
+         * 4. RETURN RESPONSE
+         * --------------------------------------------------
+         */
+        return jsonResponse('Email message sent successfully.', true, new MessageResource($message->load('attachments')));
     }
 }

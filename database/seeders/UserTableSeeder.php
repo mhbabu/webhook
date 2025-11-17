@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\User;
+use Illuminate\Database\Seeder;
 
 class UserTableSeeder extends Seeder
 {
@@ -14,111 +14,111 @@ class UserTableSeeder extends Seeder
     {
         // Super Admin
         $superAdmin = User::create([
-            'name'                => 'Super Admin',
-            'email'               => 'superadmin@gmail.com',
-            'employee_id'         => 'SPAD12345',
-            'role_id'             => 1,
-            'password'            => bcrypt('12345678'),
-            'account_status'      => 'active',
-            'email_verified_at'   => now(),
-            'is_verified'         => 1,
+            'name' => 'Super Admin',
+            'email' => 'superadmin@gmail.com',
+            'employee_id' => 'SPAD12345',
+            'role_id' => 1,
+            'password' => bcrypt('12345678'),
+            'account_status' => 'active',
+            'email_verified_at' => now(),
+            'is_verified' => 1,
             'is_password_updated' => 1,
-            'max_limit'           => 5,
-            'current_limit'       => 5
+            'max_limit' => 5,
+            'current_limit' => 5,
         ]);
         $superAdmin->platforms()->sync([1, 2, 3, 4]); // Attach platforms
 
         // Admin
         $admin = User::create([
-            'name'                => 'Admin',
-            'email'               => 'admin@gmail.com',
-            'employee_id'         => 'ADMN12345',
-            'role_id'             => 2,
-            'password'            => bcrypt('12345678'),
-            'account_status'      => 'active',
-            'email_verified_at'   => now(),
-            'is_verified'         => 1,
+            'name' => 'Admin',
+            'email' => 'admin@gmail.com',
+            'employee_id' => 'ADMN12345',
+            'role_id' => 2,
+            'password' => bcrypt('12345678'),
+            'account_status' => 'active',
+            'email_verified_at' => now(),
+            'is_verified' => 1,
             'is_password_updated' => 1,
-            'max_limit'           => 5,
-            'current_limit'       => 5
+            'max_limit' => 5,
+            'current_limit' => 5,
         ]);
         $admin->platforms()->sync([1, 2, 3, 4, 5, 6, 7]);
 
         // Supervisor
         $supervisor = User::create([
-            'name'                => 'Supervisor',
-            'email'               => 'supervisor@gmail.com',
-            'employee_id'         => 'SPVSR12345',
-            'role_id'             => 3,
-            'password'            => bcrypt('12345678'),
-            'account_status'      => 'active',
-            'email_verified_at'   => now(),
-            'is_verified'         => 1,
+            'name' => 'Supervisor',
+            'email' => 'supervisor@gmail.com',
+            'employee_id' => 'SPVSR12345',
+            'role_id' => 3,
+            'password' => bcrypt('12345678'),
+            'account_status' => 'active',
+            'email_verified_at' => now(),
+            'is_verified' => 1,
             'is_password_updated' => 1,
-            'max_limit'           => 5,
-            'current_limit'       => 5
+            'max_limit' => 5,
+            'current_limit' => 5,
         ]);
         $supervisor->platforms()->sync([1, 2, 3, 4]);
 
         // Agent
         $agent = User::create([
-            'name'                => 'Agent',
-            'email'               => 'agent@gmail.com',
-            'employee_id'         => 'AGNT12345',
-            'role_id'             => 4,
-            'password'            => bcrypt('12345678'),
-            'account_status'      => 'active',
-            'email_verified_at'   => now(),
-            'is_verified'         => 1,
+            'name' => 'Agent',
+            'email' => 'agent@gmail.com',
+            'employee_id' => 'AGNT12345',
+            'role_id' => 4,
+            'password' => bcrypt('12345678'),
+            'account_status' => 'active',
+            'email_verified_at' => now(),
+            'is_verified' => 1,
             'is_password_updated' => 1,
-            'max_limit'           => 5,
-            'current_limit'       => 5
+            'max_limit' => 5,
+            'current_limit' => 5,
         ]);
         $agent->platforms()->sync([1, 2, 3, 5]);
 
         // Agent
         $agent = User::create([
-            'name'                => 'Shahidul Islam',
-            'email'               => 'shahidul@gmail.com',
-            'employee_id'         => 'AGNT123452',
-            'role_id'             => 4,
-            'password'            => bcrypt('12345678'),
-            'account_status'      => 'active',
-            'email_verified_at'   => now(),
-            'is_verified'         => 1,
+            'name' => 'Shahidul Islam',
+            'email' => 'shahidul@gmail.com',
+            'employee_id' => 'AGNT123452',
+            'role_id' => 4,
+            'password' => bcrypt('12345678'),
+            'account_status' => 'active',
+            'email_verified_at' => now(),
+            'is_verified' => 1,
             'is_password_updated' => 1,
-            'max_limit'           => 2,
-            'current_limit'       => 2
+            'max_limit' => 2,
+            'current_limit' => 2,
         ]);
         $agent->platforms()->sync([2, 3, 7]);
 
         $agent = User::create([
-            'name'                => 'Imran Islam',
-            'email'               => 'imran@gmail.com',
-            'employee_id'         => 'AGNT123453',
-            'role_id'             => 4,
-            'password'            => bcrypt('12345678'),
-            'account_status'      => 'active',
-            'email_verified_at'   => now(),
-            'is_verified'         => 1,
+            'name' => 'Imran Islam',
+            'email' => 'imran@gmail.com',
+            'employee_id' => 'AGNT123453',
+            'role_id' => 4,
+            'password' => bcrypt('12345678'),
+            'account_status' => 'active',
+            'email_verified_at' => now(),
+            'is_verified' => 1,
             'is_password_updated' => 1,
-            'max_limit'           => 2,
-            'current_limit'       => 2
+            'max_limit' => 2,
+            'current_limit' => 2,
         ]);
         $agent->platforms()->sync([1]);
 
         $agent = User::create([
-            'name'                => 'Rashed Khan',
-            'email'               => 'rashed@gmail.com',
-            'employee_id'         => 'AGNT12345309',
-            'role_id'             => 4,
-            'password'            => bcrypt('12345678'),
-            'account_status'      => 'active',
-            'email_verified_at'   => now(),
-            'is_verified'         => 1,
+            'name' => 'Rashed Khan',
+            'email' => 'rashed@gmail.com',
+            'employee_id' => 'AGNT12345309',
+            'role_id' => 4,
+            'password' => bcrypt('12345678'),
+            'account_status' => 'active',
+            'email_verified_at' => now(),
+            'is_verified' => 1,
             'is_password_updated' => 1,
-            'max_limit'           => 2,
-            'current_limit'       => 2
+            'max_limit' => 2,
+            'current_limit' => 2,
         ]);
         $agent->platforms()->sync([1, 7]);
     }

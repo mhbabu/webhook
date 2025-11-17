@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Webklex\IMAP\Facades\Client;
 
 class PlatformWebhookController extends Controller
@@ -966,8 +967,15 @@ class PlatformWebhookController extends Controller
     public function receiveEmailData(Request $request)
     {
         $platform = Platform::whereRaw('LOWER(name) = ?', ['email'])->first();
-        $platformId = $platform->id ?? null;
-        $platformName = strtolower($platform->name ?? 'email');
+
+        if (! $platform) {
+            Log::error('❌ Email platform not found in DB');
+
+            return false;
+        }
+
+        $platformId = $platform->id;
+        $platformName = strtolower($platform->name);
 
         $client = Client::account('gmail');
 
@@ -983,6 +991,13 @@ class PlatformWebhookController extends Controller
         try {
             $inbox = $client->getFolder('INBOX');
 
+            // $messages = $inbox->messages()
+            //     ->unseen()           // fetch only unread messages
+            //     ->limit(5)           // adjust limit as needed
+            //     ->leaveUnread()      // do not mark as seen yet
+            //     ->fetchOrderDesc()
+            //     ->get();
+
             $messages = $inbox->messages()
                 ->seen()
                 ->limit(1)
@@ -990,134 +1005,169 @@ class PlatformWebhookController extends Controller
                 ->fetchOrderDesc()
                 ->get();
 
-            // $messages = $inbox->messages()
-            //     ->unseen()           // ✅ only unread (unseen) messages
-            //     ->limit(2)           // limit to 2 emails
-            //     ->leaveUnread()      // ✅ do not mark as seen after fetch
-            //     ->fetchOrderDesc()   // get newest first
-            //     ->get();
-
             foreach ($messages as $imapMsg) {
-                $messageId = $imapMsg->getMessageId()->toString();
-
-                Log::info('📥 Processing email: ', [
-                    'subject' => $imapMsg->getSubject()->toString(),
-                    'from' => (string) optional($imapMsg->getFrom()->first())->mail,
-                    'from_name' => (string) optional($imapMsg->getFrom()->first())->personal,
-                    'to' => implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getTo()->all())),
-                    'cc' => implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getCc()->all())),
-                    'bcc' => implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getBcc()->all())),
-                    // 'date_sent' => $imapMsg->getDate()->toDateTimeString(),
-                    'message_id' => $imapMsg->getMessageId()->toString(),
-                    'thread_id' => $imapMsg->getThreadId()->toString(),
-                    'uid' => $imapMsg->getUid(),
-                    // 'flags' => $imapMsg->getFlags()->toString(),
-                    'mailbox' => (string) $imapMsg->getMailbox(),
-                    'source' => (string) $imapMsg->getSource(),
-                    'attachments_count' => count($imapMsg->getAttachments()),
-                    'body_length' => strlen((string) $imapMsg->getHTMLBody()),
-
-                    'direction' => 'incoming',
-                ]);
-
-                if (Message::where('platform_message_id', $messageId)->exists()) {
-                    continue;
-                }
-                // $uid = $imapMsg->getUid()->toString();
-                // $threadId = $imapMsg->getThreadId();
-                $fromName = (string) optional($imapMsg->getFrom()->first())->personal;
-                $fromMail = (string) optional($imapMsg->getFrom()->first())->mail;
-                $toMails = implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getTo()->all()));
-                $ccMails = implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getCc()->all()));
-                $subject = (string) $imapMsg->getSubject();
-                $htmlBody = (string) $imapMsg->getHTMLBody();
-                $timestamp = now()->timestamp;
-
-                // attachments safe
-                $attachmentsArr = [];
-                $storagePath = 'mail_attachments/'.now()->format('Ymd');
-
-                foreach ($imapMsg->getAttachments() as $att) {
-                    $filename = uniqid().'_'.$att->name;
-                    $path = storage_path('app/'.$storagePath.'/'.$filename);
-
-                    if (! is_dir(dirname($path))) {
-                        mkdir(dirname($path), 0777, true);
-                    }
-
-                    file_put_contents($path, $att->content);
-                    $attachmentsArr[] = $storagePath.'/'.$filename;
-                }
-
-                // persist + we need conversation outside closure
-                $message = DB::transaction(function () use (
-                    $platformId, $platformName, $fromMail, $ccMails, $subject, $htmlBody, $messageId, $fromName, &$conversation
-                ) {
-                    $customer = Customer::firstOrCreate([
-                        'email' => $fromMail,
-                        'platform_id' => $platformId,
-                        'name' => $fromName,
+                try {
+                    $this->processImapMessage($imapMsg, $platformId, $platformName);
+                } catch (\Throwable $e) {
+                    Log::error('⚠️ Error processing email: '.$e->getMessage(), [
+                        'subject' => (string) $imapMsg->getSubject(),
+                        'from' => (string) optional($imapMsg->getFrom()->first())->mail,
                     ]);
-
-                    $conversation = Conversation::firstOrCreate(
-                        [
-                            'customer_id' => $customer->id,
-                            'platform' => $platformName,
-                        ],
-                        [
-                            'trace_id' => 'mail-'.now()->format('YmdHis').'-'.uniqid(),
-                        ]
-                    );
-
-                    return Message::create([
-                        'conversation_id' => $conversation->id,
-                        'platform_id' => $platformId,
-                        'sender_id' => $customer->id,
-                        'sender_type' => Customer::class,
-                        'cc_email' => $ccMails,
-                        'type' => 'text',
-                        'platform_message_id' => $messageId,
-                        'subject' => $subject,
-                        'content' => $htmlBody,
-                        'direction' => 'incoming',
-                    ]);
-                });
-
-                // payload unified
-                $payload = [
-                    'source' => 'email',
-                    'traceId' => $conversation->trace_id,
-                    'conversationId' => $conversation->id,
-                    // 'conversationType' => $isNewConversation ? 'new' : 'old',
-                    'conversationType' => 'new',
-                    'api_key' => config('dispatcher.email_api_key'),
-                    'timestamp' => $timestamp,
-                    'senderName' => $fromName,
-                    'sender' => $fromMail,
-                    'cc' => $ccMails,
-                    'subject' => $subject,
-                    'html_body' => $htmlBody,
-                    'attachments' => $attachmentsArr,
-                    'messageId' => $message->id,
-                ];
-
-                // $payload = json_encode($json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-                Log::info('📥 New email received', ['payload' => $payload]);
-
-                DB::afterCommit(function () use ($payload) {
-                    Log::info('✅ Dispatching email Payload After Commit', ['payload' => $payload]);
-                    $this->sendToDispatcher($payload);
-                });
-
-                $imapMsg->setFlag('Seen');
+                }
             }
 
         } catch (\Throwable $e) {
-            Log::error('IMAP Read error: '.$e->getMessage());
+            Log::error('IMAP read error: '.$e->getMessage());
         }
 
         $client->disconnect();
 
         return true;
+    }
+
+    /**
+     * Process single IMAP message
+     */
+    private function processImapMessage($imapMsg, $platformId, $platformName)
+    {
+        $messageId = $imapMsg->getMessageId()->toString();
+
+        // Skip duplicate messages
+        if (Message::where('platform_message_id', $messageId)->exists()) {
+            return;
+        }
+
+        $from = $imapMsg->getFrom()->first();
+        $fromMail = (string) ($from->mail ?? '');
+        $fromName = (string) ($from->personal ?? '');
+        $toMails = implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getTo()->all()));
+        $ccMails = implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getCc()->all()));
+        $subject = (string) $imapMsg->getSubject();
+        $htmlBody = (string) $imapMsg->getHTMLBody();
+        // $timestamp = now()->timestamp;
+
+        DB::transaction(function () use (
+            $platformId, $platformName, $fromMail, $fromName, $ccMails, $subject, $htmlBody, $messageId, $imapMsg, &$conversation, &$attachmentsArr
+        ) {
+            // Customer
+            $customer = Customer::firstOrCreate(
+                ['email' => $fromMail, 'platform_id' => $platformId],
+                ['name' => $fromName]
+            );
+
+            // Conversation
+            $conversation = Conversation::firstOrCreate(
+                ['customer_id' => $customer->id, 'platform' => $platformName],
+                ['trace_id' => 'mail-'.now()->format('YmdHis').'-'.uniqid()]
+            );
+
+            // Message
+            $message = Message::create([
+                'conversation_id' => $conversation->id,
+                'platform_id' => $platformId,
+                'sender_id' => $customer->id,
+                'sender_type' => Customer::class,
+                'cc_email' => $ccMails,
+                'type' => 'text',
+                'platform_message_id' => $messageId,
+                'subject' => $subject,
+                'content' => $htmlBody,
+                'direction' => 'incoming',
+            ]);
+
+            // Attachments
+            $attachmentsArr = $this->saveAttachments($imapMsg, $message);
+
+            // Log info
+            Log::info('📥 New email processed', [
+                'subject' => $subject,
+                'from' => $fromMail,
+                'attachments_count' => count($attachmentsArr),
+            ]);
+
+            // Dispatch payload after commit
+            $payload = [
+                'source' => 'email',
+                'traceId' => $conversation->trace_id,
+                'conversationId' => $conversation->id,
+                'conversationType' => 'new',
+                'api_key' => config('dispatcher.email_api_key'),
+                // 'timestamp' => $timestamp,
+                'timestamp' => now()->timestamp,
+                'senderName' => $fromName,
+                'sender' => $fromMail,
+                'cc' => $ccMails,
+                'subject' => $subject,
+                'html_body' => $htmlBody,
+                'attachments' => $attachmentsArr,
+                'messageId' => $message->id,
+            ];
+
+            Log::info('📤 Dispatching email payload', ['payload' => $payload]);
+
+            DB::afterCommit(function () use ($payload) {
+                $this->sendToDispatcher($payload);
+            });
+
+            // Mark email as seen
+            $imapMsg->setFlag('Seen');
+        });
+    }
+
+    /**
+     * Save email attachments and return array for payload
+     */
+    private function saveAttachments($imapMsg, Message $message)
+    {
+        $attachmentsArr = [];
+
+        foreach ($imapMsg->getAttachments() as $att) {
+
+            $originalName = $att->name ?? 'file';
+            $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+            // Generate safe unique filename
+            $filename = Str::uuid().'_'.$att->name.'.'.$extension;
+
+            // Storage folder: storage/app/public/mail_attachments/YYYYMMDD/
+            $storagePath = 'mail_attachments/'.now()->format('Ymd');
+            $fullPath = $storagePath.'/'.$filename;
+
+            // put file using Laravel Storage
+            Storage::disk('public')->put($fullPath, $att->content);
+
+            // Correct MIME detection
+            $mime = match ($extension) {
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'pdf' => 'application/pdf',
+                'doc' => 'application/msword',
+                'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'xls' => 'application/vnd.ms-excel',
+                'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                default => 'application/octet-stream',
+            };
+
+            $attachmentsArr[] = [
+                'message_id' => $message->id,
+                'type' => $mime,
+                'path' => $fullPath,
+                'mime' => $mime,
+                'size' => strlen($att->content),
+                'attachment_id' => $att->id ?? null,
+                'is_available' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        if (! empty($attachmentsArr)) {
+            DB::transaction(function () use ($attachmentsArr) {
+                MessageAttachment::insert($attachmentsArr);
+            });
+        }
+
+        return $attachmentsArr;
     }
 }

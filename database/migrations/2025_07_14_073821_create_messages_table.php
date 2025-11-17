@@ -19,7 +19,7 @@ return new class extends Migration
             // Polymorphic sender
             $table->unsignedBigInteger('sender_id')->nullable();
             $table->string('sender_type')->nullable();
-            $table->string('cc_email')->nullable();
+            $table->longText('cc_email')->nullable();
             // Optional receiver
             $table->unsignedBigInteger('receiver_id')->nullable();
             $table->string('receiver_type')->nullable();
