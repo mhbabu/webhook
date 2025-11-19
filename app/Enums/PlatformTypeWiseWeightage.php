@@ -32,13 +32,13 @@ enum PlatformTypeWiseWeightage: string
     public function weight(): int
     {
         return match ($this) {
-            self::Email => 1,
             self::Facebook => 1,
             self::FacebookMessenger => 2,
             self::WhatsApp => 2,
             self::Website => 1,
             self::CorporateApp => 1,
             self::Instagram => 2,
+            self::Email => 1,
             self::UnknownSource => 1,
         };
     }
