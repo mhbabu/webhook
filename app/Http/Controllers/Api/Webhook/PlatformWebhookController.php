@@ -789,7 +789,10 @@ class PlatformWebhookController extends Controller
     public function verifyFacebookPageToken(Request $request)
     {
         info(['requestData' => $request->all()]);
-        $verify_token = env('FB_VERIFY_TOKEN');
+        // $verify_token = env('FACEBOOK_VERIFY_TOKEN');
+        $verify_token = config('services.facebook.verify_token');
+
+        info(['verify_token' => $verify_token]);
 
         $mode = $request->get('hub_mode');
         $token = $request->get('hub_verify_token');
