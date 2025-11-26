@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Events\CommentSynced;
+use App\Events\PostSynced;
+use App\Events\ReactionSynced;
 use App\Models\Comment;
 use App\Models\Customer;
 use App\Models\Platform;
@@ -10,6 +13,8 @@ use App\Models\Post;
 use App\Models\PostMedia;
 use App\Models\Reaction;
 use App\Models\SyncLog;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class SocialSyncService
@@ -18,6 +23,7 @@ class SocialSyncService
      * Persist or update a remote post into posts table.
      * $payload should be normalized by adapter: keys:
      * platform_post_id, caption, type, posted_at, media => [{type,url,thumbnail}]
+     * php artisan social:sync facebook
      */
     public function upsertPost(Platform $platform, PlatformAccount $account, array $payload): Post
     {
@@ -48,6 +54,20 @@ class SocialSyncService
                 ]);
             }
         }
+        $this->sendToDispatcher([
+            'source' => 'facebook',
+            'post_id' => $post->id,
+            'platform' => $platform->name,
+            'platform_account_id' => $account->platform_account_id,
+            'api_key' => config('dispatcher.facebook_api_key'),
+            'conversationType' => 'new',
+            'timestamp' => now()->timestamp,
+            'traceId' => uniqid('fb_post_', true),
+
+        ]);
+        // event(new \App\Events\PostSynced($post));
+        // PostSynced::dispatch($post);
+        // event(new PostSynced($post));
 
         return $post;
     }
@@ -76,6 +96,9 @@ class SocialSyncService
             ]
         );
 
+        // event(new \App\Events\CommentSynced($comment));
+        CommentSynced::dispatch($comment);
+
         return $comment;
     }
 
@@ -102,6 +125,9 @@ class SocialSyncService
             ]
         );
 
+        // event(new \App\Events\ReactionSynced($reaction));
+        ReactionSynced::dispatch($reaction);
+
         return $reaction;
     }
 
@@ -114,12 +140,20 @@ class SocialSyncService
             return null;
         }
 
+        $platform = Platform::where('name', 'facebook')->first();
+
+        if (! $platform) {
+            throw new \Exception("Platform 'facebook' not found in database");
+        }
+
+        $platformId = $platform->id;
+
         $customer = Customer::firstOrCreate(
             ['platform_user_id' => (string) $platformUserId],
             [
                 'name' => $name ?? 'Unknown',
                 // 'platform_id' => null, // optional: set to platform id if you store platform on customer
-                'platform_id' => 853145844542988,
+                'platform_id' => $platformId,
             ]
         );
 
@@ -138,5 +172,43 @@ class SocialSyncService
             'status' => $status,
             'message' => $message,
         ]);
+    }
+
+    protected function sendToDispatcher(array $payload): void
+    {
+        Log::info('🔎 DISPATCHER SEND START', [
+            'url' => config('dispatcher.url').config('dispatcher.endpoints.handler'),
+            'payload' => $payload,
+        ]);
+
+        try {
+            $url = config('dispatcher.url').config('dispatcher.endpoints.handler');
+            $response = Http::acceptJson()->post($url, $payload);
+
+            Log::info('📡 DISPATCHER RESPONSE', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            if ($response->ok()) {
+                Log::info('[CUSTOMER MESSAGE FORWARDED]', $payload);
+            } else {
+                Log::error('[DISPATCHER FAILED]', [
+                    'payload' => $payload,
+                    'response' => $response->body(),
+                    'status' => $response->status(),
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('[DISPATCHER ERROR]', [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    public function dispatchPayload(array $payload): void
+    {
+        $this->sendToDispatcher($payload);
     }
 }

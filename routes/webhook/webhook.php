@@ -17,7 +17,8 @@ Route::post('webhook/instagram', [PlatformWebhookController::class, 'receiveInst
 
 Route::get('webhook/facebook', [PlatformWebhookController::class, 'verifyFacebookPageToken']); //  facebook page token verification
 // Route::post('webhook/facebook', [PlatformWebhookController::class, 'receiveFacebookPageEventData']); // receive facebook page event data
-Route::post('webhook/facebook', [FacebookWebhookController::class, 'receiveFacebookPageEventData']); // receive facebook page event data
+// Route::post('webhook/facebook', [FacebookWebhookController::class, 'receiveFacebookPageEventData']); // receive facebook page event data
+Route::post('webhook/facebook', [FacebookWebhookController::class, 'handle']);
 
 Route::post('webhook/website', [PlatformWebhookController::class, 'receiveWebsitePageData'])->middleware('customer.token'); // receive website message data
 

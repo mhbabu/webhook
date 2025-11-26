@@ -82,7 +82,7 @@ class FacebookAdapter
 
     public function syncComments(Platform $platform, PlatformAccount $account, $post, $fbPostId)
     {
-        $url = "https://graph.facebook.com/v17.0/{$fbPostId}/comments";
+        $url = "https://graph.facebook.com/v24.0/{$fbPostId}/comments";
         $res = Http::get($url, [
             'fields' => 'id,from,message,parent,created_time',
             'access_token' => $this->token,
@@ -116,7 +116,7 @@ class FacebookAdapter
 
     public function syncReactionsForPost(Platform $platform, PlatformAccount $account, $post, $fbPostId)
     {
-        $url = "https://graph.facebook.com/v17.0/{$fbPostId}/reactions";
+        $url = "https://graph.facebook.com/v24.0/{$fbPostId}/reactions";
         $res = Http::get($url, [
             'fields' => 'id,name,type',
             'access_token' => $this->token,
@@ -138,7 +138,7 @@ class FacebookAdapter
 
     public function syncReactionsForComment(Platform $platform, PlatformAccount $account, $comment, $fbCommentId)
     {
-        $url = "https://graph.facebook.com/v17.0/{$fbCommentId}/reactions";
+        $url = "https://graph.facebook.com/v24.0/{$fbCommentId}/reactions";
         $res = Http::get($url, [
             'fields' => 'id,name,type',
             'access_token' => $this->token,

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Webhook;
 
 use App\Http\Controllers\Controller;
+use App\Services\Platforms\FacebookPageService;
 use App\Services\Platforms\FacebookService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -11,9 +12,12 @@ class FacebookWebhookController extends Controller
 {
     protected $facebookService;
 
-    public function __construct(FacebookService $facebookService)
+    protected $facebookPageService;
+
+    public function __construct(FacebookService $facebookService, FacebookPageService $facebookPageService)
     {
-        // $this->facebookService = $facebookService;
+        $this->facebookService = $facebookService;
+        $this->facebookPageService = $facebookPageService;
     }
 
     /**
@@ -240,5 +244,33 @@ class FacebookWebhookController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function handle(Request $request, FacebookPageService $syncService)
+    {
+        $payload = $request->all();
+
+        Log::info('Facebook Webhook Received Payload: ', $payload);
+        // Facebook sends multiple entries at once
+        foreach ($payload['entry'] ?? [] as $entry) {
+
+            foreach ($entry['changes'] ?? [] as $change) {
+
+                $value = $change['value'] ?? [];
+                $field = $change['field'] ?? null;
+
+                // Handle Page Posts (feed)
+                if ($field === 'feed') {
+                    $syncService->handleFeedChange($value);
+                }
+
+                // Handle Comment add/remove
+                if ($field === 'comments') {
+                    $syncService->handleCommentChange($value);
+                }
+            }
+        }
+
+        return response()->json(['status' => 'ok']);
     }
 }
