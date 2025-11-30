@@ -23,9 +23,6 @@ return new class extends Migration
             $table->timestamps();
             // Soft delete for removed reactions
             $table->softDeletes();
-
-            // Ensure each user can react only once per post
-            $table->unique(['post_id', 'customer_id']);
         });
     }
 

@@ -173,4 +173,26 @@ class WhatsAppService
 
         return $response->json();
     }
+
+    public function sendImageWithCaption(string $to, string $imageUrl, string $caption): array
+    {
+        $payload = [
+            'messaging_product' => 'whatsapp',
+            'to' => $to,
+            'type' => 'image',
+            'image' => [
+                'link'    => $imageUrl,
+                'caption' => $caption,
+            ],
+        ];
+
+        Log::info('WhatsApp Image with Caption Payload:', $payload);
+
+        $response = Http::withToken($this->token)->post($this->url, $payload);
+
+        Log::info('WhatsApp Image with Caption Response:', $response->json());
+
+        return $response->json();
+    }
+
 }

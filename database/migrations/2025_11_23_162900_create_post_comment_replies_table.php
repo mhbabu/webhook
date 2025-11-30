@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->id();
 
             // Post reference
-            $table->foreignId('comment_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('post_comment_id')->constrained()->cascadeOnDelete();
             $table->string('platform_reply_id')->nullable();
 
             // Customer / Facebook user ID

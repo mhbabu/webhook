@@ -25,7 +25,6 @@ return new class extends Migration {
 
             // Timestamps
             $table->timestamp('posted_at')->nullable();
-            $table->timestamp('updated_at')->nullable();
             $table->timestamp('deleted_at')->nullable();
             $table->timestamp('scheduled_at')->nullable(); // for scheduled posts
 
