@@ -19,6 +19,7 @@ class CustomerInactivityChecker extends Command
 
     public function __construct(WhatsAppService $whatsAppService)
     {
+        info('runing....');
         parent::__construct();
         $this->whatsAppService = $whatsAppService;
     }
@@ -44,7 +45,7 @@ class CustomerInactivityChecker extends Command
             ->whereNotNull('agent_id')
             ->whereHas('lastMessage', function ($query) use ($now) {
                 $query->where('sender_type', User::class)
-                    ->where('delivery_at', '<=', $now->subMinutes(config('alert-message.minutes_limit')));  // Filter for conversations where last message is at least 4 minutes ago
+                    ->where('delivered_at', '<=', $now->subMinutes(config('alert-message.minutes_limit')));  // Filter for conversations where last message is at least 4 minutes ago
             })
             ->with('lastMessage')
             ->get();
@@ -58,7 +59,7 @@ class CustomerInactivityChecker extends Command
             }
 
             // Calculate the time difference since the agent's last message
-            $timeSinceLastMessage = $lastMessage->delivery_at->diffInMinutes($now);
+            $timeSinceLastMessage = $lastMessage->delivered_at->diffInMinutes($now);
 
             // If 2 to 3 minutes have passed, send the first alert
             if ($timeSinceLastMessage >= config('alert-message.inactivity_alert_minutes') && $timeSinceLastMessage < config('alert-message.second_alert_minutes')) {
