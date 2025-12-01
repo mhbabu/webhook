@@ -5,19 +5,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: webhook-app
     container_name: webhook-app
     restart: unless-stopped
     working_dir: /var/www/html/webhook
     volumes:
       - ./:/var/www/html/webhook
-      - ./docker/php-fpm/www.conf:/usr/local/etc/php-fpm.d/www.conf  # IMPORTANT
+      - ./docker/php-fpm/www.conf:/usr/local/etc/php-fpm.d/www.conf   # ✅ Mount custom php-fpm config
     networks:
       - automatrix
     depends_on:
       - db
       - redis
     ports:
-      - "8080:8080"  # Reverb WebSocket
+      - "8080:8080" # Reverb WebSocket server
 
   webserver:
     image: nginx:alpine
@@ -46,11 +47,15 @@ services:
       - dbdata:/var/lib/mysql
     networks:
       - automatrix
+    ports:
+      - "3306:3306"
 
   redis:
     image: redis:alpine
     container_name: webhook-redis
     restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme}
     command: redis-server --requirepass ${REDIS_PASSWORD:-changeme}
     ports:
       - "6379:6379"

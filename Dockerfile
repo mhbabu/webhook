@@ -1,20 +1,16 @@
 # Dockerfile
 FROM php:8.3-fpm
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git curl zip unzip \
     libzip-dev libpng-dev libonig-dev libxml2-dev \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring bcmath pcntl gd zip
 
-# Install Redis extension
 RUN pecl install redis && docker-php-ext-enable redis
 
-# Copy Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html/webhook
@@ -28,5 +24,8 @@ RUN mkdir -p storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
-# Start Supervisor (starts php-fpm, queue, schedule, reverb)
+# Create Supervisor log directories
+RUN mkdir -p /var/log/supervisor /tmp \
+    && chmod -R 777 /var/log/supervisor /tmp
+
 CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]
