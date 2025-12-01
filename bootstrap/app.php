@@ -40,11 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
 
     ->withSchedule(function (Schedule $schedule) {
-        $schedule->call(function () {
-            info('Scheduling starting...');
-            Schedule::command(CustomerInactivityChecker::class)->everyMinute();
-            info('Scheduling end...');
-        })->everyMinute();
+        $schedule->command(CustomerInactivityChecker::class)->everyMinute();
     })
 
     ->create();
