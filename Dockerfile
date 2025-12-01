@@ -2,30 +2,14 @@ FROM php:8.3-fpm
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    zip \
-    unzip \
-    libzip-dev \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    supervisor \
+    git curl zip unzip libzip-dev libpng-dev libonig-dev libxml2-dev supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
-RUN docker-php-ext-install \
-    pdo_mysql \
-    mbstring \
-    exif \
-    pcntl \
-    bcmath \
-    gd \
-    zip
+RUN docker-php-ext-install pdo_mysql mbstring bcmath pcntl gd zip
 
 # Install Redis extension
-RUN pecl install redis \
-    && docker-php-ext-enable redis
+RUN pecl install redis && docker-php-ext-enable redis
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -35,17 +19,14 @@ WORKDIR /var/www/html/webhook
 
 # Copy Supervisor configuration
 COPY docker/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
+COPY docker/supervisor/*.conf /etc/supervisor/conf.d/
 
-# Ensure proper permissions for Laravel storage & cache
-RUN mkdir -p storage bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
+# Ensure proper permissions for Laravel
+RUN mkdir -p src/storage src/bootstrap/cache \
+    && chown -R www-data:www-data src/storage src/bootstrap/cache \
+    && chmod -R 775 src/storage src/bootstrap/cache
 
-# ✅ Create supervisor log & tmp directories (fixes your issue)
-RUN mkdir -p /var/log/supervisor /tmp \
-    && chmod -R 777 /var/log/supervisor /tmp
-
-# Expose ports
+# Expose ports (9000 PHP-FPM, 8080 Reverb WebSocket)
 EXPOSE 9000 8080
 
 # Start Supervisor
