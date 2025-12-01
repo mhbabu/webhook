@@ -14,6 +14,7 @@ class ConversationTemplateMessage extends Model
         'template_id',
         'customer_id',
         'content',
+        'message_id'
     ];
 
     public function conversation()
