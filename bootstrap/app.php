@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\CustomerInactivityChecker;
 use App\Http\Middleware\Customer\ValidateCustomerToken;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Auth\AuthenticationException;
@@ -11,9 +12,9 @@ use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__.'/../routes/web.php',
-        api: __DIR__.'/../routes/api.php',
-        commands: __DIR__.'/../routes/console.php',
+        web: __DIR__ . '/../routes/web.php',
+        api: __DIR__ . '/../routes/api.php',
+        commands: __DIR__ . '/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -24,7 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
 
     ->withBroadcasting(
-        __DIR__.'/../routes/channels.php',
+        __DIR__ . '/../routes/channels.php',
         ['prefix' => 'api', 'middleware' => ['api', 'auth:sanctum']],
     )
 
@@ -40,14 +41,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
     ->withSchedule(function (Schedule $schedule) {
         $schedule->call(function () {
-            // app(\App\Services\Platforms\EmailService::class)->fetchUnreadEmails();
-            Log::info('CRON START');
-
-            $service = app(\App\Services\Platforms\EmailService::class);
-
-            $service->fetchUnreadEmails();
-
-            Log::info('CRON END');
+            info('Scheduling starting...');
+            Schedule::command(CustomerInactivityChecker::class)->everyMinute();
+            info('Scheduling end...');
         })->everyMinute();
     })
 
