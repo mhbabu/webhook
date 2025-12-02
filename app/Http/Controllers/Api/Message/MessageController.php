@@ -180,74 +180,74 @@ class MessageController extends Controller
     public function incomingMsg(Request $request)
     {
         $data = $request->all();
-        Log::info('[IncomingMsg] Data', $data);
+        Log::info('[IncomingMsg2] Data', $data);
 
-        $agentId             = isset($data['agentId']) ? (int) $data['agentId'] : null;
-        $agentAvailableScope = $data['availableScope'] ?? null;
-        $source              = strtolower($data['source'] ?? '');
-        $conversationId      = $data['messageData']['conversationId'] ?? null;
-        $messageId           = $data['messageData']['messageId'] ?? null;
-        $conversationType    = $data['messageData']['conversationType'] ?? null;
+        $agentId          = $data['agentId'] ?? null;
+        $availableScope   = $data['availableScope'] ?? null;
+        $source           = strtolower($data['source'] ?? '');
+        $conversationId   = $data['messageData']['conversationId'] ?? null;
+        $messageId        = $data['messageData']['messageId'] ?? null;
+        $conversationType = $data['messageData']['conversationType'] ?? null;
 
+        // Basic validation
         if (! $conversationId || ! $agentId || ! $messageId) {
             return jsonResponse('Missing required fields: conversationId, agentId or messageId.', false, null, 400);
         }
 
-        DB::transaction(function () use ($agentId, $agentAvailableScope, $conversationId, $messageId, $conversationType, $source) {
+        DB::transaction(function () use ($agentId, $availableScope, $conversationId, $messageId, $conversationType, $source) {
 
-            // Update agent's available scope
-            $user                = User::findOrFail($agentId);
-            $user->current_limit = $agentAvailableScope;
+            // Update Agent Availability
+            $user = User::findOrFail($agentId);
+            $user->current_limit = $availableScope;
             $user->save();
 
-            // Load conversation and message
-            $conversation = Conversation::findOrFail($conversationId);
-            $message      = Message::findOrFail($messageId);
+            // Load Conversation & Message
+            $conversation      = Conversation::findOrFail($conversationId);
+            $message           = Message::findOrFail((int) $messageId);
+            $isFirstAssignment = false;
 
-            $isNewAssignment = false;
 
-            // Assign agent if new OR conversation has no agent
-            if ($conversationType === 'new' || empty($conversation->agent_id)) {
+            //Assign Agent Only First Time
+            if ($conversationType === 'new' && empty($conversation->agent_id)) {
 
                 $conversation->agent_id = $user->id;
 
-                // Only set once (never overwrite)
-                if (empty($conversation->first_message_at)) {
+                if (!$conversation->first_message_at) {
                     $conversation->first_message_at = now();
                 }
 
-                if (empty($conversation->agent_assigned_at)) {
+                if (!$conversation->agent_assigned_at) {
                     $conversation->agent_assigned_at = now();
                 }
 
                 $conversation->save();
-                $isNewAssignment = true;
+
+                $isFirstAssignment = true;
             }
 
-            // 4️⃣ Assign receiver for the message if new
+            // Assign Message Receiver
             if ($conversationType === 'new' || empty($message->receiver_id)) {
-                $message->receiver_id   = $conversation->agent_id;
+                $message->receiver_id   = $conversation->agent_id ?? $user->id;
                 $message->receiver_type = User::class;
             }
 
-            // Update message delivery time
             $message->delivered_at = now();
             $message->save();
 
-            // 5️⃣ Always update last_message_at
+            //Update Conversation Timestamps
             $conversation->last_message_at = now();
+            $conversation->last_message_id = $message->id;
             $conversation->save();
 
-            // 6️⃣ After DB commit → broadcast + events
-            DB::afterCommit(function () use ($isNewAssignment, $source, $conversation, $message, $user) {
+            // After Commit → Fire Event + Broadcast
+            DB::afterCommit(function () use ($isFirstAssignment, $source, $conversation, $message, $user) {
 
-                // Fire assignment event only for first WhatsApp assignment
-                if ($isNewAssignment && $source === 'whatsapp') {
-                    info('event fired...');
-                    event(new AgentAssignedToConversationEvent($conversation, $user));
+                // Fire event ONLY 1 time
+                if ($isFirstAssignment && $source === 'whatsapp') {
+                    event(new AgentAssignedToConversationEvent($conversation, $user, $message->id));
                 }
 
-                // Broadcast new message to sockets
+                // broadcasting payload
                 $payload = [
                     'conversation' => new ConversationInfoResource($conversation, $message),
                     'message'      => new MessageResource($message),
@@ -264,10 +264,6 @@ class MessageController extends Controller
 
         return jsonResponse('Message received successfully.', true, null);
     }
-
-
-
-
     /**
      * End a conversation
      * - Updates conversation table

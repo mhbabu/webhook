@@ -18,11 +18,12 @@ class AgentAssignedToConversationEvent
 
     public $conversation;
     public $agent;
+    public $messageId;
 
-    public function __construct(Conversation $conversation, User $agent)
+    public function __construct(Conversation $conversation, User $agent, $messageId)
     {
-        info('Event ...');
         $this->conversation = $conversation;
         $this->agent        = $agent;
+        $this->messageId    = $messageId;
     }
 }

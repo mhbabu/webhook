@@ -22,57 +22,40 @@ class SendAgentAssignedWhatsappMessageToCustomer
     {
         $conversation = $event->conversation;
         $agent        = $event->agent;
+        $messageId    = $event->messageId;
 
-        // Get customer
         $customer = Customer::find($conversation->customer_id);
+
         if (! $customer) {
-            Log::error("Customer not found for conversation", ['conversation_id' => $conversation->id]);
+            Log::error("Customer not found", ['conversation_id' => $conversation->id]);
             return;
         }
 
-        // Get message template
-        $messageTemplate = MessageTemplate::where('type', 'agent_assigned')->first();
-        $messageContent  = $messageTemplate  
-            ? '*' . $agent->name . "* " . $messageTemplate->content 
-            : '*' . $agent->name . "* joined the session. Thank you for contacting us. I will be glad to assist you.";
+        $template = MessageTemplate::where('type', 'agent_assigned')->first();
+        $content  = $template ? "*" . $agent->name . "* " . $template->content : "*" . $agent->name . "* joined the session. Thank you for contacting us.";
 
-        // Use last_message_id from conversation
-        $lastMessageId = $conversation->last_message_id;
-        if (! $lastMessageId) {
-            Log::error("No last_message_id found for conversation", ['conversation_id' => $conversation->id]);
+        // Prevent duplicate messages
+        $exists = ConversationTemplateMessage::where('conversation_id', $conversation->id)->where('template_id', $template?->id)->exists();
+
+        if ($exists) {
+            Log::info("Agent assigned message already sent. Skipping...", ['conversation_id' => $conversation->id]);
             return;
         }
 
-        // Create a record in conversation_template_messages
-        $templateRecord = ConversationTemplateMessage::create([
+        // Insert only ONCE
+        $record = ConversationTemplateMessage::create([
             'conversation_id' => $conversation->id,
-            'template_id'     => $messageTemplate?->id,
+            'template_id'     => $template?->id,
             'customer_id'     => $customer->id,
-            'message_id'      => $lastMessageId,
-            'content'         => $messageContent
+            'message_id'      => $messageId,
+            'content'         => $content
         ]);
 
         try {
-            // Send message via WhatsAppService
-            $this->whatsAppService->sendTextMessage($customer->phone, $messageContent);
-
-            // Mark template message as sent
-            $templateRecord->update(['is_sent' => true]);
-
-            Log::info("Agent-assigned WhatsApp message sent successfully", [
-                'conversation_id' => $conversation->id,
-                'agent_id'        => $agent->id,
-                'customer_phone'  => $customer->phone
-            ]);
+            $this->whatsAppService->sendTextMessage($customer->phone, $content);
+            $record->update(['is_sent' => true]);
         } catch (\Exception $e) {
-            // Update the record with error message
-            $templateRecord->update(['error' => $e->getMessage()]);
-
-            Log::error("Failed to send agent-assigned WhatsApp message", [
-                'conversation_id' => $conversation->id,
-                'agent_id'        => $agent->id,
-                'error'           => $e->getMessage()
-            ]);
+            $record->update(['error' => $e->getMessage()]);
         }
     }
 }
