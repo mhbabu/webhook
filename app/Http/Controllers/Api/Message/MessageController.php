@@ -596,21 +596,21 @@ class MessageController extends Controller
         return $conversation;
     }
 
-    protected function sendWhatsAppMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
+    protected function sendWhatsAppMessageFromAgent2(array $data, array $attachments, Conversation $conversation, Customer $customer)
     {
         $phone = $customer->phone;
 
         // Step 1: Save the text message in DB
         $message = Message::create([
             'conversation_id' => $conversation->id,
-            'sender_id' => auth()->id(),
-            'sender_type' => User::class,
-            'receiver_type' => Customer::class,
-            'receiver_id' => $customer->id,
-            'type' => 'text',
-            'content' => $data['content'] ?? '',
-            'delivered_at' => now(),
-            'direction' => 'outgoing',
+            'sender_id'       => auth()->id(),
+            'sender_type'     => User::class,
+            'receiver_type'   => Customer::class,
+            'receiver_id'     => $customer->id,
+            'type'            => 'text',
+            'content'         => $data['content'] ?? '',
+            'delivered_at'    => now(),
+            'direction'       => 'outgoing',
         ]);
 
         $whatsAppService = new WhatsAppService;
@@ -671,6 +671,104 @@ class MessageController extends Controller
             'text_response' => $textResponse,
         ]);
     }
+
+    protected function sendWhatsAppMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
+    {
+        $phone           = $customer->phone;
+        $whatsAppService = new WhatsAppService;
+        $mediaResponses = [];
+
+        // Step 1: Save the text message in DB (if any content exists)
+        $message = null;
+        if (!empty($data['content'])) {
+            $message = Message::create([
+                'conversation_id' => $conversation->id,
+                'sender_id'       => auth()->id(),
+                'sender_type'     => User::class,
+                'receiver_type'   => Customer::class,
+                'receiver_id'     => $customer->id,
+                'type'            => 'text',
+                'content'         => $data['content'],
+                'delivered_at'    => now(),
+                'direction'       => 'outgoing',
+            ]);
+
+            // Send text via WhatsApp
+            $textResponse = $whatsAppService->sendTextMessage($phone, $data['content']);
+            $message->update([
+                'platform_message_id' => $textResponse['messages'][0]['id'] ?? null,
+            ]);
+
+            // ✅ Update conversation last_message_id
+            $conversation->last_message_id = $message->id;
+            $conversation->save();
+        }
+
+        // Step 2: Process attachments
+        foreach ($attachments as $file) {
+            $storedPath = $file->store('attachments', 'public');
+            $fullPath = storage_path("app/public/{$storedPath}");
+            $mime = $file->getMimeType();
+            $size = $file->getSize();
+
+            $type = match (true) {
+                str_starts_with($mime, 'image/') => 'image',
+                str_starts_with($mime, 'video/') => 'video',
+                str_starts_with($mime, 'audio/') => 'audio',
+                default => 'document',
+            };
+
+            // Save attachment under the existing message if text exists
+            if ($message) {
+                $attachmentMessage = $message;
+            } else {
+                // If no text, create a message for the attachment
+                $attachmentMessage = Message::create([
+                    'conversation_id' => $conversation->id,
+                    'sender_id'       => auth()->id(),
+                    'sender_type'     => User::class,
+                    'receiver_type'   => Customer::class,
+                    'receiver_id'     => $customer->id,
+                    'type'            => $type,
+                    'content'         => null,
+                    'delivered_at'    => now(),
+                    'direction'       => 'outgoing',
+                ]);
+            }
+
+            // Save attachment info
+            $attachmentRecord = $attachmentMessage->attachments()->create([
+                'type' => $type,
+                'path' => $storedPath,
+                'mime' => $mime,
+                'size' => $size,
+                'is_available' => 1,
+            ]);
+
+            // Upload and send via WhatsApp
+            $mediaId = $whatsAppService->uploadMedia($fullPath, $mime);
+            if ($mediaId) {
+                $mediaResponse = $whatsAppService->sendMediaMessage($phone, $mediaId, $type);
+                $mediaResponses[] = $mediaResponse;
+
+                $attachmentRecord->update([
+                    'attachment_id' => $mediaResponse['messages'][0]['id'] ?? null,
+                ]);
+            }
+
+            // ✅ Update last_message_id after each attachment
+            $conversation->last_message_id = $attachmentMessage->id;
+            $conversation->save();
+        }
+
+        // Step 3: Return structured response
+        return jsonResponse('WhatsApp message(s) sent successfully.', true, [
+            'text_message'    => $message ? new MessageResource($message) : null,
+            'media_responses' => $mediaResponses,
+            'text_response'   => $textResponse ?? null,
+        ]);
+    }
+
 
     protected function sendMessengerMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
     {
