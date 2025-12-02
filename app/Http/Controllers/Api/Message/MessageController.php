@@ -609,6 +609,7 @@ class MessageController extends Controller
             'receiver_id' => $customer->id,
             'type' => 'text',
             'content' => $data['content'] ?? '',
+            'delivered_at' => now(),
             'direction' => 'outgoing',
         ]);
 
