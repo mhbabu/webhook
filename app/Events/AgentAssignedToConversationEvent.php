@@ -21,6 +21,7 @@ class AgentAssignedToConversationEvent
 
     public function __construct(Conversation $conversation, User $agent)
     {
+        info('Event ...');
         $this->conversation = $conversation;
         $this->agent        = $agent;
     }

@@ -243,6 +243,7 @@ class MessageController extends Controller
 
                 // Fire assignment event only for first WhatsApp assignment
                 if ($isNewAssignment && $source === 'whatsapp') {
+                    info('event fired...');
                     event(new AgentAssignedToConversationEvent($conversation, $user));
                 }
 

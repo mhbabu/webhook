@@ -7,7 +7,6 @@ use App\Models\Customer;
 use App\Models\MessageTemplate;
 use App\Models\ConversationTemplateMessage;
 use App\Services\Platforms\WhatsAppService;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class SendAgentAssignedWhatsappMessageToCustomer
@@ -33,15 +32,24 @@ class SendAgentAssignedWhatsappMessageToCustomer
 
         // Get message template
         $messageTemplate = MessageTemplate::where('type', 'agent_assigned')->first();
-        $messageContent  = $messageTemplate  ? '*' . $agent->name . "* " . $messageTemplate->content : '*' . $agent->name . "* joined the session. Thank you for contacting us. I will be glad to assist you.";
+        $messageContent  = $messageTemplate  
+            ? '*' . $agent->name . "* " . $messageTemplate->content 
+            : '*' . $agent->name . "* joined the session. Thank you for contacting us. I will be glad to assist you.";
+
+        // Use last_message_id from conversation
+        $lastMessageId = $conversation->last_message_id;
+        if (! $lastMessageId) {
+            Log::error("No last_message_id found for conversation", ['conversation_id' => $conversation->id]);
+            return;
+        }
 
         // Create a record in conversation_template_messages
         $templateRecord = ConversationTemplateMessage::create([
             'conversation_id' => $conversation->id,
             'template_id'     => $messageTemplate?->id,
             'customer_id'     => $customer->id,
-            'content'         => $messageContent,
-            'is_sent'         => false,
+            'message_id'      => $lastMessageId,
+            'content'         => $messageContent
         ]);
 
         try {
