@@ -21,7 +21,8 @@ class Conversation extends Model
         'in_queue_at',
         'first_message_at',
         'last_message_at',
-        'agent_assigned_at'
+        'agent_assigned_at',
+        'last_message_id'
     ];
 
     protected $casts = [
