@@ -24,6 +24,7 @@ class EndChatAlertChecker extends Command
 
     public function handle()
     {
+        info('Running EndChatAlertChecker...');
         $now            = now();
         $fiveMinutesAgo = $now->copy()->subMinutes(5);
 
