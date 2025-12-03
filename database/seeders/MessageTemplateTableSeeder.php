@@ -61,6 +61,12 @@ class MessageTemplateTableSeeder extends Seeder
                 ],
             ],
             [
+                'type'      => 'end_cchat_alert',
+                'content'   => 'We are waiting for your valuable Feedback',
+                'remarks'   => 'Send after 2 minutes of cchat if customer no response for feedback',
+                'is_active' => true,
+            ],
+            [
                 'type'      => 'after_feedback',
                 'content'   => 'Thaks for the feedback. We sincerely appreciate your insight',
                 'remarks'   => 'After customer feedback will send this message',

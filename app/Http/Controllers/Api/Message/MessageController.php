@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api\Message;
 
-use App\Events\AgentAssignedToConversationEvent;
+use App\Events\SendSystemConfigureMessageEvent;
 use App\Events\SocketIncomingMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Message\EndConversationRequest;
@@ -244,7 +244,7 @@ class MessageController extends Controller
 
                 // Fire event ONLY 1 time
                 if ($isFirstAssignment && $source === 'whatsapp') {
-                    event(new AgentAssignedToConversationEvent($conversation, $user, $message->id));
+                    event(new SendSystemConfigureMessageEvent($conversation, $user, $message->id, 'agent_assigned'));
                 }
 
                 // broadcasting payload
@@ -292,11 +292,10 @@ class MessageController extends Controller
         }
 
         // ✅ End the conversation
-        $conversation->update([
-            'end_at' => now(),
-            'wrap_up_id' => $data['wrap_up_id'],
-            'ended_by' => $user->id,
-        ]);
+        $conversation->end_at     = now();
+        $conversation->wrap_up_id = $data['wrap_up_id'];
+        $conversation->ended_by   = $user->id;
+        $conversation->save();
 
         // ✅ Update agent current_limit based on platform weight
         $weight = getPlatformWeight($conversation->platform);
@@ -304,6 +303,8 @@ class MessageController extends Controller
 
         // ✅ Update Redis: hash + omnitrix list + conditional CONTACT_TYPE removal
         $this->updateUserInRedis($user, $conversation);
+
+        event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
 
         return jsonResponse('Conversation ended successfully.', true);
     }
@@ -768,7 +769,6 @@ class MessageController extends Controller
             'text_response'   => $textResponse ?? null,
         ]);
     }
-
 
     protected function sendMessengerMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
     {

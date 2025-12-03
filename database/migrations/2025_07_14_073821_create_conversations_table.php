@@ -23,6 +23,7 @@ return new class extends Migration
             $table->timestamp('first_message_at')->nullable();
             $table->timestamp('last_message_at')->nullable();
             $table->timestamp('agent_assigned_at')->nullable();
+            $table->tinyInteger('is_feedback_sent')->default(0);
             $table->timestamps();
 
             $table->index(['customer_id', 'platform']);

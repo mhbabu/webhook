@@ -195,4 +195,50 @@ class WhatsAppService
         return $response->json();
     }
 
+    /**
+     * Send an interactive list message (with buttons for user to select an option).
+     *
+     * @param string $to The phone number of the recipient.
+     * @param string $text The main content of the message.
+     * @param array $options An array of options (buttons) for the user to choose from.
+     * @return array
+     */
+    public function sendInteractiveMessage(string $to, string $text, array $options): array
+    {
+        // Create the list message payload
+        $payload = [
+            'messaging_product' => 'whatsapp',
+            'to'                => $to,
+            'type'              => 'interactive',
+            'interactive' => [
+                'type' => 'list',
+                'body' => [
+                    'text' => $text
+                ],
+                'action' => [
+                    'button' => 'Choose one',
+                    'sections' => [
+                        [
+                            'title' => 'Rate your experience',
+                            'rows' => array_map(function ($option) {
+                                return [
+                                    'id'    => $option['value'], 
+                                    'title' => $option['label'],
+                                ];
+                            }, $options),
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        Log::info('WhatsApp Interactive List Payload:', $payload);
+
+        // Send the request to WhatsApp API
+        $response = Http::withToken($this->token)->post($this->url, $payload);
+        Log::info('WhatsApp Interactive List Response:', $response->json());
+
+        return $response->json();
+    }
+
 }

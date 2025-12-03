@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use App\Events\AgentAssignedToConversationEvent;
-use App\Listeners\SendAgentAssignedWhatsappMessageToCustomer;
+use App\Events\SendSystemConfigureMessageEvent;
+use App\Listeners\SystemConfigureMessageSendListener;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
@@ -24,7 +24,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         //EVETS LISTENERS
-        Event::listen(AgentAssignedToConversationEvent::class, SendAgentAssignedWhatsappMessageToCustomer::class);
+        Event::listen(SendSystemConfigureMessageEvent::class, SystemConfigureMessageSendListener::class);
         Schema::defaultStringLength(191);
     }
 }
