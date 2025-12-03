@@ -98,7 +98,7 @@ class PlatformWebhookController extends Controller
             $isNewConversation = false;
 
             if (! $conversation || $conversation->end_at !== null || $conversation->first_message_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
-                if ($conversation) {
+                if ($conversation && $conversation->agent_id) {
                     updateUserInRedis($conversation->agent_id ? User::find($conversation->agent_id) : null, $conversation);
                 }
 
@@ -286,7 +286,7 @@ class PlatformWebhookController extends Controller
             $isNewConversation = false;
             $sendWelcome = false;
 
-            if (! $conversation || $conversation->end_at !== null || $conversation->first_message_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
+            if (! $conversation || $conversation->end_at !== null || ($conversation->first_message_at ?? $conversation->created_at) < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
                 if ($conversation) {
                     updateUserInRedis($conversation->agent_id ? User::find($conversation->agent_id) : null, $conversation);
                 }

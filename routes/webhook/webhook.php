@@ -24,19 +24,3 @@ Route::get('/attachments/{attachment}/download', [PlatformWebhookController::cla
 
 require __DIR__.'/platform.php';
 
-Route::post('/auth-user-broadcasting', function (Request $request) {
-    $user = Auth::user(); // Already authenticated via middleware
-
-    $socketId = $request->input('socket_id');
-    $channelName = $request->input('channel_name');
-
-    $appKey = env('REVERB_APP_KEY');
-    $appSecret = env('REVERB_APP_SECRET');
-
-    $stringToSign = $socketId.':'.$channelName;
-    $signature = hash_hmac('sha256', $stringToSign, $appSecret);
-
-    return response()->json([
-        'auth' => $appKey.':'.$signature,
-    ]);
-})->middleware('auth:sanctum');
