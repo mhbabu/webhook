@@ -44,4 +44,37 @@ class DashboardAgentStatusTest extends TestCase
                 ],
             ]);
     }
+
+    public function test_agent_status_endpoint_filters_by_status(): void
+    {
+        Redis::shouldReceive('keys')
+            ->once()
+            ->with('agent:*')
+            ->andReturn(['omnitrix_agent:2', 'omnitrix_agent:3']);
+
+        Redis::shouldReceive('hGetAll')
+            ->once()
+            ->with('agent:2')
+            ->andReturn([
+                'AGENT_ID' => '2',
+                'STATUS' => 'AVAILABLE',
+            ]);
+
+        Redis::shouldReceive('hGetAll')
+            ->once()
+            ->with('agent:3')
+            ->andReturn([
+                'AGENT_ID' => '3',
+                'STATUS' => 'OCCUPIED',
+            ]);
+
+        $response = $this->getJson('/api/v1/dashboard/agent-status?filter[status]=AVAILABLE');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonFragment([
+                'AGENT_ID' => 2,
+                'STATUS' => 'AVAILABLE',
+            ]);
+    }
 }
