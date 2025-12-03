@@ -2,6 +2,7 @@
 
 use App\Enums\PlatformTypeWiseWeightage;
 use App\Models\Conversation;
+use App\Models\MessageTemplate;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Redis;
 
@@ -142,6 +143,40 @@ if (!function_exists('storeAndDetectAttachment')) {
     }
 }
 
+if (! function_exists('getFeedbackRatingsFromCustomer')) {
+    /**
+     * Get numeric rating value for a customer feedback option.
+     *
+     * Example Mapping:
+     * - Excellent => 5
+     * - Good      => 4
+     * - Average   => 3
+     * - Bad       => 2
+     * - Very Bad  => 1
+     *
+     * Works for WhatsApp, Facebook, or other platforms.
+     *
+     * @param string $label The interactive option label
+     * @param string|null $templateType Template type, default 'cchat'
+     * @return int|null Numeric rating or null if label not found
+     */
+    function getFeedbackRatingsFromCustomer(string $label, ?string $templateType = 'cchat'): ?int
+    {
+        $template = MessageTemplate::where('type', $templateType)->first();
+
+        if (! $template || empty($template->options)) {
+            return null;
+        }
+
+        foreach ($template->options as $option) {
+            if (strcasecmp($option['label'], $label) === 0) {
+                return $option['value'];
+            }
+        }
+
+        return null;
+    }
+}
 
 /**
  * Update or insert agent (user) data in Redis.

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Webhook;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Platform\WebsiteCustomerMessageRequest;
 use App\Models\Conversation;
+use App\Models\ConversationRating;
 use App\Models\Customer;
 use App\Models\Message;
 use App\Models\MessageAttachment;
@@ -243,7 +244,7 @@ class PlatformWebhookController extends Controller
         return jsonResponse(! empty($messages) ? 'Message received' : 'Status received', true);
     }
 
-    public function incomingWhatsAppMessage(Request $request)
+    public function incomingWhatsAppMessage2(Request $request)
     {
         $data = $request->all();
         Log::info('WhatsApp Incoming Request', ['data' => $data]);
@@ -445,7 +446,245 @@ class PlatformWebhookController extends Controller
         return jsonResponse(! empty($messages) ? 'Message received' : 'Status received', true);
     }
 
+    public function incomingWhatsAppMessage(Request $request)
+    {
+        $data       = $request->all();
+        Log::info('WhatsApp Incoming Request', ['data' => $data]);
 
+        $entry      = $data['entry'][0]['changes'][0]['value'] ?? [];
+        $statuses   = $entry['statuses'] ?? [];
+        $messages   = $entry['messages'] ?? [];
+        $contacts   = $entry['contacts'][0] ?? null;
+
+        $platform       = Platform::whereRaw('LOWER(name) = ?', ['whatsapp'])->first();
+        $platformId     = $platform->id;
+        $platformName   = strtolower($platform->name);
+
+        $phone = $contacts['wa_id'] ?? ($messages[0]['from'] ?? null);
+        if (!$phone) {
+            Log::warning('Invalid or missing phone number in request.');
+            return response()->json(['status' => 'invalid_phone'], 400);
+        }
+
+        $senderName = $contacts['profile']['name'] ?? $phone;
+        $payloadsToSend = [];
+
+        DB::transaction(function () use ($statuses, $messages, $phone, $senderName, $platformId, $platformName, &$payloadsToSend) {
+
+            $customer = Customer::firstOrCreate(
+                ['phone' => $phone, 'platform_id' => $platformId],
+                ['name' => $senderName]
+            );
+
+            $conversation = $this->getOrCreateConversation($customer, $platformName);
+            $isNewConversation = $conversation->wasRecentlyCreated;
+            $sendWelcome = $isNewConversation && !Conversation::where('customer_id', $customer->id)->exists();
+
+            // 1️⃣ Handle interactive messages & ratings
+            foreach ($messages as $msg) {
+                if (($msg['type'] ?? '') === 'interactive' && $this->handleInteractiveRating($msg, $customer, $platformName)) {
+                    return; // Stop if rating saved
+                }
+            }
+
+            // 2️⃣ Handle statuses
+            foreach ($statuses as $status) {
+                $payloadsToSend[] = $this->buildPayload([
+                    'conversation' => $conversation,
+                    'sender'       => $phone,
+                    'message'      => $status['status'] ?? '',
+                    'timestamp'    => $status['timestamp'] ?? time(),
+                    'conversationType' => $isNewConversation ? 'new' : 'old',
+                    'subject'      => 'WhatsApp Status Update',
+                    'attachments'  => [],
+                ]);
+            }
+
+            // 3️⃣ Handle messages
+            foreach ($messages as $msg) {
+                if (!in_array($msg['type'] ?? '', ['text', 'image', 'video', 'document', 'audio'])) {
+                    Log::info('Skipped unsupported WhatsApp message type', ['msg' => $msg]);
+                    continue;
+                }
+
+                $message = $this->storeMessage($msg, $conversation, $customer);
+                $payloadsToSend[] = $this->buildPayload([
+                    'conversation' => $conversation,
+                    'sender'       => $phone,
+                    'message'      => $message->content,
+                    'timestamp'    => $msg['timestamp'] ?? time(),
+                    'conversationType' => $isNewConversation ? 'new' : 'old',
+                    'subject'      => "Customer Message from $senderName",
+                    'attachments'  => $message->attachments->pluck('path')->toArray(),
+                    'messageId'    => $message->id,
+                    'parentMessageId' => $message->parent_id,
+                ]);
+            }
+
+            // 4️⃣ After commit: send welcome + dispatcher
+            DB::afterCommit(function () use ($payloadsToSend, $sendWelcome, $phone) {
+                if ($sendWelcome) {
+                    $template = MessageTemplate::where('type', 'welcome')->first();
+                    if ($template) {
+                        $this->whatsAppService->sendImageWithCaption($phone, $template->logo_path, $template->content);
+                    }
+                }
+
+                foreach ($payloadsToSend as $payload) {
+                    Log::info('Dispatching WhatsApp Payload', ['payload' => $payload]);
+                    $this->sendToDispatcher($payload);
+                }
+            });
+        });
+
+        return jsonResponse(!empty($messages) ? 'Message received' : 'Status received', true);
+    }
+
+    private function getOrCreateConversation(Customer $customer, string $platformName)
+    {
+        $conversation = Conversation::where('customer_id', $customer->id)
+            ->where('platform', $platformName)
+            ->latest()
+            ->first();
+
+        if (!$conversation || $conversation->end_at || ($conversation->first_message_at ?? $conversation->created_at) < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
+            if ($conversation) {
+                updateUserInRedis($conversation->agent_id ? User::find($conversation->agent_id) : null, $conversation);
+            }
+
+            $conversation = Conversation::create([
+                'customer_id' => $customer->id,
+                'platform'    => $platformName,
+                'trace_id'    => 'WA-' . now()->format('YmdHis') . '-' . uniqid(),
+                'agent_id'    => null,
+                'in_queue_at' => now()
+            ]);
+        }
+
+        return $conversation;
+    }
+
+    private function handleInteractiveRating(array $msg, Customer $customer, string $platformName): bool
+    {
+        $iType = $msg['interactive']['type'] ?? null;
+        $label = match ($iType) {
+            'list_reply' => $msg['interactive']['list_reply']['title'] ?? null,
+            'button_reply' => $msg['interactive']['button_reply']['title'] ?? null,
+            default => null,
+        };
+
+        $ratingValue = getFeedbackRatingsFromCustomer($label);
+        if ($ratingValue === null) return false;
+
+        $lastConv = Conversation::where('customer_id', $customer->id)
+            ->where('platform', $platformName)
+            ->latest()
+            ->first();
+
+        $alreadyRated = $lastConv ? ConversationRating::where('conversation_id', $lastConv->id)->exists() : true;
+
+        if ($lastConv && $lastConv->end_at && !$alreadyRated) {
+            ConversationRating::create([
+                'conversation_id'  => $lastConv->id,
+                'customer_id'      => $customer->id,
+                'agent_id'         => $lastConv->agent_id,
+                'platform'         => $platformName,
+                'option_label'     => $label,
+                'rating_value'     => $ratingValue,
+                'interactive_type' => $iType,
+            ]);
+
+            Log::info('✅ Rating saved for closed conversation', [
+                'conversation_id' => $lastConv->id,
+                'rating' => $ratingValue
+            ]);
+
+            return true; // Rating saved → stop further processing
+        }
+
+        return false;
+    }
+
+    private function storeMessage(array $msg, Conversation $conversation, Customer $customer)
+    {
+        $type = $msg['type'];
+        $caption = $msg['text']['body'] ?? null;
+        $attachments = [];
+
+        if ($type !== 'text') {
+            $mediaId = $msg[$type]['id'] ?? null;
+            if ($mediaId) {
+                $mediaData = $this->whatsAppService->getMediaUrlAndDownload($mediaId);
+                if ($mediaData) {
+                    $attachments[] = [
+                        'attachment_id' => $mediaId,
+                        'path' => $mediaData['full_path'],
+                        'type' => $mediaData['type'],
+                        'mime' => $mediaData['mime'] ?? null,
+                        'size' => $mediaData['size'] ?? null,
+                        'is_download' => 1,
+                    ];
+                }
+            }
+
+            if (!$caption && !empty($msg[$type]['caption'])) {
+                $caption = $msg[$type]['caption'];
+            }
+        }
+
+        $parentId = null;
+        if (!empty($msg['context']['id'])) {
+            $parent = Message::where('platform_message_id', $msg['context']['id'])->first();
+            $parentId = $parent?->id;
+        }
+
+        $message = Message::create([
+            'conversation_id'     => $conversation->id,
+            'sender_id'           => $customer->id,
+            'sender_type'         => Customer::class,
+            'type'                => $type,
+            'content'             => $caption,
+            'direction'           => 'incoming',
+            'receiver_type'       => User::class,
+            'receiver_id'         => $conversation->agent_id ?? null,
+            'platform_message_id' => $msg['id'] ?? null,
+            'parent_id'           => $parentId,
+        ]);
+
+        if ($attachments) {
+            $bulk = array_map(fn($att) => array_merge($att, [
+                'message_id' => $message->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]), $attachments);
+            MessageAttachment::insert($bulk);
+        }
+
+        $message->attachments = collect($attachments);
+        $conversation->update(['last_message_id' => $message->id]);
+
+        return $message;
+    }
+
+    private function buildPayload(array $data)
+    {
+        return [
+            'source'           => 'whatsapp',
+            'traceId'          => $data['conversation']->trace_id,
+            'conversationId'   => $data['conversation']->id,
+            'conversationType' => $data['conversationType'] ?? 'old',
+            'sender'           => $data['sender'],
+            'api_key'          => config('dispatcher.whatsapp_api_key'),
+            'timestamp'        => $data['timestamp'] ?? time(),
+            'message'          => $data['message'],
+            'attachmentId'     => $data['attachmentId'] ?? [],
+            'attachments'      => $data['attachments'] ?? [],
+            'subject'          => $data['subject'] ?? null,
+            'messageId'        => $data['messageId'] ?? null,
+            'parentMessageId'  => $data['parentMessageId'] ?? null,
+        ];
+    }
+    
     /**
      * Send payload to dispatcher API
      */
