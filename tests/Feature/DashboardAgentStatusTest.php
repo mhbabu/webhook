@@ -11,12 +11,12 @@ class DashboardAgentStatusTest extends TestCase
     {
         Redis::shouldReceive('keys')
             ->once()
-            ->with('omnitrix_agent:*')
+            ->with('agent:*')
             ->andReturn(['omnitrix_agent:2']);
 
         Redis::shouldReceive('hGetAll')
             ->once()
-            ->with('omnitrix_agent:2')
+            ->with('agent:2')
             ->andReturn([
                 'AVAILABLE_SCOPE' => '5',
                 'CONTACT_TYPE' => '[]',

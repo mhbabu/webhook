@@ -2,58 +2,57 @@
 
 namespace App\Http\Controllers\Api\Dashboard;
 
-use App\Enums\UserStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Dashboard\AgentStatusResource;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Str;
 
 class DashboardController extends Controller
 {
-    private const AGENT_HASH_PREFIX = 'omnitrix_agent:';
-
     public function agentStatus()
     {
-        $keys = Redis::keys(self::AGENT_HASH_PREFIX . '*');
+        $agents = collect(Redis::keys($this->agentKeyPattern()))
+            ->map(fn(string $key) => $this->stripRedisPrefix($key))
+            ->map(fn(string $key) => $this->buildAgentPayload($key))
+            ->filter()
+            ->values();
 
-        $agents = [];
-        foreach ($keys as $key) {
-            $agentData = Redis::hGetAll($key);
+        $resource = AgentStatusResource::collection($agents)->resolve();
 
-            if (empty($agentData)) {
-                continue;
-            }
+        return jsonResponse('Agent statuses fetched successfully.', true, $resource);
+    }
 
-            $agentData['AGENT_ID'] = (int) ($agentData['AGENT_ID'] ?? $this->extractAgentId($key));
-            $agentData['CONTACT_TYPE'] = $this->decodeJsonField($agentData['CONTACT_TYPE'] ?? null);
-            $agentData['SKILL'] = $this->decodeJsonField($agentData['SKILL'] ?? null);
-            $agentData['STATUS'] = $this->normalizeStatus($agentData['STATUS'] ?? null);
+    private function buildAgentPayload(string $key): ?array
+    {
+        $agentData = Redis::hGetAll($key);
 
-            $agents[] = $agentData;
+        if (empty($agentData)) {
+            return null;
         }
 
-        return jsonResponse('Agent statuses fetched successfully.', true, $agents);
+        $agentData['AGENT_ID'] = (int) ($agentData['AGENT_ID'] ?? $this->extractAgentId($key));
+
+        return $agentData;
     }
 
     private function extractAgentId(string $key): int
     {
-        return (int) str_replace(self::AGENT_HASH_PREFIX, '', $key);
+        return (int) str_replace('agent:', '', $key);
     }
 
-    private function decodeJsonField(?string $value): array
+    private function agentKeyPattern(): string
     {
-        if (! is_string($value) || $value === '') {
-            return [];
+        return 'agent:*';
+    }
+
+    private function stripRedisPrefix(string $key): string
+    {
+        $prefix = (string) config('database.redis.options.prefix', '');
+
+        if ($prefix === '' || ! Str::startsWith($key, $prefix)) {
+            return $key;
         }
 
-        $decoded = json_decode($value, true);
-
-        return json_last_error() === JSON_ERROR_NONE ? $decoded : [];
-    }
-
-    private function normalizeStatus(?string $status): string
-    {
-        $status = strtoupper((string) $status);
-        $allowedStatuses = array_map(fn(UserStatus $case) => $case->value, UserStatus::cases());
-
-        return in_array($status, $allowedStatuses, true) ? $status : UserStatus::OFFLINE->value;
+        return substr($key, strlen($prefix));
     }
 }
