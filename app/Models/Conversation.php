@@ -22,7 +22,8 @@ class Conversation extends Model
         'first_message_at',
         'last_message_at',
         'agent_assigned_at',
-        'last_message_id'
+        'last_message_id',
+        'is_feedback_sent'
     ];
 
     protected $casts = [
