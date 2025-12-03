@@ -6,6 +6,7 @@ use App\Enums\UserStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Dashboard\AgentStatusResource;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 
@@ -35,8 +36,12 @@ class DashboardController extends Controller
             ->values();
 
         $resource = AgentStatusResource::collection($agents)->resolve();
+        $summary = $this->buildStatusSummary($agents, $statusFilter);
 
-        return jsonResponse('Agent statuses fetched successfully.', true, $resource);
+        return jsonResponse('Agent statuses fetched successfully.', true, [
+            'summary' => $summary,
+            'agents' => $resource,
+        ]);
     }
 
     private function buildAgentPayload(string $key): ?array
@@ -57,7 +62,7 @@ class DashboardController extends Controller
         return (int) str_replace('agent:', '', $key);
     }
 
-    private function parseStatusFilter(array|string|null $value)
+    private function parseStatusFilter(array|string|null $value): Collection
     {
         $rawValues = match (true) {
             is_null($value)        => [],
@@ -92,5 +97,20 @@ class DashboardController extends Controller
         }
 
         return substr($key, strlen($prefix));
+    }
+
+    private function buildStatusSummary(Collection $agents, Collection $statusFilter): array
+    {
+        $counts = $agents->groupBy(function ($agent) {
+            return strtoupper((string) ($agent['STATUS'] ?? ''));
+        })->map->count();
+
+        $statuses = $statusFilter->isEmpty()
+            ? collect(UserStatus::cases())->map->value
+            : $statusFilter;
+
+        return $statuses
+            ->mapWithKeys(fn($status) => [$status => (int) ($counts[$status] ?? 0)])
+            ->toArray();
     }
 }

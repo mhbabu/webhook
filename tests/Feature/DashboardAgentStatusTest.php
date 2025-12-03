@@ -35,11 +35,20 @@ class DashboardAgentStatusTest extends TestCase
                 'status' => true,
                 'message' => 'Agent statuses fetched successfully.',
                 'data' => [
-                    [
-                        'AGENT_ID' => 2,
-                        'STATUS' => 'AVAILABLE',
-                        'CONTACT_TYPE' => [],
-                        'SKILL' => ['whatsapp', 'facebook_messenger'],
+                    'summary' => [
+                        'AVAILABLE' => 1,
+                        'OCCUPIED' => 0,
+                        'BREAK_REQUEST' => 0,
+                        'BREAK' => 0,
+                        'OFFLINE' => 0,
+                    ],
+                    'agents' => [
+                        [
+                            'AGENT_ID' => 2,
+                            'STATUS' => 'AVAILABLE',
+                            'CONTACT_TYPE' => [],
+                            'SKILL' => ['whatsapp', 'facebook_messenger'],
+                        ],
                     ],
                 ],
             ]);
@@ -68,13 +77,22 @@ class DashboardAgentStatusTest extends TestCase
                 'STATUS' => 'OCCUPIED',
             ]);
 
-        $response = $this->getJson('/api/v1/dashboard/agent-status?filter[status]=AVAILABLE');
+        $response = $this->getJson('/api/v1/dashboard/agent-status?filter[status]=AVAILABLE,OCCUPIED');
 
         $response->assertOk()
-            ->assertJsonCount(1, 'data')
+            ->assertJsonCount(2, 'data.agents')
+            ->assertJsonPath('data.summary', [
+                'AVAILABLE' => 1,
+                'OCCUPIED' => 1,
+            ])
+            ->assertJsonMissingPath('data.summary.BREAK')
             ->assertJsonFragment([
                 'AGENT_ID' => 2,
                 'STATUS' => 'AVAILABLE',
+            ])
+            ->assertJsonFragment([
+                'AGENT_ID' => 3,
+                'STATUS' => 'OCCUPIED',
             ]);
     }
 }
