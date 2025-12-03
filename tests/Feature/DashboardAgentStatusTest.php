@@ -95,4 +95,51 @@ class DashboardAgentStatusTest extends TestCase
                 'STATUS' => 'OCCUPIED',
             ]);
     }
+
+    public function test_agent_status_endpoint_filters_by_agent_ids(): void
+    {
+        Redis::shouldReceive('keys')
+            ->once()
+            ->with('agent:*')
+            ->andReturn(['omnitrix_agent:2', 'omnitrix_agent:3']);
+
+        Redis::shouldReceive('hGetAll')
+            ->once()
+            ->with('agent:2')
+            ->andReturn([
+                'AGENT_ID' => '2',
+                'STATUS' => 'AVAILABLE',
+            ]);
+
+        Redis::shouldReceive('hGetAll')
+            ->once()
+            ->with('agent:3')
+            ->andReturn([
+                'AGENT_ID' => '3',
+                'STATUS' => 'OCCUPIED',
+            ]);
+
+        $response = $this->getJson('/api/v1/dashboard/agent-status?filter[agent]=2');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data.agents')
+            ->assertJsonFragment([
+                'AGENT_ID' => 2,
+            ])
+            ->assertJsonMissing([
+                'AGENT_ID' => 3,
+            ]);
+    }
+
+    public function test_agent_status_endpoint_returns_no_content_when_no_agents_found(): void
+    {
+        Redis::shouldReceive('keys')
+            ->once()
+            ->with('agent:*')
+            ->andReturn([]);
+
+        $response = $this->getJson('/api/v1/dashboard/agent-status');
+
+        $response->assertNoContent();
+    }
 }

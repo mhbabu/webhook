@@ -9,4 +9,5 @@ Route::prefix('dashboard')->group(function () {
         return response()->json(['status' => 'ok']);
     })->name('dashboard.health');
     Route::get('agent-status', [DashboardController::class, 'agentStatus'])->name('dashboard.agent-status');
+    Route::get('pending', [DashboardController::class, 'pending'])->name('dashboard.pending');
 });
