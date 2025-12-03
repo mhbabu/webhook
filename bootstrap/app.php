@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\CustomerInactivityChecker;
+use App\Console\Commands\EndChatAlertChecker;
 use App\Http\Middleware\Customer\ValidateCustomerToken;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Auth\AuthenticationException;
@@ -41,7 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command(CustomerInactivityChecker::class)->everyMinute();
-        $schedule->command(CustomerInactivityChecker::class)->everyMinute();
+        $schedule->command(EndChatAlertChecker::class)->everyMinute();
 
     })
 
