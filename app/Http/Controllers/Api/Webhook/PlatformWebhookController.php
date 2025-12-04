@@ -687,15 +687,34 @@ class PlatformWebhookController extends Controller
         $caption = $msg['text']['body'] ?? null;
         $attachments = [];
 
+        // if ($type === 'interactive') {
+        //     // For non-rating interactive (e.g., menu selection), prefer list_reply or button_reply title as content
+        //     $iType = $msg['interactive']['type'] ?? null;
+        //     if ($iType === 'list_reply') {
+        //         $caption = $msg['interactive']['list_reply']['title'] ?? $caption;
+        //     } elseif ($iType === 'button_reply') {
+        //         $caption = $msg['interactive']['button_reply']['title'] ?? $caption;
+        //     }
+        // }
         if ($type === 'interactive') {
-            // For non-rating interactive (e.g., menu selection), prefer list_reply or button_reply title as content
-            $iType = $msg['interactive']['type'] ?? null;
+
+            $interactive = $msg['interactive'] ?? [];
+            $iType = $interactive['type'] ?? null;
+
             if ($iType === 'list_reply') {
-                $caption = $msg['interactive']['list_reply']['title'] ?? $caption;
-            } elseif ($iType === 'button_reply') {
-                $caption = $msg['interactive']['button_reply']['title'] ?? $caption;
+                $caption = $interactive['list_reply']['title'] ?? null;
+            }
+
+            elseif ($iType === 'button_reply') {
+                $caption = $interactive['button_reply']['title'] ?? null;
+            }
+
+            // If somehow title missing, fallback to text body
+            if (!$caption && isset($msg['text']['body'])) {
+                $caption = $msg['text']['body'];
             }
         }
+
 
         if ($type !== 'text' && $type !== 'interactive') {
             $mediaId = $msg[$type]['id'] ?? null;
