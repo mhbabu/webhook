@@ -13,7 +13,6 @@ class ConversationRating extends Model
 
     protected $fillable = [
         'conversation_id',
-        'agent_id',
         'platform',
         'option_label',
         'rating_value',
