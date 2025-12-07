@@ -15,7 +15,7 @@ class ChatSeeder extends Seeder
     public function run(): void
     {
         // -------------------------------------------
-        // 1. Fetch all Agents (role_id=4)
+        // 1. Fetch all Agents (role_id = 4)
         // -------------------------------------------
         $agents = User::where('role_id', 4)->get();
 
@@ -26,10 +26,10 @@ class ChatSeeder extends Seeder
             'whatsapp',
             'facebook_messenger',
             'instagram_message'
-        ])->pluck('id', 'name');
+        ])->get();
 
         // -------------------------------------------
-        // 3. BD Names
+        // 3. Bangladeshi Names
         // -------------------------------------------
         $bdNames = [
             'Mahmudul Hasan','Abdul Karim','Shakil Ahmed','Sabbir Hossain','Fahim Rahman',
@@ -39,7 +39,7 @@ class ChatSeeder extends Seeder
         ];
 
         // -------------------------------------------
-        // 4. Customer Message Pool
+        // 4. Customer & Agent Messages
         // -------------------------------------------
         $customerMessages = [
             "Hello, how are you?",
@@ -54,9 +54,6 @@ class ChatSeeder extends Seeder
             "Ami ki ekto details pete pari?"
         ];
 
-        // -------------------------------------------
-        // 5. Agent Message Pool
-        // -------------------------------------------
         $agentMessages = [
             "Hello! How can I help you today?",
             "Sure, I can assist you.",
@@ -71,55 +68,56 @@ class ChatSeeder extends Seeder
         ];
 
         // -------------------------------------------
-        // 6. Create Customers (50)
+        // 5. Create 50 Customers
         // -------------------------------------------
-        $platformKeys = $allowedPlatforms->keys()->toArray();
         $customers = collect();
-
         for ($i = 0; $i < 50; $i++) {
+            $platform = $allowedPlatforms->random();
 
-            $platformName = $platformKeys[array_rand($platformKeys)];
-
-            $customers->push(Customer::create([
-                'name' => $bdNames[array_rand($bdNames)],
-                'username' => null,
-                'email' => 'customer' . rand(1000, 9999) . '@example.com',
-                'phone' => $this->generateBangladeshiPhone(),
-                'platform_user_id' => uniqid('user_'),
-                'platform_id' => $allowedPlatforms[$platformName],
-                'profile_photo' => null,
-                'is_verified' => 1,
-                'is_requested' => 0,
-            ]));
+            $customers->push(
+                Customer::create([
+                    'name' => $bdNames[array_rand($bdNames)],
+                    'username' => null,
+                    'email' => 'customer' . rand(1000, 9999) . '@example.com',
+                    'phone' => $this->generateBangladeshiPhone(),
+                    'platform_user_id' => uniqid('user_'),
+                    'platform_id' => $platform->id,
+                    'profile_photo' => null,
+                    'is_verified' => 1,
+                    'is_requested' => 0,
+                ])
+            );
         }
 
         // -------------------------------------------
-        // 7. Generate Conversations (5 per Agent)
+        // 6. Create Conversations (10 per Agent)
         // -------------------------------------------
         $conversations = collect();
 
         foreach ($agents as $agent) {
-            for ($i = 0; $i < 5; $i++) {
+            for ($i = 0; $i < 10; $i++) {
+                $customer = $customers->random();
+
                 $conversations->push(
                     Conversation::create([
                         'agent_id' => $agent->id,
-                        'customer_id' => $customers->random()->id,
+                        'customer_id' => $customer->id,
+                        'platform' => $customer->platform->name, // string platform
                     ])
                 );
             }
         }
 
         // -------------------------------------------
-        // 8. Create 10 Meaningful Messages per Conversation
+        // 7. Create 10 Messages per Conversation
         // -------------------------------------------
         foreach ($conversations as $conversation) {
-
             for ($i = 0; $i < 10; $i++) {
-
                 $agent = $conversation->agent;
                 $customer = $conversation->customer;
 
-                $isAgentSender = $i % 2 === 0; // alternate sender
+                // Alternate sender
+                $isAgentSender = $i % 2 === 0;
 
                 $sender = $isAgentSender ? $agent : $customer;
                 $receiver = $isAgentSender ? $customer : $agent;
@@ -138,12 +136,14 @@ class ChatSeeder extends Seeder
                     'direction' => $isAgentSender ? 'outgoing' : 'incoming',
                 ]);
 
+                // Random attachments
                 if (rand(0, 10) > 7) {
                     MessageAttachment::factory()->create([
                         'message_id' => $message->id,
                     ]);
                 }
 
+                // Update conversation last message
                 $conversation->update([
                     'last_message_id' => $message->id,
                 ]);
