@@ -527,9 +527,9 @@ class PlatformWebhookController extends Controller
             // so we should treat the interactive as a normal message — continue to normal flow.
         }
 
-        // -------------------------
+        // ---------------------------------------------------------------------------
         // NORMAL FLOW: create/fetch customer, conversation, store messages, dispatch
-        // -------------------------
+        // ----------------------------------------------------------------------------
         $payloadsToSend = [];
 
         DB::transaction(function () use ($statuses, $messages, $phone, $senderName, $platformId, $platformName, &$payloadsToSend) {
@@ -539,9 +539,9 @@ class PlatformWebhookController extends Controller
                 ['name' => $senderName]
             );
 
-            $conversation = $this->getOrCreateConversation($customer, $platformName);
+            $sendWelcome       = Conversation::where('customer_id', $customer->id)->exists() ? false : true;
+            $conversation      = $this->getOrCreateConversation($customer, $platformName);
             $isNewConversation = $conversation->wasRecentlyCreated;
-            $sendWelcome = $isNewConversation && !Conversation::where('customer_id', $customer->id)->exists();
 
             // Handle statuses (delivery/read etc)
             foreach ($statuses as $status) {
