@@ -15,12 +15,12 @@ class ChatSeeder extends Seeder
     public function run(): void
     {
         // -------------------------------------------
-        // 1. Fetch all Agents
+        // 1. Fetch all Agents (role_id=4)
         // -------------------------------------------
         $agents = User::where('role_id', 4)->get();
 
         // -------------------------------------------
-        // 2. Get Platform IDs (whatsapp, messenger, instagram only)
+        // 2. Allowed Platforms (WhatsApp, Messenger, Instagram)
         // -------------------------------------------
         $allowedPlatforms = Platform::whereIn('name', [
             'whatsapp',
@@ -29,17 +29,49 @@ class ChatSeeder extends Seeder
         ])->pluck('id', 'name');
 
         // -------------------------------------------
-        // 3. Bangladeshi Names
+        // 3. BD Names
         // -------------------------------------------
         $bdNames = [
-            'Mahmudul Hasan', 'Abdul Karim', 'Shakil Ahmed', 'Sabbir Hossain', 'Fahim Rahman',
-            'Riaz Uddin', 'Tanmoy Islam', 'Arif Chowdhury', 'Mehedi Hasan', 'Ibrahim Khalil',
-            'Nasrin Akter', 'Sharmin Sultana', 'Shathi Akter', 'Mim Chowdhury', 'Jannatul Ferdous',
-            'Sumaiya Akter', 'Nusrat Jahan', 'Lamia Islam', 'Rubaida Rahman', 'Sadia Afrin'
+            'Mahmudul Hasan','Abdul Karim','Shakil Ahmed','Sabbir Hossain','Fahim Rahman',
+            'Riaz Uddin','Tanmoy Islam','Arif Chowdhury','Mehedi Hasan','Ibrahim Khalil',
+            'Nasrin Akter','Sharmin Sultana','Shathi Akter','Mim Chowdhury','Jannatul Ferdous',
+            'Sumaiya Akter','Nusrat Jahan','Lamia Islam','Rubaida Rahman','Sadia Afrin'
         ];
 
         // -------------------------------------------
-        // 4. Create 50 BD Customers
+        // 4. Customer Message Pool
+        // -------------------------------------------
+        $customerMessages = [
+            "Hello, how are you?",
+            "I need some help.",
+            "Ami ekta product er price jante chai.",
+            "Delivery kotodin lage?",
+            "Order dite chai.",
+            "Apnader service ta valo.",
+            "Ekta problem hocche.",
+            "Can you help me please?",
+            "Thanks!",
+            "Ami ki ekto details pete pari?"
+        ];
+
+        // -------------------------------------------
+        // 5. Agent Message Pool
+        // -------------------------------------------
+        $agentMessages = [
+            "Hello! How can I help you today?",
+            "Sure, I can assist you.",
+            "Can you please share more details?",
+            "Your order is being processed.",
+            "Let me check for you.",
+            "Thanks for reaching out.",
+            "Anything else I can help you with?",
+            "Please wait a moment.",
+            "Your issue is resolved.",
+            "Thank you for contacting us!"
+        ];
+
+        // -------------------------------------------
+        // 6. Create Customers (50)
         // -------------------------------------------
         $platformKeys = $allowedPlatforms->keys()->toArray();
         $customers = collect();
@@ -62,44 +94,56 @@ class ChatSeeder extends Seeder
         }
 
         // -------------------------------------------
-        // 5. Create 50 Conversations
+        // 7. Generate Conversations (5 per Agent)
         // -------------------------------------------
-        $conversations = Conversation::factory(50)->create()->each(function ($conv) use ($agents, $customers) {
-            $conv->update([
-                'agent_id' => $agents->random()->id,
-                'customer_id' => $customers->random()->id,
-            ]);
-        });
+        $conversations = collect();
+
+        foreach ($agents as $agent) {
+            for ($i = 0; $i < 5; $i++) {
+                $conversations->push(
+                    Conversation::create([
+                        'agent_id' => $agent->id,
+                        'customer_id' => $customers->random()->id,
+                    ])
+                );
+            }
+        }
 
         // -------------------------------------------
-        // 6. Create 20 Messages for EACH Conversation
+        // 8. Create 10 Meaningful Messages per Conversation
         // -------------------------------------------
         foreach ($conversations as $conversation) {
 
-            for ($i = 0; $i < 20; $i++) {
+            for ($i = 0; $i < 10; $i++) {
 
                 $agent = $conversation->agent;
                 $customer = $conversation->customer;
 
-                $isAgentSender = rand(0, 1) === 1;
+                $isAgentSender = $i % 2 === 0; // alternate sender
 
                 $sender = $isAgentSender ? $agent : $customer;
                 $receiver = $isAgentSender ? $customer : $agent;
 
-                $message = Message::factory()->create([
+                $text = $isAgentSender
+                    ? $agentMessages[array_rand($agentMessages)]
+                    : $customerMessages[array_rand($customerMessages)];
+
+                $message = Message::create([
                     'conversation_id' => $conversation->id,
                     'sender_id' => $sender->id,
                     'sender_type' => get_class($sender),
                     'receiver_id' => $receiver->id,
                     'receiver_type' => get_class($receiver),
+                    'content' => $text,
                     'direction' => $isAgentSender ? 'outgoing' : 'incoming',
                 ]);
 
-                MessageAttachment::factory()
-                    ->count(rand(0, 2))
-                    ->create(['message_id' => $message->id]);
+                if (rand(0, 10) > 7) {
+                    MessageAttachment::factory()->create([
+                        'message_id' => $message->id,
+                    ]);
+                }
 
-                // update last message
                 $conversation->update([
                     'last_message_id' => $message->id,
                 ]);
