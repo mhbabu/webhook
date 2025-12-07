@@ -9,28 +9,19 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageAttachment;
 use App\Models\Platform;
+use Carbon\Carbon;
 
 class ChatSeeder extends Seeder
 {
     public function run(): void
     {
-        // -------------------------------------------
-        // 1. Fetch all Agents (role_id = 4)
-        // -------------------------------------------
         $agents = User::where('role_id', 4)->get();
-
-        // -------------------------------------------
-        // 2. Allowed Platforms (WhatsApp, Messenger, Instagram)
-        // -------------------------------------------
         $allowedPlatforms = Platform::whereIn('name', [
             'whatsapp',
             'facebook_messenger',
             'instagram_message'
         ])->get();
 
-        // -------------------------------------------
-        // 3. Bangladeshi Names
-        // -------------------------------------------
         $bdNames = [
             'Mahmudul Hasan','Abdul Karim','Shakil Ahmed','Sabbir Hossain','Fahim Rahman',
             'Riaz Uddin','Tanmoy Islam','Arif Chowdhury','Mehedi Hasan','Ibrahim Khalil',
@@ -38,9 +29,6 @@ class ChatSeeder extends Seeder
             'Sumaiya Akter','Nusrat Jahan','Lamia Islam','Rubaida Rahman','Sadia Afrin'
         ];
 
-        // -------------------------------------------
-        // 4. Customer & Agent Messages
-        // -------------------------------------------
         $customerMessages = [
             "Hello, how are you?",
             "I need some help.",
@@ -67,9 +55,6 @@ class ChatSeeder extends Seeder
             "Thank you for contacting us!"
         ];
 
-        // -------------------------------------------
-        // 5. Create 50 Customers
-        // -------------------------------------------
         $customers = collect();
         for ($i = 0; $i < 50; $i++) {
             $platform = $allowedPlatforms->random();
@@ -89,34 +74,39 @@ class ChatSeeder extends Seeder
             );
         }
 
-        // -------------------------------------------
-        // 6. Create Conversations (10 per Agent)
-        // -------------------------------------------
         $conversations = collect();
+        $timezone = 'Asia/Dhaka';
 
+        // Create 10 conversations per agent
         foreach ($agents as $agent) {
             for ($i = 0; $i < 10; $i++) {
                 $customer = $customers->random();
+                $startedAt = Carbon::now($timezone)->subMinutes(rand(10, 500));
 
                 $conversations->push(
                     Conversation::create([
                         'agent_id' => $agent->id,
                         'customer_id' => $customer->id,
-                        'platform' => $customer->platform->name, // string platform
+                        'platform' => $customer->platform->name,
+                        'started_at' => $startedAt,
+                        'agent_assigned_at' => $startedAt->copy()->addMinutes(1),
+                        'in_queue_at' => $startedAt->copy()->subMinutes(1),
+                        'first_message_at' => null,
+                        'last_message_at' => null,
+                        'end_at' => $startedAt->copy()->addMinutes(rand(15, 120)),
                     ])
                 );
             }
         }
 
-        // -------------------------------------------
-        // 7. Create 10 Messages per Conversation
-        // -------------------------------------------
+        // Generate 20 messages per conversation
         foreach ($conversations as $conversation) {
-            for ($i = 0; $i < 10; $i++) {
+            $firstMessageTime = $conversation->started_at->copy()->addMinute();
+            $lastMessageTime = $firstMessageTime->copy();
+
+            for ($i = 0; $i < 20; $i++) {
                 $agent = $conversation->agent;
                 $customer = $conversation->customer;
-
-                // Alternate sender
                 $isAgentSender = $i % 2 === 0;
 
                 $sender = $isAgentSender ? $agent : $customer;
@@ -126,6 +116,8 @@ class ChatSeeder extends Seeder
                     ? $agentMessages[array_rand($agentMessages)]
                     : $customerMessages[array_rand($customerMessages)];
 
+                $lastMessageTime->addMinutes(rand(1, 5));
+
                 $message = Message::create([
                     'conversation_id' => $conversation->id,
                     'sender_id' => $sender->id,
@@ -133,21 +125,28 @@ class ChatSeeder extends Seeder
                     'receiver_id' => $receiver->id,
                     'receiver_type' => get_class($receiver),
                     'content' => $text,
+                    'type' => 'text',
                     'direction' => $isAgentSender ? 'outgoing' : 'incoming',
+                    'delivered_at' => $lastMessageTime,
+                    'read_at' => $lastMessageTime->copy()->addSeconds(rand(10, 120)),
+                    'platform_message_id' => uniqid('msg_'),
+                    'created_at' => $lastMessageTime,
+                    'updated_at' => $lastMessageTime,
                 ]);
 
-                // Random attachments
                 if (rand(0, 10) > 7) {
-                    MessageAttachment::factory()->create([
-                        'message_id' => $message->id,
-                    ]);
+                    MessageAttachment::factory()->create(['message_id' => $message->id]);
                 }
 
-                // Update conversation last message
-                $conversation->update([
-                    'last_message_id' => $message->id,
-                ]);
+                if ($i === 0) {
+                    $conversation->first_message_at = $lastMessageTime->copy();
+                }
+
+                $conversation->last_message_id = $message->id;
             }
+
+            $conversation->last_message_at = $lastMessageTime->copy();
+            $conversation->save();
         }
     }
 
