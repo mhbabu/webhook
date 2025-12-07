@@ -93,7 +93,7 @@ class ChatSeeder extends Seeder
                         'in_queue_at' => $startedAt->copy()->subMinutes(1),
                         'first_message_at' => null,
                         'last_message_at' => null,
-                        'end_at' => $startedAt->copy()->addMinutes(rand(15, 120)),
+                        // 'end_at' => $startedAt->copy()->addMinutes(rand(15, 120)),
                     ])
                 );
             }
