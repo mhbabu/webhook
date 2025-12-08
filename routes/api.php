@@ -10,6 +10,5 @@ Route::prefix('v1')->group(function () {
     require base_path('routes/user/user.php');
     require base_path('routes/message/message.php');
     require base_path('routes/customer/customer.php');
+    require base_path('routes/dashboard/dashboard.php');
 });
-
-
