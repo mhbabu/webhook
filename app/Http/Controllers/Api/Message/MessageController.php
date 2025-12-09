@@ -702,6 +702,11 @@ class MessageController extends Controller
 
             // ✅ Update conversation last_message_id
             $conversation->last_message_id = $message->id;
+
+            if (empty($conversation->first_response_at)) {
+                $conversation->first_response_at = now();
+            }
+
             $conversation->save();
         }
 

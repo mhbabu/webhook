@@ -21,6 +21,7 @@ return new class extends Migration
             $table->foreignId('wrap_up_id')->nullable()->constrained('wrap_up_conversations')->onDelete('set null');
             $table->timestamp('in_queue_at')->nullable();
             $table->timestamp('first_message_at')->nullable();
+            $table->timestamp('first_response_at')->nullable();
             $table->timestamp('last_message_at')->nullable();
             $table->timestamp('agent_assigned_at')->nullable();
             $table->tinyInteger('is_feedback_sent')->default(0);
