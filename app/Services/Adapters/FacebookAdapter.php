@@ -2,6 +2,7 @@
 
 namespace App\Services\Adapters;
 
+use App\Jobs\FetchFacebookCommentReplies;
 use App\Models\Platform;
 use App\Models\PlatformAccount;
 use App\Services\SocialSyncService;
@@ -9,9 +10,9 @@ use Illuminate\Support\Facades\Http;
 
 class FacebookAdapter
 {
-    protected $token;
+    protected string $token;
 
-    protected $syncService;
+    protected SocialSyncService $syncService;
 
     public function __construct(SocialSyncService $syncService)
     {
@@ -19,84 +20,66 @@ class FacebookAdapter
         $this->syncService = $syncService;
     }
 
-    /**
-     * Sync posts for a platform account (page)
-     * $account->platform_account_id must be FB page id
-     */
+    /** Main entry : Sync Posts of Page */
     public function syncPosts(Platform $platform, PlatformAccount $account)
     {
-        // $this->syncService->logSync($platform, $account, 'posts', 'started');
-        $pageId = $account->platform_account_id;
-        $url = "https://graph.facebook.com/v24.0/{$pageId}/posts";
+        $url = "https://graph.facebook.com/v24.0/{$account->platform_account_id}/posts";
 
         $res = Http::get($url, [
-            'fields' => 'id,message,created_time,updated_time,from,attachments{media,type},shares',
+            'fields' => 'id,message,created_time,from,attachments{media,type},shares',
+            'limit' => 5,
             'access_token' => $this->token,
-            'limit' => 1,
         ]);
 
-        \Log::info('Facebook posts sync response', ['response' => $res->body()]);
-
         if (! $res->successful()) {
-            $this->syncService->logSync($platform, $account, 'posts', 'failed', $res->body());
-
-            return;
+            return $this->syncService->logSync($platform, $account, 'posts', 'failed', $res->body());
         }
 
         foreach ($res->json('data', []) as $p) {
-            $payload = [
+
+            $post = $this->syncService->upsertPost($platform, $account, [
                 'platform_post_id' => $p['id'],
                 'caption' => $p['message'] ?? null,
-                'type' => null,
                 'posted_at' => $p['created_time'] ?? null,
+                'type' => null,
                 'raw' => $p,
                 'media' => $this->extractAttachments($p['attachments']['data'] ?? []),
-            ];
+            ]);
 
-            $post = $this->syncService->upsertPost($platform, $account, $payload);
-
-            // sync comments for post
-            $this->syncComments($platform, $account, $post, $p['id']);
-            // sync reactions (optional; you can call separately)
-            $this->syncReactionsForPost($platform, $account, $post, $p['id']);
+            // ⬇ queue based heavy sync
+            $this->fetchRootComments($post, $p['id']);
+            $this->syncReactionsForPost($post, $p['id']);
         }
 
-        $this->syncService->logSync($platform, $account, 'posts', 'success');
+        return $this->syncService->logSync($platform, $account, 'posts', 'success');
     }
 
-    protected function extractAttachments(array $attachments)
+    /** Extract media */
+    protected function extractAttachments(array $attachments): array
     {
-        $media = [];
-        foreach ($attachments as $a) {
-            $type = $a['media']['type'] ?? ($a['type'] ?? null);
-            $url = $a['media']['image']['src'] ?? $a['media']['source'] ?? null;
-            $media[] = [
-                'type' => $type,
-                'url' => $url,
-                'thumbnail' => $a['media']['image']['src'] ?? null,
-            ];
-        }
-
-        return $media;
+        return collect($attachments)->map(fn ($a) => [
+            'type' => $a['type'] ?? 'image',
+            'url' => $a['media']['image']['src'] ?? $a['media']['source'] ?? null,
+            'thumbnail' => $a['media']['image']['src'] ?? null,
+        ])->values()->toArray();
     }
 
-    public function syncComments(Platform $platform, PlatformAccount $account, $post, $fbPostId)
+    /** Fetch level-1 comments and trigger recursion */
+    public function fetchRootComments($post, string $fbPostId)
     {
-        $url = "https://graph.facebook.com/v24.0/{$fbPostId}/comments";
-        $res = Http::get($url, [
+        $res = Http::get("https://graph.facebook.com/v24.0/{$fbPostId}/comments", [
             'fields' => 'id,from,message,parent,created_time',
-            'access_token' => $this->token,
             'limit' => 100,
+            'access_token' => $this->token,
         ]);
 
         if (! $res->successful()) {
-            $this->syncService->logSync($platform, $account, 'comments', 'failed', $res->body());
-
             return;
         }
 
         foreach ($res->json('data', []) as $c) {
-            $payload = [
+
+            $comment = $this->syncService->upsertComment($post, [
                 'platform_comment_id' => $c['id'],
                 'platform_parent_id' => $c['parent']['id'] ?? null,
                 'author_platform_id' => $c['from']['id'] ?? null,
@@ -104,56 +87,43 @@ class FacebookAdapter
                 'message' => $c['message'] ?? null,
                 'commented_at' => $c['created_time'] ?? null,
                 'raw' => $c,
-            ];
-            $comment = $this->syncService->upsertComment($post, $payload);
+            ]);
 
-            // sync reactions for comment
-            $this->syncReactionsForComment($platform, $account, $comment, $c['id']);
+            dispatch(new FetchFacebookCommentReplies($post->id, $comment->platform_comment_id)); // 🔥 full tree fetch
+            $this->syncReactionsForComment($comment, $c['id']);
         }
-
-        $this->syncService->logSync($platform, $account, 'comments', 'success');
     }
 
-    public function syncReactionsForPost(Platform $platform, PlatformAccount $account, $post, $fbPostId)
+    /** Post reactions */
+    public function syncReactionsForPost($post, string $id)
     {
-        $url = "https://graph.facebook.com/v24.0/{$fbPostId}/reactions";
-        $res = Http::get($url, [
-            'fields' => 'id,name,type',
-            'access_token' => $this->token,
-            'limit' => 500,
+        $res = Http::get("https://graph.facebook.com/v24.0/{$id}/reactions", [
+            'fields' => 'id,name,type', 'limit' => 200, 'access_token' => $this->token,
         ]);
-        if (! $res->successful()) {
-            return;
-        }
+
         foreach ($res->json('data', []) as $r) {
             $this->syncService->upsertReaction($post, null, [
                 'platform_reaction_id' => $r['id'],
                 'user_platform_id' => $r['id'],
                 'reaction_type' => $r['type'] ?? 'LIKE',
-                'reacted_at' => now(),
-                'raw' => $r,
+                'reacted_at' => now(), 'raw' => $r,
             ]);
         }
     }
 
-    public function syncReactionsForComment(Platform $platform, PlatformAccount $account, $comment, $fbCommentId)
+    /** Comment reactions */
+    public function syncReactionsForComment($comment, string $id)
     {
-        $url = "https://graph.facebook.com/v24.0/{$fbCommentId}/reactions";
-        $res = Http::get($url, [
-            'fields' => 'id,name,type',
-            'access_token' => $this->token,
-            'limit' => 500,
+        $res = Http::get("https://graph.facebook.com/v24.0/{$id}/reactions", [
+            'fields' => 'id,name,type', 'limit' => 200, 'access_token' => $this->token,
         ]);
-        if (! $res->successful()) {
-            return;
-        }
+
         foreach ($res->json('data', []) as $r) {
             $this->syncService->upsertReaction(null, $comment, [
                 'platform_reaction_id' => $r['id'],
                 'user_platform_id' => $r['id'],
                 'reaction_type' => $r['type'] ?? 'LIKE',
-                'reacted_at' => now(),
-                'raw' => $r,
+                'reacted_at' => now(), 'raw' => $r,
             ]);
         }
     }

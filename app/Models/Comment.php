@@ -9,7 +9,7 @@ class Comment extends Model
     protected $fillable = [
         'post_id', 'platform_comment_id', 'platform_parent_id',
         'author_platform_id', 'customer_id', 'author_name',
-        'message', 'commented_at', 'raw',
+        'type', 'message', 'commented_at', 'raw',
     ];
 
     protected $casts = ['raw' => 'array', 'commented_at' => 'datetime'];

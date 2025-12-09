@@ -97,7 +97,12 @@ class SocialSyncService
         );
 
         // event(new \App\Events\CommentSynced($comment));
-        CommentSynced::dispatch($comment);
+        // CommentSynced::dispatch($comment);
+
+        dispatch(new \App\Jobs\SyncCommentRepliesJob(
+            $post->id,
+            $comment->platform_comment_id
+        ));
 
         return $comment;
     }

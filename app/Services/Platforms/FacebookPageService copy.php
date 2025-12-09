@@ -11,7 +11,6 @@ use App\Models\PostMedia;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class FacebookPageService
 {
@@ -34,128 +33,94 @@ class FacebookPageService
     /**
      * Insert or update post from webhook
      */
-    private function storePost(array $value)
-    {
-        $pageId = $value['from']['id'] ?? null;
+ private function storePost(array $value)
+{
+    $pageId = $value['from']['id'] ?? null;
 
-        $platform = Platform::where('name', 'facebook')->first();
-        $account = PlatformAccount::where('platform_account_id', $pageId)->first();
+    $platform = Platform::where('name', 'facebook')->first();
+    $account = PlatformAccount::where('platform_account_id', $pageId)->first();
 
-        if (! $account) {
-            Log::warning("Page not found in DB: $pageId");
+    if (! $account) {
+        Log::warning("Page not found in DB: $pageId");
+        return;
+    }
 
-            return;
-        }
+    // Ensure author
+    $authorId = $this->getOrCreatePlatformCustomer($platform->id, $value['from'] ?? null);
 
-        // Ensure author
-        $authorId = $this->getOrCreatePlatformCustomer($platform->id, $value['from'] ?? null);
+    /**
+     * STEP 1 — Save/Update Post
+     */
+    $post = Post::updateOrCreate(
+        [
+            'platform_post_id' => $value['post_id'],
+            'platform_id' => $platform->id,
+            'platform_account_id' => $account->id,
+        ],
+        [
+            'caption' => $value['message'] ?? null,
+            'type' => 'post',
+            'posted_at' => Carbon::createFromTimestamp($value['created_time']),
+            'raw' => $value,
+        ]
+    );
 
-        /**
-         * STEP 1 — Save/Update Post
-         */
-        $post = Post::updateOrCreate(
-            [
-                'platform_post_id' => $value['post_id'],
-                'platform_id' => $platform->id,
-                'platform_account_id' => $account->id,
-            ],
-            [
-                'caption' => $value['message'] ?? null,
-                'type' => 'post',
-                'posted_at' => Carbon::createFromTimestamp($value['created_time']),
-                'raw' => $value,
-            ]
-        );
+    /**
+     * STEP 2 — Parse Attachments → Unified Media List
+     */
+    $mediaList = [];
 
-        /**
-         * STEP 2 — Unified Media List (raw remote URLs)
-         */
-        $mediaList = [];
+    if (! empty($value['attachments'])) {
+        foreach ($value['attachments'] as $item) {
 
-        if (! empty($value['attachments'])) {
-            foreach ($value['attachments'] as $item) {
-                // SINGLE IMAGE
-                if (! empty($item['media']['image']['src'])) {
-                    $mediaList[] = [
-                        'type' => $item['type'] ?? 'photo',
-                        'remote_url' => $item['media']['image']['src'],
-                    ];
-                }
+            // SINGLE IMAGE
+            if (! empty($item['media']['image']['src'])) {
+                $mediaList[] = [
+                    'type' => $item['type'] ?? 'photo',
+                    'url' => $item['media']['image']['src'],
+                    'thumbnail' => null,
+                ];
+            }
 
-                // MULTIPLE (subattachments)
-                if (! empty($item['subattachments']['data'])) {
-                    foreach ($item['subattachments']['data'] as $sub) {
-                        if (! empty($sub['media']['image']['src'])) {
-                            $mediaList[] = [
-                                'type' => $sub['type'] ?? 'photo',
-                                'remote_url' => $sub['media']['image']['src'],
-                            ];
-                        }
+            // SUBATTACHMENTS (multi photo)
+            if (! empty($item['subattachments']['data'])) {
+                foreach ($item['subattachments']['data'] as $sub) {
+                    if (! empty($sub['media']['image']['src'])) {
+                        $mediaList[] = [
+                            'type' => $sub['type'] ?? 'photo',
+                            'url' => $sub['media']['image']['src'],
+                            'thumbnail' => null,
+                        ];
                     }
                 }
             }
         }
-
-        /**
-         * STEP 3 — Clear Old Media Records
-         */
-        $post->media()->delete();
-
-        /**
-         * STEP 4 — Download each media file locally & store DB record
-         */
-        foreach ($mediaList as $idx => $m) {
-
-            try {
-                $remoteUrl = $m['remote_url'];
-                Log::info('Downloading media', ['url' => $remoteUrl]);
-                // Generate filename based on post + index + extension
-                $extension = pathinfo(parse_url($remoteUrl, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
-                $filename = "facebook_media/post_{$post->id}_{$idx}_".time().".$extension";
-                // $filename = 'facebook_media/'.uniqid('fb_post_', true).'.'.$extension;
-                // Download file (HTTP::timeout prevents long hangs)
-                $fileData = Http::timeout(20)->get($remoteUrl);
-
-                if ($fileData->successful()) {
-                    Storage::disk('public')->put($filename, $fileData->body());
-                    $localUrl = Storage::url($filename);
-                    Log::info('Media downloaded successfully', ['local_url' => $localUrl]);
-                } else {
-                    // If failed, fallback to remote
-                    Log::warning('Media download failed, using remote URL', [
-                        'url' => $remoteUrl,
-                        'status' => $fileData->status(),
-                    ]);
-                    $localUrl = $remoteUrl;
-                }
-
-            } catch (\Throwable $e) {
-                Log::error('Media download failed', [
-                    'url' => $m['remote_url'],
-                    'error' => $e->getMessage(),
-                ]);
-
-                $localUrl = $m['remote_url'];
-            }
-
-            // Insert into DB
-            PostMedia::create([
-                'post_id' => $post->id,
-                'type' => $m['type'],
-                'url' => $localUrl,       // ALWAYS using local or remote fallback
-                'thumbnail' => null,
-                'order' => $idx,
-            ]);
-        }
-
-        Log::info('Webhook post stored with media', [
-            'post_id' => $post->id,
-            'media_count' => count($mediaList),
-            'platform_post_id' => $value['post_id'],
-        ]);
-
-        return $post;
     }
+
+    /**
+     * STEP 3 — Sync Post Media
+     */
+    $post->media()->delete(); // remove old media
+
+    foreach ($mediaList as $idx => $m) {
+        PostMedia::create([
+            'post_id' => $post->id,
+            'type' => $m['type'],
+            'url' => $m['url'],
+            'thumbnail' => $m['thumbnail'],
+            'order' => $idx,
+        ]);
+    }
+
+    Log::info('Webhook post stored with media', [
+        'post_id' => $post->id,
+        'media_count' => count($mediaList),
+        'platform_post_id' => $value['post_id'],
+    ]);
+
+    return $post;
+}
+
 
     /**
      * Main handler for comment or reply (full fix)
@@ -212,7 +177,6 @@ class FacebookPageService
         $customerId = $this->getOrCreatePlatformCustomer(
             $platform->id,
             $value['from'] ?? null
-            // $this->normalizeFromData($value['from'] ?? null) // Test purpose normalization
         );
 
         if (! $customerId) {
@@ -235,8 +199,7 @@ class FacebookPageService
                 'customer_id' => $customerId,
                 'type' => $commentType,
                 'message' => $value['message'] ?? null,
-                // 'commented_at' => Carbon::createFromTimestamp($value['created_time']),
-                'commented_at' => Carbon::parse($value['created_time']),
+                'commented_at' => Carbon::createFromTimestamp($value['created_time']),
                 'raw' => $value,
             ]
         );
@@ -255,8 +218,7 @@ class FacebookPageService
         $token = $page->credentials['page_token'] ?? null;
 
         $response = Http::get("https://graph.facebook.com/v24.0/{$commentId}", [
-            'fields' => 'id,parent{id},from,message,message_tags,created_time,like_count,reactions{type,name,id}',
-            // 'fields' => 'fields=id,message,from,created_time,attachment,like_count,reactions{type,name,id},parent{id}',
+            'fields' => 'id,parent{id},from,message,message_tags,created_time,attachment,like_count,reactions',
             'access_token' => $token,
         ]);
 
@@ -325,47 +287,26 @@ class FacebookPageService
             $mediaList = [];
 
             if (! empty($fb['attachments']['data'])) {
-
                 foreach ($fb['attachments']['data'] as $mediaItem) {
 
-                    // ================================
                     // SINGLE PHOTO OR VIDEO
-                    // ================================
                     if (! empty($mediaItem['media']['image']['src'])) {
-
-                        $localUrl = $this->downloadAndStoreMedia(
-                            $mediaItem['media']['image']['src']
-                        );
-
-                        if ($localUrl) {
-                            $mediaList[] = [
-                                'type' => $mediaItem['type'] ?? 'photo',
-                                'url' => $localUrl,
-                                'thumbnail' => null,
-                            ];
-                        }
+                        $mediaList[] = [
+                            'type' => $mediaItem['type'] ?? 'photo',
+                            'url' => $mediaItem['media']['image']['src'],
+                            'thumbnail' => null,
+                        ];
                     }
 
-                    // ================================
-                    // MULTIPLE SUBATTACHMENTS
-                    // ================================
+                    // SUBATTACHMENTS (Multiple photos)
                     if (! empty($mediaItem['subattachments']['data'])) {
-
                         foreach ($mediaItem['subattachments']['data'] as $sub) {
-
                             if (! empty($sub['media']['image']['src'])) {
-
-                                $localUrl = $this->downloadAndStoreMedia(
-                                    $sub['media']['image']['src']
-                                );
-
-                                if ($localUrl) {
-                                    $mediaList[] = [
-                                        'type' => $sub['type'] ?? 'photo',
-                                        'url' => $localUrl,
-                                        'thumbnail' => null,
-                                    ];
-                                }
+                                $mediaList[] = [
+                                    'type' => $sub['type'] ?? 'photo',
+                                    'url' => $sub['media']['image']['src'],
+                                    'thumbnail' => null,
+                                ];
                             }
                         }
                     }
@@ -458,7 +399,7 @@ class FacebookPageService
     private function insertOrUpdateComment(Post $post, array $fb)
     {
         $platform = Platform::where('name', 'facebook')->first();
-        $fb['from'] = $this->normalizeFromData($fb['from'] ?? null); // Test purpose normalization
+
         $customerId = $this->getOrCreatePlatformCustomer($platform->id, $fb['from'] ?? null);
 
         return Comment::updateOrCreate(
@@ -480,47 +421,21 @@ class FacebookPageService
 
     private function getOrCreatePlatformCustomer(int $platformId, ?array $from): ?int
     {
-        /* This condition will uncomment in live environment/live facebook page webhook testing
         if (! $from || ! isset($from['id'])) {
             return null;
         }
-      */
-        $platformUserId = $from['id'] ?? $this->generateRandomPlatformUserId();  // fallback to random ID test purpose only
-        Log::info("Mapping platform user ID: $platformUserId");
+
         $customer = Customer::updateOrCreate(
             [
-                'platform_user_id' => $platformUserId,
+                'platform_user_id' => $from['id'],
                 'platform_id' => $platformId,
             ],
             [
-                'name' => $from['name'] ?? 'Facebook User',
+                'name' => $from['name'] ?? 'Unknown',
             ]
         );
 
         return $customer->id;
-    }
-
-    private function downloadAndStoreMedia(string $url): ?string
-    {
-        try {
-            $response = Http::get($url);
-
-            if (! $response->successful()) {
-                return null;
-            }
-
-            // Generate unique filename based on hash & timestamp
-            $extension = pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
-            $filename = 'facebook_media/'.uniqid('fb_post_', true).'.'.$extension;
-
-            Storage::disk('public')->put($filename, $response->body());
-
-            // Return local accessible path
-            return Storage::url($filename);
-
-        } catch (\Exception $e) {
-            return null;
-        }
     }
 
     /**
@@ -537,23 +452,5 @@ class FacebookPageService
         }
 
         return 'comment_reply';
-    }
-
-    // Test purpose normalization of "from" data
-    private function normalizeFromData(?array $from): array
-    {
-        return [
-            'id' => $from['id'] ?? $this->generateRandomPlatformUserId(),
-            'name' => $from['name'] ?? 'Facebook User',
-        ];
-    }
-
-    // Test purpose only - generate random platform user ID
-    private function generateRandomPlatformUserId($length = 17)
-    {
-        $min = 10 ** ($length - 1);  // e.g. 10000000000000000
-        $max = (10 ** $length) - 1;  // e.g. 99999999999999999
-
-        return (string) random_int($min, $max);
     }
 }
