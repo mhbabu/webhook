@@ -59,4 +59,10 @@ class Conversation extends Model
     {
         return $this->belongsTo(WrapUpConversation::class, 'wrap_up_id', 'id');
     }
+
+    public function endedBy()
+    {
+        return $this->belongsTo(User::class, 'end_by');
+    }
+
 }
