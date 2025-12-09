@@ -526,7 +526,7 @@ class FacebookPageService
     /**
      * Detect comment vs reply
      */
-    private function detectCommentType(array $value): string
+    public function detectCommentType(array $value): string
     {
         $postId = explode('_', $value['post_id'])[1] ?? null;
         $parentId = $value['parent_id'] ?? null;

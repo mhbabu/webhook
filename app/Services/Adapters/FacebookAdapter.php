@@ -5,8 +5,10 @@ namespace App\Services\Adapters;
 use App\Jobs\FetchFacebookCommentReplies;
 use App\Models\Platform;
 use App\Models\PlatformAccount;
+use App\Services\Platforms\FacebookPageService;
 use App\Services\SocialSyncService;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class FacebookAdapter
 {
@@ -14,10 +16,11 @@ class FacebookAdapter
 
     protected SocialSyncService $syncService;
 
-    public function __construct(SocialSyncService $syncService)
+    public function __construct(SocialSyncService $syncService, FacebookPageService $pageService)
     {
         $this->token = config('services.facebook.token');
         $this->syncService = $syncService;
+        $this->pageService = $pageService;
     }
 
     /** Main entry : Sync Posts of Page */
@@ -27,7 +30,7 @@ class FacebookAdapter
 
         $res = Http::get($url, [
             'fields' => 'id,message,created_time,from,attachments{media,type},shares',
-            'limit' => 5,
+            'limit' => 1,
             'access_token' => $this->token,
         ]);
 
@@ -79,6 +82,14 @@ class FacebookAdapter
 
         foreach ($res->json('data', []) as $c) {
 
+            $type = $this->pageService->detectCommentType([
+                'post_id' => $post->platform_post_id,     // 🔥 correct one
+                'comment_id' => $c['id'],
+                'parent_id' => $c['parent']['id'] ?? null,
+            ]);
+
+            Log::info("Detected comment type: $type for comment ID: {$c['id']}");
+
             $comment = $this->syncService->upsertComment($post, [
                 'platform_comment_id' => $c['id'],
                 'platform_parent_id' => $c['parent']['id'] ?? null,
@@ -86,10 +97,11 @@ class FacebookAdapter
                 'author_name' => $c['from']['name'] ?? null,
                 'message' => $c['message'] ?? null,
                 'commented_at' => $c['created_time'] ?? null,
+                'type' => $type,
                 'raw' => $c,
             ]);
 
-            dispatch(new FetchFacebookCommentReplies($post->id, $comment->platform_comment_id)); // 🔥 full tree fetch
+            dispatch(new FetchFacebookCommentReplies($post->id, $comment->platform_comment_id)); // 🔥 Recursion trigger
             $this->syncReactionsForComment($comment, $c['id']);
         }
     }

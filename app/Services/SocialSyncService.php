@@ -54,6 +54,7 @@ class SocialSyncService
                 ]);
             }
         }
+        /*
         $this->sendToDispatcher([
             'source' => 'facebook',
             'post_id' => $post->id,
@@ -63,8 +64,9 @@ class SocialSyncService
             'conversationType' => 'new',
             'timestamp' => now()->timestamp,
             'traceId' => uniqid('fb_post_', true),
-
         ]);
+        */
+
         // event(new \App\Events\PostSynced($post));
         // PostSynced::dispatch($post);
         // event(new PostSynced($post));
@@ -89,9 +91,11 @@ class SocialSyncService
                 'platform_parent_id' => $commentPayload['platform_parent_id'] ?? null,
                 'author_platform_id' => $commentPayload['author_platform_id'] ?? null,
                 'customer_id' => $customerId,
-                'author_name' => $commentPayload['author_name'] ?? null,
+                // 'customer_id' => $customerId,
+                'author_name' => $commentPayload['author_name'] ?? 'Facebook User', // fallback name User
                 'message' => $commentPayload['message'] ?? null,
                 'commented_at' => $commentPayload['commented_at'] ?? null,
+                'type' => $commentPayload['type'] ?? null,
                 'raw' => $commentPayload['raw'] ?? null,
             ]
         );
@@ -156,7 +160,7 @@ class SocialSyncService
         $customer = Customer::firstOrCreate(
             ['platform_user_id' => (string) $platformUserId],
             [
-                'name' => $name ?? 'Unknown',
+                'name' => $name ?? 'Facebook User',
                 // 'platform_id' => null, // optional: set to platform id if you store platform on customer
                 'platform_id' => $platformId,
             ]
