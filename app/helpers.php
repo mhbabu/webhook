@@ -245,18 +245,21 @@ if (!function_exists('updateUserInRedis')) {
 }
 
 if (!function_exists('getSystemSettingData')) {
-    
     /**
      * Get a system setting by key.
      *
-     * @param string $key The setting_key in the database.
-     * @param mixed $default Optional default value if setting not found.
+     * @param string $key
+     * @param mixed $default
      * @return mixed|null
      */
-
     function getSystemSettingData(string $key, $default = null)
     {
-        $setting = SystemSetting::where('setting_key', $key)->first();
-        return $setting ? $setting->setting_value : $default; // returns $default if not found, else null
+        // Avoid querying if table doesn't exist (migrations/seeding)
+        if (!\Schema::hasTable('system_settings')) {
+            return $default;
+        }
+
+        $setting = \App\Models\SystemSetting::where('setting_key', $key)->first();
+        return $setting ? $setting->setting_value : $default;
     }
 }
