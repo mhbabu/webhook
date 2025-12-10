@@ -3,6 +3,7 @@
 use App\Enums\PlatformTypeWiseWeightage;
 use App\Models\Conversation;
 use App\Models\MessageTemplate;
+use App\Models\SystemSetting;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Redis;
 
@@ -240,5 +241,20 @@ if (!function_exists('updateUserInRedis')) {
         // Save to Redis and remove ended conversation key
         Redis::hMSet($hashKey, $agentData);
         Redis::del($removedConversation);
+    }
+}
+
+if (!function_exists('getSystemSettingData')) {
+    /**
+     * Get a system setting by key.
+     *
+     * @param string $key The setting_key in the database.
+     * @param mixed $default Optional default value if setting not found.
+     * @return mixed|null
+     */
+    function getSystemSettingData(string $key, $default = null)
+    {
+        $setting = SystemSetting::where('setting_key', $key)->first();
+        return $setting ? $setting->setting_value : $default; // returns $default if not found, else null
     }
 }

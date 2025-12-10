@@ -46,7 +46,7 @@ class PlatformWebhookController extends Controller
     // Meta webhook callbackUrl verification endpoint
     public function verifyWhatsAppToken(Request $request)
     {
-        $VERIFY_TOKEN = 'mahadi'; // must match Meta's setting
+        $VERIFY_TOKEN = getSystemSettingData('whatsapp', [])['verify_token'] ?? ''; // must match Meta's setting
 
         $mode = $request->get('hub_mode');
         $token = $request->get('hub_verify_token');

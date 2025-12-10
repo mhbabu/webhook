@@ -2,6 +2,7 @@
 
 namespace App\Services\Platforms;
 
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -10,11 +11,22 @@ class WhatsAppService
 {
     protected string $url;
     protected string $token;
+    protected string $phoneNumberId;
 
     public function __construct()
     {
-        $this->url   = config('services.whatsapp.url');
-        $this->token = config('services.whatsapp.token');
+        // Load WhatsApp settings from database
+        $whatsapp = getSystemSettingData('whatsapp', []);
+
+        $this->token = $whatsapp['token'] ?? '';
+        $this->phoneNumberId = $whatsapp['phone_number_id'] ?? '';
+
+        // Check if credentials are available
+        if (empty($this->token) || empty($this->phoneNumberId)) {
+            throw new Exception("WhatsApp credentials are not configured in the database.");
+        }
+
+        $this->url = "https://graph.facebook.com/v22.0/{$this->phoneNumberId}/messages";
     }
 
     public function sendMessage(string $to, string $content, string $type = 'text', ?string $template = null, string $language = 'en_US', array $parameters = []): array
