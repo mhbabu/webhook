@@ -499,9 +499,7 @@ class PlatformWebhookController extends Controller
                 default        => null,
             };
 
-            info($label);
             $ratingValue = getFeedbackRatingsFromCustomer($label);
-            info($ratingValue);
             if ($ratingValue === null) {
                 continue; // This interactive is NOT a rating -> treat as normal message later
             }
