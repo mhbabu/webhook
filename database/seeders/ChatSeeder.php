@@ -45,9 +45,9 @@ class ChatSeeder extends Seeder
         $timezone = 'Asia/Dhaka';
 
         /* ---------------------------------------------------------
-         * Create 1000 Conversations
+         * Create 20 Conversations
          * --------------------------------------------------------- */
-        for ($c = 0; $c < 50; $c++) {
+        for ($c = 0; $c < 20; $c++) {
 
             $agent    = $agents->random();
             $platform = $platforms->random();
@@ -83,7 +83,7 @@ class ChatSeeder extends Seeder
             $firstAgentReplyAt   = null;
             $foundFirstReply     = false;
 
-            for ($i = 1; $i <= 50; $i++) {
+            for ($i = 1; $i <= 30; $i++) {
 
                 $isAgent = $i % 2 === 0;
 
