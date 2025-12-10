@@ -158,14 +158,16 @@ class FacebookPageService
     }
 
     /**
-     * Main handler for comment or reply (full fix)
+     * Main handler for comment or reply
      */
     private function storeCommentOrReply(array $value)
     {
         $platform = Platform::where('name', 'facebook')->first();
+        if (! $platform) {
+            return;
+        }
 
         $post = Post::where('platform_post_id', $value['post_id'])->first();
-
         if (! $post) {
             $post = $this->syncPostFromFacebook($value['post_id']);
             if (! $post) {
@@ -176,55 +178,29 @@ class FacebookPageService
         $commentId = $value['comment_id'];
         $parentId = $value['parent_id'] ?? null;
 
-        Log::info("Processing comment: $commentId (parent=$parentId)");
-
-        /**
-         * 🟡 FIX:
-         * If webhook payload has NO "from" → fetch full comment from FB Graph.
-         */
+        // Fetch full comment if 'from' is missing
         if (! isset($value['from']['id'])) {
-            Log::warning("Webhook missing 'from' → fetching full comment: $commentId");
             $value = $this->fetchFullComment($commentId, $post);
             if (! $value) {
                 return;
             }
         }
 
-        /**
-         * Detect type: post_comment or comment_reply
-         */
-        $commentType = $this->detectCommentType($value);
-
-        /**
-         * Ensure parent exists before inserting reply
-         */
-        if ($commentType === 'comment_reply') {
-            $parent = Comment::where('platform_comment_id', $parentId)->first();
-            if (! $parent) {
-                Log::info("Parent not found → syncing chain for: $parentId");
-                $this->syncCommentChainFromFacebook($parentId, $post);
-            }
+        // Ensure all parent chain exists
+        if ($parentId) {
+            $this->ensureParentChain($parentId, $post);
         }
 
-        /**
-         * Create / update author
-         */
         $customerId = $this->getOrCreatePlatformCustomer(
             $platform->id,
             $value['from'] ?? null
-            // $this->normalizeFromData($value['from'] ?? null) // Test purpose normalization
         );
-
         if (! $customerId) {
-            Log::error("Author missing after sync → cannot insert comment: $commentId");
-
             return;
         }
 
-        /**
-         * Insert final saved data
-         */
-        return Comment::updateOrCreate(
+        // Insert or update comment
+        $comment = Comment::updateOrCreate(
             [
                 'platform_comment_id' => $commentId,
                 'post_id' => $post->id,
@@ -233,13 +209,24 @@ class FacebookPageService
                 'platform_parent_id' => $parentId,
                 'author_platform_id' => $value['from']['id'],
                 'customer_id' => $customerId,
-                'type' => $commentType,
+                'type' => $this->detectCommentType($value),
                 'message' => $value['message'] ?? null,
-                // 'commented_at' => Carbon::createFromTimestamp($value['created_time']),
                 'commented_at' => Carbon::parse($value['created_time']),
                 'raw' => $value,
             ]
         );
+
+        // Generate correct path now that parent chain exists
+        $comment->update([
+            'path' => $this->generateCommentPath($post, $comment),
+        ]);
+
+        Log::info("Comment stored with path: {$comment->path}");
+
+        // Dispatch recursion job
+        dispatch(new \App\Jobs\SyncCommentRepliesJob($post->id, $comment->platform_comment_id));
+
+        return $comment;
     }
 
     /**
@@ -458,10 +445,10 @@ class FacebookPageService
     private function insertOrUpdateComment(Post $post, array $fb)
     {
         $platform = Platform::where('name', 'facebook')->first();
-        $fb['from'] = $this->normalizeFromData($fb['from'] ?? null); // Test purpose normalization
+        $fb['from'] = $this->normalizeFromData($fb['from'] ?? null);
         $customerId = $this->getOrCreatePlatformCustomer($platform->id, $fb['from'] ?? null);
 
-        return Comment::updateOrCreate(
+        $comment = Comment::updateOrCreate(
             [
                 'platform_comment_id' => $fb['id'],
                 'post_id' => $post->id,
@@ -476,6 +463,13 @@ class FacebookPageService
                 'raw' => $fb,
             ]
         );
+
+        // Generate path
+        $comment->update([
+            'path' => $this->generateCommentPath($post, $comment),
+        ]);
+
+        return $comment;
     }
 
     private function getOrCreatePlatformCustomer(int $platformId, ?array $from): ?int
@@ -540,7 +534,7 @@ class FacebookPageService
     }
 
     // Test purpose normalization of "from" data
-    private function normalizeFromData(?array $from): array
+    public function normalizeFromData(?array $from): array
     {
         return [
             'id' => $from['id'] ?? $this->generateRandomPlatformUserId(),
@@ -555,5 +549,79 @@ class FacebookPageService
         $max = (10 ** $length) - 1;  // e.g. 99999999999999999
 
         return (string) random_int($min, $max);
+    }
+
+    private function ensureParentChain(string $parentId, Post $post)
+    {
+        $parent = Comment::where('platform_comment_id', $parentId)->first();
+
+        if ($parent) {
+            return $parent;
+        }
+
+        // Fetch full parent from Facebook
+        $fb = $this->fetchFullComment($parentId, $post);
+        if (! $fb) {
+            return null;
+        }
+
+        // Ensure grandparent exists
+        $grandParentId = $fb['parent']['id'] ?? null;
+        if ($grandParentId) {
+            $this->ensureParentChain($grandParentId, $post);
+        }
+
+        $platform = Platform::where('name', 'facebook')->first();
+        $fb['from'] = $this->normalizeFromData($fb['from'] ?? null);
+        $customerId = $this->getOrCreatePlatformCustomer($platform->id, $fb['from']);
+
+        $comment = Comment::updateOrCreate(
+            [
+                'platform_comment_id' => $fb['id'],
+                'post_id' => $post->id,
+            ],
+            [
+                'platform_parent_id' => $grandParentId,
+                'author_platform_id' => $fb['from']['id'],
+                'customer_id' => $customerId,
+                'type' => isset($grandParentId) ? 'comment_reply' : 'post_comment',
+                'message' => $fb['message'] ?? null,
+                'commented_at' => Carbon::parse($fb['created_time']),
+                'raw' => $fb,
+            ]
+        );
+
+        // Generate path after grandparent is created
+        $comment->update(['path' => $this->generateCommentPath($post, $comment)]);
+
+        return $comment;
+    }
+
+    /**
+     * Generate tree path for comment
+     */
+    private function generateCommentPath(Post $post, Comment $comment): string
+    {
+        // Root comment → no parent
+        if (! $comment->platform_parent_id) {
+            $count = Comment::where('post_id', $post->id)
+                ->whereNull('platform_parent_id')
+                ->count();
+
+            return (string) $count; // "0", "1", "2", ...
+        }
+
+        // Reply comment → ensure parent exists
+        $parent = Comment::where('platform_comment_id', $comment->platform_parent_id)->first();
+        if (! $parent || ! $parent->path) {
+            return '0';
+        }
+
+        // Count existing siblings
+        $replyOrder = Comment::where('post_id', $post->id)
+            ->where('platform_parent_id', $comment->platform_parent_id)
+            ->count();
+
+        return "{$parent->path}.{$replyOrder}";
     }
 }

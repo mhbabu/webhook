@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Events\CommentSynced;
 use App\Events\PostSynced;
 use App\Events\ReactionSynced;
 use App\Models\Comment;
@@ -75,13 +74,17 @@ class SocialSyncService
     }
 
     /**
-     * Persist comments (normalized)
+     * Persist comments (normalized + path support)
      * $commentPayload keys:
      * platform_comment_id, platform_parent_id, author_platform_id, author_name, message, commented_at, raw
      */
     public function upsertComment(Post $post, array $commentPayload): Comment
     {
-        $customerId = $this->mapCustomer($commentPayload['author_platform_id'] ?? null, $commentPayload['author_name'] ?? null);
+        $customerId = $this->mapCustomer(
+            $commentPayload['author_platform_id'] ?? null,
+            $commentPayload['author_name'] ?? null
+        );
+
         $comment = Comment::updateOrCreate(
             [
                 'post_id' => $post->id,
@@ -91,8 +94,7 @@ class SocialSyncService
                 'platform_parent_id' => $commentPayload['platform_parent_id'] ?? null,
                 'author_platform_id' => $commentPayload['author_platform_id'] ?? null,
                 'customer_id' => $customerId,
-                // 'customer_id' => $customerId,
-                'author_name' => $commentPayload['author_name'] ?? 'Facebook User', // fallback name User
+                'author_name' => $commentPayload['author_name'] ?? 'Facebook User',
                 'message' => $commentPayload['message'] ?? null,
                 'commented_at' => $commentPayload['commented_at'] ?? null,
                 'type' => $commentPayload['type'] ?? null,
@@ -100,9 +102,13 @@ class SocialSyncService
             ]
         );
 
-        // event(new \App\Events\CommentSynced($comment));
-        // CommentSynced::dispatch($comment);
+        /** Generate path only if not yet assigned */
+        if (! $comment->path) {
+            $newPath = $this->generateCommentPath($post->id, $comment);
+            $comment->update(['path' => $newPath]);
+        }
 
+        // keep your recursion job (good)
         dispatch(new \App\Jobs\SyncCommentRepliesJob(
             $post->id,
             $comment->platform_comment_id
@@ -214,6 +220,31 @@ class SocialSyncService
                 'trace' => $e->getTraceAsString(),
             ]);
         }
+    }
+
+    /**
+     * Build tree-path like 1, 1.1, 1.1.2, 2.3.1
+     */
+    private function generateCommentPath(int $postId, Comment $comment): string
+    {
+        // ================= Root Comment (no parent) =================
+        if (! $comment->platform_parent_id) {
+
+            $count = Comment::where('post_id', $postId)
+                ->whereNull('platform_parent_id')
+                ->count();
+
+            return (string) $count;    // e.g. "1"
+        }
+
+        // ================= Reply Comment =================
+        $parent = Comment::where('platform_comment_id', $comment->platform_parent_id)->first();
+
+        $replyOrder = Comment::where('post_id', $postId)
+            ->where('platform_parent_id', $comment->platform_parent_id)
+            ->count();
+
+        return "{$parent->path}.{$replyOrder}"; // e.g. "1.2.1"
     }
 
     public function dispatchPayload(array $payload): void

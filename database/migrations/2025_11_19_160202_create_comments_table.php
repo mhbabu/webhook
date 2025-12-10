@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('author_platform_id')->nullable()->index(); // remote user id
             $table->foreignId('customer_id')->nullable()->constrained('customers'); // maps to Customer model
             $table->string('author_name')->nullable();
+            $table->string('path')->nullable()->index();
             $table->string('type')->nullable(); // comment or reply
             $table->text('message')->nullable();
             $table->timestamp('commented_at')->nullable();

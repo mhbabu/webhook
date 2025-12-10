@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\SocialComment;
+use App\Models\Comment;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -37,7 +37,7 @@ class SyncCommentRepliesJob implements ShouldQueue
         foreach ($replies as $reply) {
 
             // Store reply
-            $db = SocialComment::updateOrCreate(
+            $db = Comment::updateOrCreate(
                 [
                     'platform_comment_id' => $reply['id'],
                 ],

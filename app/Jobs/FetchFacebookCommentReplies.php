@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Post;
+use App\Services\Platforms\FacebookPageService;
 use App\Services\SocialSyncService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -10,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class FetchFacebookCommentReplies implements ShouldQueue
 {
@@ -21,6 +23,8 @@ class FetchFacebookCommentReplies implements ShouldQueue
 
     public int $depth;
 
+    private int $maxDepth = 10; // optional safety net
+
     public function __construct(int $postId, string $commentFbId, int $depth = 1)
     {
         $this->postId = $postId;
@@ -28,40 +32,73 @@ class FetchFacebookCommentReplies implements ShouldQueue
         $this->depth = $depth;
     }
 
-    public function handle(SocialSyncService $syncService)
+    public function handle(SocialSyncService $syncService, FacebookPageService $pageService)
     {
-        $token = config('services.facebook.token');
+        if ($this->depth > $this->maxDepth) {
+            Log::warning("⚠ Max depth {$this->maxDepth} reached at comment: {$this->commentFbId}");
 
-        $url = "https://graph.facebook.com/v24.0/{$this->commentFbId}/comments";
-        $res = Http::get($url, [
-            'fields' => 'id,from,message,parent,created_time',
-            'limit' => 100,
-            'access_token' => $token,
-        ]);
-
-        $post = Post::find($this->postId);
-        if (! $post || ! $res->successful()) {
             return;
         }
 
-        foreach ($res->json('data', []) as $reply) {
+        $post = Post::find($this->postId);
+        if (! $post) {
+            return;
+        }
 
-            $comment = $syncService->upsertComment($post, [
-                'platform_comment_id' => $reply['id'],
-                'platform_parent_id' => $reply['parent']['id'] ?? null,
-                'author_platform_id' => $reply['from']['id'] ?? null,
-                'author_name' => $reply['from']['name'] ?? null,
-                'message' => $reply['message'] ?? null,
-                'commented_at' => $reply['created_time'] ?? null,
-                'raw' => $reply,
+        $token = config('services.facebook.token');
+        $url = "https://graph.facebook.com/v24.0/{$this->commentFbId}/comments";
+
+        $after = null;
+
+        do {
+            $res = Http::get($url, [
+                'fields' => 'id,from,message,parent,created_time',
+                'limit' => 100,
+                'after' => $after,
+                'access_token' => $token,
             ]);
 
-            // fetch grandchildren replies recursively
-            dispatch(new FetchFacebookCommentReplies(
-                $this->postId,
-                $comment->platform_comment_id,
-                $this->depth + 1
-            ))->delay(1); // safe queue load
-        }
+            if (! $res->successful()) {
+                Log::error("❌ Facebook reply fetch failed for {$this->commentFbId}");
+
+                return;
+            }
+
+            foreach ($res->json('data', []) as $c) {
+
+                /** Normalize 'from' data */
+                $from = $pageService->normalizeFromData($c['from'] ?? null);
+
+                /** Detect type (post-comment / reply-comment / indirect reply etc.) */
+                $type = $pageService->detectCommentType([
+                    'post_id' => $post->platform_post_id,
+                    'comment_id' => $c['id'],
+                    'parent_id' => $c['parent']['id'] ?? null,
+                ]);
+
+                Log::info("💬 Reply synced: {$c['id']} | depth={$this->depth} | type={$type}");
+
+                $comment = $syncService->upsertComment($post, [
+                    'platform_comment_id' => $c['id'],
+                    'platform_parent_id' => $c['parent']['id'] ?? null,
+                    'author_platform_id' => $from['id'],
+                    'author_name' => $from['name'],
+                    'message' => $c['message'] ?? null,
+                    'commented_at' => $c['created_time'] ?? null,
+                    'type' => $type,
+                    'raw' => $c,
+                ]);
+
+                /** 🔥 Recursively queue next-level replies */
+                dispatch(new FetchFacebookCommentReplies(
+                    $this->postId,
+                    $comment->platform_comment_id,
+                    $this->depth + 1
+                ))->delay(1); // slow down rate limit hits
+            }
+
+            $after = $res['paging']['cursors']['after'] ?? null;
+
+        } while ($after);
     }
 }
