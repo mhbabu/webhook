@@ -22,7 +22,7 @@ class DatabaseSeeder extends Seeder
             WrapUpConversationTableSeeder::class,
             MessageTemplateTableSeeder::class,
             ChatSeeder::class,
-            // SystemSettingsTableSeeder::class,
+            SystemSettingsTableSeeder::class,
         ]);
     }
 }
