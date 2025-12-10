@@ -245,6 +245,7 @@ if (!function_exists('updateUserInRedis')) {
 }
 
 if (!function_exists('getSystemSettingData')) {
+    
     /**
      * Get a system setting by key.
      *
@@ -252,6 +253,7 @@ if (!function_exists('getSystemSettingData')) {
      * @param mixed $default Optional default value if setting not found.
      * @return mixed|null
      */
+
     function getSystemSettingData(string $key, $default = null)
     {
         $setting = SystemSetting::where('setting_key', $key)->first();
