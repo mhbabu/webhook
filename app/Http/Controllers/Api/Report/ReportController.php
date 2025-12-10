@@ -20,7 +20,7 @@ class ReportController extends Controller
         $perPage    = $data['per_page'] ?? 10;
 
         if (!empty($data['download']) && $data['download'] == true) {
-            return Excel::download(new ConversationReportExport($data), 'Conversation_Report_' . date('Y_m_d_H_i_s') . '.xlsx');
+            return Excel::download(new ConversationReportExport($data), 'Conversation_Report_' . date('Y_m_d_H_i_s') . '.csv');
         }
 
         $query = Conversation::getConversationInfo($data);

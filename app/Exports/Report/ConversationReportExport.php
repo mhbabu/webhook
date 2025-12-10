@@ -74,7 +74,7 @@ class ConversationReportExport implements FromQuery, WithHeadings, WithMapping, 
             'ChatEndTime', //15
             'InteractionDuration', //16
             'QueueTime', //17
-            'AvgResponseTime', //18
+            // 'AvgResponseTime', //18
             'Remarks', //19
             'CustomerRating', //20
             'CustomerFeedback', //21
@@ -95,8 +95,8 @@ class ConversationReportExport implements FromQuery, WithHeadings, WithMapping, 
             $conversation->trace_id, //2 SessionID
             'SAMSUNG', //3 ChannelSource
             $conversation->platform, //4 InteractionType
-            $conversation->agent->name, //5 AgentName
-            $conversation->agent->name, //6 LoginId
+            $conversation->agent->name ?? null, //5 AgentName
+            $conversation->agent->name ?? null, //6 LoginId
             $conversation->customer->name ?? null, //7 CustomerName
             $conversation->customer->phone ?? null, //8 Number
             $conversation->customer->email ?? null, //9 CustomerEmail
@@ -108,7 +108,7 @@ class ConversationReportExport implements FromQuery, WithHeadings, WithMapping, 
             !empty($conversation->end_at) ? $conversation->end_at->format('Y-m-d H:i:s') : null, //15 ChatEndTime
             $conversation->first_message_at && $conversation->last_message_at ? gmdate('H:i:s', $conversation->last_message_at->diffInSeconds($conversation->first_message_at)) : '00:00:00', // 16 InteractionDuration
             $conversation->in_queue_at && $conversation->agent_assigned_at ? gmdate('H:i:s', $conversation->agent_assigned_at->diffInSeconds($conversation->in_queue_at)) : '00:00:00', //17 QueueTime
-            $this->calculateAverageResponseTime($conversation->messages), // 18 AvgResponseTime
+            // $this->calculateAverageResponseTime($conversation->messages), // 18 AvgResponseTime
             $conversation->wrapUp->name ?? null, //19 Remarks
             $conversation->rating->rating_value ?? '0', //20 CustomerRating
             $conversation->option_label ?? null, //21 CustomerFeedback

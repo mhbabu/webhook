@@ -53,11 +53,11 @@ class MessageTemplateTableSeeder extends Seeder
                 'remarks'   => 'Sent automatically after end_chat message.',
                 'is_active' => true,
                 'options'   => [
-                    ['label' => 'Excellent', 'emoji' => '😊', 'value' => 5],
-                    ['label' => 'Good', 'emoji'      => '🙂', 'value' => 4],
-                    ['label' => 'Average', 'emoji'   => '😐', 'value' => 3],
-                    ['label' => 'Bad', 'emoji'       => '🙁', 'value' => 2],
-                    ['label' => 'Very Bad', 'emoji'  => '😢', 'value' => 1],
+                    ['label' => 'Excellent 😊', 'value' => 5],
+                    ['label' => 'Good 🙂',  'value'     => 4],
+                    ['label' => 'Average 😐', 'value'   => 3],
+                    ['label' => 'Bad 🙁', 'value'       => 2],
+                    ['label' => 'Very Bad 😢', 'value'  => 1],
                 ],
             ],
             [

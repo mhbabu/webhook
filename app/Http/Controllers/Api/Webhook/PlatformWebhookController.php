@@ -499,7 +499,9 @@ class PlatformWebhookController extends Controller
                 default        => null,
             };
 
+            info($label);
             $ratingValue = getFeedbackRatingsFromCustomer($label);
+            info($ratingValue);
             if ($ratingValue === null) {
                 continue; // This interactive is NOT a rating -> treat as normal message later
             }
@@ -727,7 +729,7 @@ class PlatformWebhookController extends Controller
                         'type'          => $mediaData['type'],
                         'mime'          => $mediaData['mime'] ?? null,
                         'size'          => $mediaData['size'] ?? null,
-                        'is_download'   => 1,
+                        // 'is_download'   => 1,
                     ];
                 }
             }
@@ -1299,7 +1301,7 @@ class PlatformWebhookController extends Controller
                             'path' => $att['path'],
                             'type' => $att['type'],
                             'mime' => $att['mime'],
-                            'is_available' => $att['is_download'],
+                            // 'is_available' => $att['is_download'],
                             'created_at' => now(),
                             'updated_at' => now(),
                         ], $storedAttachments);
