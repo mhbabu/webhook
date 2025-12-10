@@ -10,6 +10,7 @@ use App\Models\Message;
 use App\Models\MessageAttachment;
 use App\Models\Platform;
 use App\Models\WrapUpConversation;
+use App\Models\ConversationRating;
 use Carbon\Carbon;
 
 class ChatSeeder extends Seeder
@@ -17,128 +18,140 @@ class ChatSeeder extends Seeder
     public function run(): void
     {
         $agents    = User::where('role_id', 4)->get();
-        $platforms = Platform::whereIn('name', ['whatsapp', 'facebook_messenger', 'instagram_message'])->get();
+        $platforms = Platform::whereIn('name', [
+            'whatsapp',
+            'facebook_messenger',
+            'instagram_message'
+        ])->get();
         $wrapUps   = WrapUpConversation::all();
 
-        $bdNames = [
-            'Mahmudul Hasan','Abdul Karim','Shakil Ahmed','Sabbir Hossain','Fahim Rahman',
-            'Riaz Uddin','Tanmoy Islam','Arif Chowdhury','Mehedi Hasan','Ibrahim Khalil',
-            'Nasrin Akter','Sharmin Sultana','Shathi Akter','Mim Chowdhury','Jannatul Ferdous',
-            'Sumaiya Akter','Nusrat Jahan','Lamia Islam','Rubaida Rahman','Sadia Afrin'
+        /* ---------------------------------------------------------
+         * Base unique words for random sentence generation
+         * --------------------------------------------------------- */
+        $customerWords = [
+            "hello", "price", "order", "delivery", "information", "help",
+            "details", "issue", "product", "service", "payment", "available",
+            "color", "size", "return", "exchange", "quality", "offer",
+            "question", "thanks", "please", "need", "problem", "support"
         ];
 
-        $customerMessages = [
-            "Hello, how are you?", "I need some help.", "Ami ekta product er price jante chai.",
-            "Delivery kotodin lage?", "Order dite chai.", "Apnader service ta valo.", "Ekta problem hocche.",
-            "Can you help me please?", "Thanks!", "Ami ki ekto details pete pari?"
-        ];
-
-        $agentMessages = [
-            "Hello! How can I help you today?", "Sure, I can assist you.", "Can you please share more details?",
-            "Your order is being processed.", "Let me check for you.", "Thanks for reaching out.",
-            "Anything else I can help you with?", "Please wait a moment.", "Your issue is resolved.",
-            "Thank you for contacting us!"
+        $agentWords = [
+            "sure", "checking", "processing", "confirm", "assist", "helping",
+            "response", "please wait", "thanks", "verified", "done", "okay",
+            "let me check", "I can help", "solved", "updated", "noted",
+            "checking now", "one moment", "appreciate", "thank you"
         ];
 
         $timezone = 'Asia/Dhaka';
-        $customers = collect();
 
-        // Create 1000 customers
-        for ($i = 0; $i < 1000; $i++) {
-            $name = $bdNames[array_rand($bdNames)];
+        /* ---------------------------------------------------------
+         * Create 1000 Conversations
+         * --------------------------------------------------------- */
+        for ($c = 0; $c < 50; $c++) {
+
+            $agent    = $agents->random();
             $platform = $platforms->random();
 
-            $customers->push(Customer::create([
-                'name' => $name,
-                'username' => strtolower(str_replace(' ', '_', $name)) . uniqid(),
-                'email' => 'customer' . rand(1000, 999999) . '@example.com',
-                'phone' => $this->generateBangladeshiPhone(),
-                'platform_user_id' => $platform->name === 'facebook_messenger' ? uniqid('fb_user_') : null,
-                'platform_id' => $platform->id,
-                'profile_photo' => null,
-                'is_verified' => 1,
-                'is_requested' => 0,
-            ]));
-        }
+            $customer = Customer::factory()->create([
+                'platform_user_id' => $platform->name === "facebook_messenger" ? uniqid("fb_") : null,
+                'platform_id'      => $platform->id,
+            ]);
 
-        $conversations = collect();
+            $startedAt = Carbon::now($timezone)->subMinutes(rand(200, 20000));
 
-        // Create 1000 conversations
-        for ($i = 0; $i < 1000; $i++) {
-            $agent = $agents->random();
-            $customer = $customers->random();
-            $startedAt = Carbon::now($timezone)->subMinutes(rand(10, 10000));
-
-            // Randomly decide if this conversation has ended
             $hasEnded = rand(0, 1) === 1;
-            $endAt = $hasEnded ? $startedAt->copy()->addMinutes(rand(15, 120)) : null;
-            $endedBy = $hasEnded ? $agent->id : null;
-            $wrapUpId = $hasEnded && $wrapUps->count() ? $wrapUps->random()->id : null;
+            $endAt    = $hasEnded ? $startedAt->copy()->addMinutes(rand(20, 200)) : null;
 
-            $conversations->push(Conversation::create([
-                'agent_id' => $agent->id,
-                'customer_id' => $customer->id,
-                'platform' => $customer->platform->name,
-                'started_at' => $startedAt,
+            $conversation = Conversation::create([
+                'customer_id'       => $customer->id,
+                'agent_id'          => $agent->id,
+                'platform'          => $platform->name,
+                'started_at'        => $startedAt,
                 'agent_assigned_at' => $startedAt->copy()->addMinute(),
-                'in_queue_at' => $startedAt->copy()->subMinute(),
-                'first_message_at' => null,
-                'last_message_at' => null,
-                'end_at' => $endAt,
-                'ended_by' => $endedBy,
-                'wrap_up_id' => $wrapUpId,
-            ]));
-        }
+                'in_queue_at'       => $startedAt->copy()->subMinute(),
+                'end_at'            => $endAt,
+                'ended_by'          => $hasEnded ? $agent->id : null,
+                'wrap_up_id'        => $hasEnded && $wrapUps->count() ? $wrapUps->random()->id : null,
+                'is_feedback_sent'  => 0,
+            ]);
 
-        // Generate 50 messages per conversation
-        foreach ($conversations as $conversation) {
-            $lastMessageTime = $conversation->started_at->copy()->addMinute();
+            /* ---------------------------------------------------------
+             * Generate 50 UNIQUE messages
+             * --------------------------------------------------------- */
+            $lastMessageTime = $startedAt->copy()->addMinutes(1);
+            $firstCustomerMsgAt  = null;
+            $firstAgentReplyAt   = null;
+            $foundFirstReply     = false;
 
-            for ($i = 0; $i < 50; $i++) {
-                $isAgentSender = $i % 2 === 0;
-                $sender = $isAgentSender ? $conversation->agent : $conversation->customer;
-                $receiver = $isAgentSender ? $conversation->customer : $conversation->agent;
+            for ($i = 1; $i <= 50; $i++) {
 
-                $text = $isAgentSender ? $agentMessages[array_rand($agentMessages)] : $customerMessages[array_rand($customerMessages)];
+                $isAgent = $i % 2 === 0;
 
-                $lastMessageTime->addMinutes(rand(1, 5));
+                $sender   = $isAgent ? $agent : $customer;
+                $receiver = $isAgent ? $customer : $agent;
 
-                $message = Message::create([
+                // Generate unique random sentence
+                $wordsBase = $isAgent ? $agentWords : $customerWords;
+                shuffle($wordsBase);
+                $sentence = ucfirst(implode(" ", array_slice($wordsBase, 0, rand(4, 9)))) . ". (msg-$i)";
+
+                $lastMessageTime->addMinutes(rand(1, 4));
+
+                $msg = Message::create([
                     'conversation_id' => $conversation->id,
-                    'sender_id' => $sender->id,
-                    'sender_type' => get_class($sender),
-                    'receiver_id' => $receiver->id,
-                    'receiver_type' => get_class($receiver),
-                    'content' => $text,
-                    'type' => 'text',
-                    'direction' => $isAgentSender ? 'outgoing' : 'incoming',
-                    'delivered_at' => $lastMessageTime,
-                    'read_at' => $lastMessageTime->copy()->addSeconds(rand(10, 120)),
+                    'sender_id'       => $sender->id,
+                    'sender_type'     => get_class($sender),
+                    'receiver_id'     => $receiver->id,
+                    'receiver_type'   => get_class($receiver),
+                    'content'         => $sentence,
+                    'type'            => 'text',
+                    'direction'       => $isAgent ? 'outgoing' : 'incoming',
+                    'delivered_at'    => $lastMessageTime,
+                    'read_at'         => $lastMessageTime->copy()->addSeconds(rand(10, 60)),
                     'platform_message_id' => uniqid('msg_'),
-                    'created_at' => $lastMessageTime,
-                    'updated_at' => $lastMessageTime,
+                    'created_at'      => $lastMessageTime,
                 ]);
 
-                if (rand(0, 10) > 7) {
-                    MessageAttachment::factory()->create(['message_id' => $message->id]);
+                if (!$isAgent && !$firstCustomerMsgAt) {
+                    $firstCustomerMsgAt = $lastMessageTime->copy();
                 }
 
-                if ($i === 0) {
-                    $conversation->first_message_at = $lastMessageTime->copy();
+                if ($firstCustomerMsgAt && $isAgent && !$foundFirstReply) {
+                    $firstAgentReplyAt = $lastMessageTime->copy();
+                    $foundFirstReply = true;
                 }
 
-                $conversation->last_message_id = $message->id;
+                if (rand(1, 10) >= 8) {
+                    MessageAttachment::factory()->create([
+                        'message_id' => $msg->id,
+                    ]);
+                }
+
+                $conversation->last_message_id = $msg->id;
             }
 
-            $conversation->last_message_at = $lastMessageTime->copy();
+            // Save timestamps
+            $conversation->first_message_at  = $firstCustomerMsgAt;
+            $conversation->last_message_at   = $lastMessageTime;
+            $conversation->first_response_at = $firstAgentReplyAt;
+
+            /* ---------------------------------------------------------
+             * If conversation ended → create rating
+             * --------------------------------------------------------- */
+            if ($hasEnded) {
+                ConversationRating::create([
+                    'conversation_id'  => $conversation->id,
+                    'platform'         => $platform->name,
+                    'option_label'     => ['Good','Excellent','Average'][rand(0,2)],
+                    'rating_value'     => rand(3,5),
+                    'interactive_type' => 'feedback',
+                    'comments'         => 'Auto generated conversation rating.',
+                ]);
+
+                $conversation->is_feedback_sent = 1;
+            }
+
             $conversation->save();
         }
-    }
-
-    private function generateBangladeshiPhone(): string
-    {
-        $prefixes = ['+88017', '+88018', '+88019', '+88016', '+88015'];
-        $prefix = $prefixes[array_rand($prefixes)];
-        return $prefix . str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT);
     }
 }
