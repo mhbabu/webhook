@@ -104,8 +104,8 @@ class ConversationReportExport implements FromQuery, WithHeadings, WithMapping, 
             $conversation->first_message_at->toDateTimeString ?? null, //11 SessionStartTime
             $conversation->first_message_at->toDateTimeString ?? null, //12 AgentRouteTime
             $conversation->first_response_at->toDateTimeString ?? null, //13 FirstResponseTime
-            $conversation->end_at->format('Y-m-d H:i:s') ?? null, //14 SessionEndTime
-            $conversation->end_at->format('Y-m-d H:i:s'), //15 ChatEndTime
+            !empty($conversation->end_at) ? $conversation->end_at->format('Y-m-d H:i:s') : null, //14 SessionEndTime
+            !empty($conversation->end_at) ? $conversation->end_at->format('Y-m-d H:i:s') : null, //15 ChatEndTime
             $conversation->first_message_at && $conversation->last_message_at ? gmdate('H:i:s', $conversation->last_message_at->diffInSeconds($conversation->first_message_at)) : '00:00:00', // 16 InteractionDuration
             $conversation->in_queue_at && $conversation->agent_assigned_at ? gmdate('H:i:s', $conversation->agent_assigned_at->diffInSeconds($conversation->in_queue_at)) : '00:00:00', //17 QueueTime
             $this->calculateAverageResponseTime($conversation->messages), // 18 AvgResponseTime
