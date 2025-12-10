@@ -112,7 +112,7 @@ class SystemConfigureMessageSendListener
     {
         $options = collect($template->options)->map(function ($option) {
             return [
-                'label' => $option['label'] . ' ' . $option['emoji'],
+                'label' => $option['label'],
                 'value' => $option['value']
             ];
         })->toArray();
