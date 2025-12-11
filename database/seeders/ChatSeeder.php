@@ -25,9 +25,6 @@ class ChatSeeder extends Seeder
         ])->get();
         $wrapUps   = WrapUpConversation::all();
 
-        /* ---------------------------------------------------------
-         * Base unique words for random sentence generation
-         * --------------------------------------------------------- */
         $customerWords = [
             "hello", "price", "order", "delivery", "information", "help",
             "details", "issue", "product", "service", "payment", "available",
@@ -44,9 +41,7 @@ class ChatSeeder extends Seeder
 
         $timezone = 'Asia/Dhaka';
 
-        /* ---------------------------------------------------------
-         * Create 20 Conversations
-         * --------------------------------------------------------- */
+        // Create 20 Conversations
         for ($c = 0; $c < 20; $c++) {
 
             $agent    = $agents->random();
@@ -75,52 +70,58 @@ class ChatSeeder extends Seeder
                 'is_feedback_sent'  => 0,
             ]);
 
-            /* ---------------------------------------------------------
-             * Generate 50 UNIQUE messages
-             * --------------------------------------------------------- */
-            $lastMessageTime = $startedAt->copy()->addMinutes(1);
-            $firstCustomerMsgAt  = null;
-            $firstAgentReplyAt   = null;
-            $foundFirstReply     = false;
+            // Generate 30 messages with proper sequence for average response
+            $lastMessageTime    = $startedAt->copy()->addMinute();
+            $firstCustomerMsgAt = null;
+            $firstAgentReplyAt  = null;
+            $foundFirstReply    = false;
 
             for ($i = 1; $i <= 30; $i++) {
-
                 $isAgent = $i % 2 === 0;
 
                 $sender   = $isAgent ? $agent : $customer;
                 $receiver = $isAgent ? $customer : $agent;
 
-                // Generate unique random sentence
+                // Generate random sentence
                 $wordsBase = $isAgent ? $agentWords : $customerWords;
                 shuffle($wordsBase);
                 $sentence = ucfirst(implode(" ", array_slice($wordsBase, 0, rand(4, 9)))) . ". (msg-$i)";
 
-                $lastMessageTime->addMinutes(rand(1, 4));
+                // Increment time realistically
+                $lastMessageTime->addMinutes(rand(1, 3));
+
+                // Ensure agent message is after customer message
+                if ($isAgent && !$firstCustomerMsgAt) {
+                    $lastMessageTime->addMinute();
+                }
 
                 $msg = Message::create([
-                    'conversation_id' => $conversation->id,
-                    'sender_id'       => $sender->id,
-                    'sender_type'     => get_class($sender),
-                    'receiver_id'     => $receiver->id,
-                    'receiver_type'   => get_class($receiver),
-                    'content'         => $sentence,
-                    'type'            => 'text',
-                    'direction'       => $isAgent ? 'outgoing' : 'incoming',
-                    'delivered_at'    => $lastMessageTime,
-                    'read_at'         => $lastMessageTime->copy()->addSeconds(rand(10, 60)),
-                    'platform_message_id' => uniqid('msg_'),
-                    'created_at'      => $lastMessageTime,
+                    'conversation_id'   => $conversation->id,
+                    'sender_id'         => $sender->id,
+                    'sender_type'       => get_class($sender),
+                    'receiver_id'       => $receiver->id,
+                    'receiver_type'     => get_class($receiver),
+                    'content'           => $sentence,
+                    'type'              => 'text',
+                    'direction'         => $isAgent ? 'outgoing' : 'incoming',
+                    'delivered_at'      => $lastMessageTime,
+                    'read_at'           => $lastMessageTime->copy()->addSeconds(rand(10, 60)),
+                    'platform_message_id'=> uniqid('msg_'),
+                    'created_at'        => $lastMessageTime,
                 ]);
 
+                // Track first customer message
                 if (!$isAgent && !$firstCustomerMsgAt) {
                     $firstCustomerMsgAt = $lastMessageTime->copy();
                 }
 
+                // Track first agent reply
                 if ($firstCustomerMsgAt && $isAgent && !$foundFirstReply) {
                     $firstAgentReplyAt = $lastMessageTime->copy();
                     $foundFirstReply = true;
                 }
 
+                // Random attachments
                 if (rand(1, 10) >= 8) {
                     MessageAttachment::factory()->create([
                         'message_id' => $msg->id,
@@ -130,14 +131,12 @@ class ChatSeeder extends Seeder
                 $conversation->last_message_id = $msg->id;
             }
 
-            // Save timestamps
+            // Save timestamps in conversation
             $conversation->first_message_at  = $firstCustomerMsgAt;
             $conversation->last_message_at   = $lastMessageTime;
             $conversation->first_response_at = $firstAgentReplyAt;
 
-            /* ---------------------------------------------------------
-             * If conversation ended → create rating
-             * --------------------------------------------------------- */
+            // If conversation ended → create rating
             if ($hasEnded) {
                 ConversationRating::create([
                     'conversation_id'  => $conversation->id,

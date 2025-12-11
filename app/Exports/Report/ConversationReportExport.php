@@ -33,7 +33,7 @@ class ConversationReportExport implements FromQuery, WithHeadings, WithMapping, 
                 'systemMessages as system_message_count'
             ])
             ->with([
-                'messages' => fn($q) => $q->select('id', 'conversation_id', 'sender_type', 'created_at')->orderBy('created_at'),
+                'messages' => fn($q) => $q->select('id', 'conversation_id', 'sender_type', 'created_at', 'delivered_at')->orderBy('created_at'),
                 'customer:id,name,phone,email',
                 'agent:id,name',
                 'wrapUp:id,name',
@@ -74,7 +74,7 @@ class ConversationReportExport implements FromQuery, WithHeadings, WithMapping, 
             'ChatEndTime', //15
             'InteractionDuration', //16
             'QueueTime', //17
-            // 'AvgResponseTime', //18
+            'AvgResponseTime', //18
             'Remarks', //19
             'CustomerRating', //20
             'CustomerFeedback', //21
@@ -108,7 +108,7 @@ class ConversationReportExport implements FromQuery, WithHeadings, WithMapping, 
             !empty($conversation->end_at) ? $conversation->end_at->format('Y-m-d H:i:s') : null, //15 ChatEndTime
             $conversation->first_message_at && $conversation->last_message_at ? gmdate('H:i:s', $conversation->last_message_at->diffInSeconds($conversation->first_message_at)) : '00:00:00', // 16 InteractionDuration
             $conversation->in_queue_at && $conversation->agent_assigned_at ? gmdate('H:i:s', $conversation->agent_assigned_at->diffInSeconds($conversation->in_queue_at)) : '00:00:00', //17 QueueTime
-            // $this->calculateAverageResponseTime($conversation->messages), // 18 AvgResponseTime
+            $this->calculateAverageResponseTimeInSeconds($conversation->messages), // 18 AvgResponseTime
             $conversation->wrapUp->name ?? null, //19 Remarks
             $conversation->rating->rating_value ?? '0', //20 CustomerRating
             $conversation->option_label ?? null, //21 CustomerFeedback
@@ -119,25 +119,64 @@ class ConversationReportExport implements FromQuery, WithHeadings, WithMapping, 
     }
 
     /**
-     * Calculate average agent response time (in seconds) for a conversation
+     * Calculate the average agent response time for a single conversation in seconds.
+     *
+     * This method computes how quickly an agent responds to customer messages.
+     * Only counts actual responses:
+     *   1. Agent messages that come after at least one customer message.
+     *   2. Multiple consecutive customer messages before an agent reply are treated as a single waiting period.
+     *   3. Agent messages without a preceding customer message are ignored.
+     *   4. System messages or messages from other agents are ignored.
+     *
+     * @param Collection $messages A collection of messages in the conversation.
+     * @return float Average response time in seconds. Returns 0 if there are no valid agent responses.
      */
-    protected function calculateAverageResponseTime(Collection $messages): float
+    protected function calculateAverageResponseTimeInSeconds($messages)
     {
-        $messages = $messages->sortBy('created_at')->values();
+        // Sort messages by delivered_at and reset keys
+        $messages = $messages->sortBy('delivered_at')->values();
 
-        $totalDiff = 0;
-        $responseCount = 0;
+        $waitingCustomerTime = null; // Time of first customer message waiting for reply
+        $totalSeconds = 0;           // Total response time in seconds
+        $responseCount = 0;          // Count of actual agent responses
 
-        for ($i = 1; $i < $messages->count(); $i++) {
-            $prev = $messages[$i - 1];
-            $curr = $messages[$i];
+        foreach ($messages as $message) {
 
-            if ($prev->sender_type === Customer::class && $curr->sender_type === User::class) {
-                $totalDiff += $curr->created_at->diffInSeconds($prev->created_at);
+            // Skip messages without delivered_at
+            if (!$message->delivered_at) {
+                continue;
+            }
+
+            // Customer message → start waiting if not already waiting
+            if ($message->sender_type === Customer::class) {
+                if ($waitingCustomerTime === null) {
+                    $waitingCustomerTime = $message->delivered_at;
+                }
+            }
+
+            // Agent message → counts as a response if waiting
+            if ($message->sender_type === User::class && $waitingCustomerTime !== null) {
+
+                // Calculate difference in seconds
+                $diff = $message->delivered_at->diffInSeconds($waitingCustomerTime);
+                $totalSeconds += abs($diff);
+
                 $responseCount++;
+                $waitingCustomerTime = null; // Reset for next customer → agent pair
             }
         }
 
-        return $responseCount > 0 ? round($totalDiff / $responseCount, 2) : 0;
+        if ($responseCount === 0) {
+            return "00:00";
+        }
+
+        // Average in seconds
+        $averageSeconds = round($totalSeconds / $responseCount);
+
+        // Convert to minutes:seconds
+        $minutes = floor($averageSeconds / 60);
+        $seconds = $averageSeconds % 60;
+
+        return sprintf("%02d:%02d", $minutes, $seconds);
     }
 }
