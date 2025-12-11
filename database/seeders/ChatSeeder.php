@@ -95,6 +95,7 @@ class ChatSeeder extends Seeder
                 'ended_by'          => $hasEnded ? $agent->id : null,
                 'wrap_up_id'        => $hasEnded && $wrapUps->count() ? $wrapUps->random()->id : null,
                 'is_feedback_sent'  => 0,
+                'trace_id'          => 'C-' . uniqid(),
             ]);
 
             $lastMessageTime = $startedAt->copy()->addMinutes(1);
