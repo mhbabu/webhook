@@ -12,7 +12,7 @@ class SystemSettingsTableSeeder extends Seeder
     {
         $settings = [
             'whatsapp' => [
-                'verify_token'        => 'onmitrix',           // fake verify token
+                'verify_token'        => 'omnitrix',           // fake verify token
                 'token'               => Str::random(64),                    // random fake token
                 'phone_number_id'     => '1234567890',            // fake phone number id
                 'business_account_id' => '9876543210',        // fake business account id
