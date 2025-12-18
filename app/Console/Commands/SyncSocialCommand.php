@@ -33,7 +33,7 @@ class SyncSocialCommand extends Command
                     $this->info(" - Syncing Facebook account ID: {$account->platform_account_id}");
                     app(FacebookAdapter::class)->syncPosts($platform, $account);
                 } elseif ($platform->name === 'instagram') {
-                    // app(InstagramAdapter::class)->syncPosts($platform, $account);
+                    app(InstagramAdapter::class)->syncMedia($platform, $account);
                 } elseif ($platform->name === 'linkedin') {
                     // app(LinkedInAdapter::class)->syncPosts($platform, $account);
                 }

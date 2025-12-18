@@ -3,6 +3,7 @@
 namespace App\Services\Platforms;
 
 use App\Models\Comment;
+use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Platform;
 use App\Models\PlatformAccount;
@@ -162,7 +163,9 @@ class FacebookPageService
      */
     private function storeCommentOrReply(array $value)
     {
-        $platform = Platform::where('name', 'facebook')->first();
+        $platform = Platform::whereRaw('LOWER(name) = ?', ['facebook'])->first();
+        $platformId = $platform->id;
+        $platformName = strtolower($platform->name);
         if (! $platform) {
             return;
         }
@@ -199,6 +202,11 @@ class FacebookPageService
             return;
         }
 
+        // Conversation
+        $conversation = Conversation::firstOrCreate(
+            ['customer_id' => $customerId, 'platform' => $platformName],
+            ['trace_id' => 'fb-'.now()->format('YmdHis').'-'.uniqid()]
+        );
         // Insert or update comment
         $comment = Comment::updateOrCreate(
             [
@@ -216,6 +224,35 @@ class FacebookPageService
             ]
         );
 
+        Log::info('Webhook comment stored', [
+            'source' => 'facebook',
+            'comment_id' => $comment->id,
+            'customer_id' => $comment->customer_id,
+            'platform_parent_id' => $comment->platform_parent_id,
+            'platform_comment_id' => $commentId,
+            'post_id' => $post->id,
+            'api_key' => config('dispatcher.facebook_api_key'),
+            'conversationType' => 'new',
+            'timestamp' => now()->timestamp,
+            'traceId' => $conversation->trace_id,
+        ]);
+        $payload = [
+            'source' => 'facebook',
+            'traceId' => $conversation->trace_id,
+            'conversationId' => $conversation->id,
+            'messageId' => $comment->id,
+            'comment_id' => $comment->id,
+            // 'traceId' => $conversation->trace_id,
+            'sender' => $comment->author_platform_id,
+            'message' => $comment->message,
+            'platform_parent_id' => $comment->platform_parent_id,
+            'platform_comment_id' => $commentId,
+            'post_id' => $post->id,
+            'api_key' => config('dispatcher.facebook_api_key'),
+            'conversationType' => 'new',
+            'timestamp' => now()->timestamp,
+        ];
+
         // Generate correct path now that parent chain exists
         $comment->update([
             'path' => $this->generateCommentPath($post, $comment),
@@ -226,7 +263,25 @@ class FacebookPageService
         // Dispatch recursion job
         dispatch(new \App\Jobs\SyncCommentRepliesJob($post->id, $comment->platform_comment_id));
 
+        // $service->dispatchPayload($payload);
+        $this->sendToDispatcher($payload);
+
         return $comment;
+    }
+
+    private function sendToDispatcher(array $payload): void
+    {
+        try {
+            $response = Http::acceptJson()->post(config('dispatcher.url').config('dispatcher.endpoints.handler'), $payload);
+
+            if ($response->ok()) {
+                Log::info('[CUSTOMER MESSAGE FORWARDED]', $payload);
+            } else {
+                Log::error('[CUSTOMER MESSAGE FORWARDED] FAILED', ['payload' => $payload, 'response' => $response->body()]);
+            }
+        } catch (\Exception $e) {
+            Log::error('[CUSTOMER MESSAGE FORWARDED] ERROR', ['exception' => $e->getMessage()]);
+        }
     }
 
     /**
