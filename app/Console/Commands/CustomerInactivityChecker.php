@@ -9,6 +9,8 @@ use App\Models\Conversation;
 use App\Models\ConversationTemplateMessage;
 use Carbon\Carbon;
 use App\Models\User;
+use Illuminate\Support\Facades\Schema;
+
 
 class CustomerInactivityChecker extends Command
 {
@@ -27,6 +29,15 @@ class CustomerInactivityChecker extends Command
     {
         info('Running CustomerInactivityChecker...');
 
+        // ✅ Prevent crash if tables are not ready yet
+        if (
+            !Schema::hasTable('message_templates') ||
+            !Schema::hasTable('conversations') ||
+            !Schema::hasTable('conversation_template_messages')
+        ) {
+            info('Required tables not found. Skipping CustomerInactivityChecker.');
+            return;
+        }
         // Get active message templates
         $alertTemplate       = MessageTemplate::where('type', 'alert')->where('is_active', true)->first();
         $secondAlertTemplate = MessageTemplate::where('type', 'second_alert')->where('is_active', true)->first();
