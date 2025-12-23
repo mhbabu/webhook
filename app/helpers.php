@@ -263,3 +263,52 @@ if (!function_exists('getSystemSettingData')) {
         return $setting ? $setting->setting_value : $default;
     }
 }
+
+
+if (!function_exists('sendToDispatcher')) {
+    /**
+     * Send payload to dispatcher API safely.
+     *
+     * @param array $payload
+     * @param bool $logErrors Whether to log errors (default: true)
+     * @return bool True if sent successfully, false otherwise
+     */
+    function sendToDispatcher(array $payload, bool $logErrors = true): bool
+    {
+        // Ensure dispatcher config exists
+        if (!config()->has('dispatcher.url') || !config()->has('dispatcher.endpoints.handler')) {
+            if ($logErrors) {
+                \Log::error('[DISPATCHER] Configuration missing', ['payload' => $payload]);
+            }
+            return false;
+        }
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::acceptJson()
+                ->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
+
+            if ($response->ok()) {
+                \Log::info('[DISPATCHER] Payload sent successfully', ['payload' => $payload]);
+                return true;
+            }
+
+            if ($logErrors) {
+                \Log::error('[DISPATCHER] Failed to send payload', [
+                    'payload' => $payload,
+                    'status' => $response->status(),
+                    'response' => $response->body(),
+                ]);
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            if ($logErrors) {
+                \Log::error('[DISPATCHER] Exception while sending payload', [
+                    'payload' => $payload,
+                    'exception' => $e->getMessage(),
+                ]);
+            }
+            return false;
+        }
+    }
+}

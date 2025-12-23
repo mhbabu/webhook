@@ -587,7 +587,7 @@ class PlatformWebhookController extends Controller
 
                 foreach ($payloadsToSend as $payload) {
                     Log::info('Dispatching WhatsApp Payload', ['payload' => $payload]);
-                    $this->sendToDispatcher($payload);
+                    sendToDispatcher($payload);
                 }
             });
         });
