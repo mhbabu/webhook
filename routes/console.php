@@ -11,5 +11,13 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command(CustomerInactivityChecker::class)->everyMinute();
-Schedule::command(EndChatAlertChecker::class)->everyMinute();
+
+Schedule::command(CustomerInactivityChecker::class)
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();
+
+Schedule::command(EndChatAlertChecker::class)
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();
