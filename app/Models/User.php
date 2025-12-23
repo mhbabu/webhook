@@ -69,25 +69,24 @@ class User extends Authenticatable implements HasMedia
     {
         parent::boot();
 
-        // Automatically set 'created_by' before insert
         static::creating(function ($user) {
             if (auth()->check()) {
                 $user->created_by = auth()->id();
             }
+            // Ensure timestamps are set during seeding
+            if (!$user->created_at) {
+                $user->created_at = now();
+            }
+            if (!$user->updated_at) {
+                $user->updated_at = now();
+            }
         });
 
-        // Automatically set 'updated_by' on updates
         static::updating(function ($user) {
             if (auth()->check()) {
                 $user->updated_by = auth()->id();
             }
-        });
-
-        static::deleting(function ($user) {
-            if (auth()->check() && $user->exists) {
-                $user->deleted_by = auth()->id();
-                $user->saveQuietly(); // persist deleted_by without triggering events
-            }
+            $user->updated_at = now();
         });
     }
 

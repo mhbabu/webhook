@@ -28,7 +28,7 @@ class ConversationInfoResource extends JsonResource
             'customer'          => $conversation->customer ? new CustomerResource($conversation->customer) : null,
             // Use the passed message here
             'last_message'      => $message?->content ?? null,
-            'last_message_at'   => $message?->created_at ? $message->created_at->toDateTimeString() : null,
+            'last_message_at'   => $message?->delivered_at ? $message->delivered_at->toDateTimeString() : null,
             'last_message_info' => $message ? new MessageResource($message) : null,
             'started_at'        => $conversation->started_at,
             'end_at'            => $conversation->end_at,

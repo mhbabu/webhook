@@ -3,21 +3,19 @@
 use App\Http\Controllers\Api\Webhook\FacebookWebhookController;
 use App\Http\Controllers\Api\Webhook\InstagramWebhookController;
 use App\Http\Controllers\Api\Webhook\PlatformWebhookController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('webhook/whatsapp', [PlatformWebhookController::class, 'verifyWhatsAppToken']); // webhook verification for wahtsapp
 Route::post('webhook/whatsapp', [PlatformWebhookController::class, 'incomingWhatsAppMessage']); // receive whatsapp webhook incoming message
 
-Route::get('webhook/messenger', [PlatformWebhookController::class, 'verifyMessengerToken']); //  messenger token verification
-Route::post('webhook/messenger', [PlatformWebhookController::class, 'incomingMessengerMessage']); // receive messenger webhook response
+Route::get('webhook/facebook', [FacebookWebhookController::class, 'verifyFacebookToken']); //  messenger token verification
+Route::post('webhook/facebook', [FacebookWebhookController::class, 'incomingFacebookEvent']); // receive messenger webhook response
 
 Route::get('webhook/instagram', [InstagramWebhookController::class, 'verifyInstagram']); // For for webhook verification
 Route::post('webhook/instagram', [InstagramWebhookController::class, 'receiveInstagramMessage']); // POST for message reception
 
-Route::get('webhook/facebook', [PlatformWebhookController::class, 'verifyFacebookPageToken']); //  facebook page token verification
-// Route::post('webhook/facebook', [PlatformWebhookController::class, 'receiveFacebookPageEventData']); // receive facebook page event data
+// Route::get('webhook/facebook', [PlatformWebhookController::class, 'verifyFacebookPageToken']); //  facebook page token verification
+// // Route::post('webhook/facebook', [PlatformWebhookController::class, 'receiveFacebookPageEventData']); // receive facebook page event data
 // Route::post('webhook/facebook', [FacebookWebhookController::class, 'receiveFacebookPageEventData']); // receive facebook page event data
 Route::post('webhook/facebook', [FacebookWebhookController::class, 'handle']);
 
@@ -27,20 +25,3 @@ Route::post('webhook/receive-email', [PlatformWebhookController::class, 'receive
 // Route::get('attachments/{attachment}/download', [PlatformWebhookController::class, 'download'])->name('attachments.download');
 
 require __DIR__.'/platform.php';
-
-Route::post('/auth-user-broadcasting', function (Request $request) {
-    $user = Auth::user(); // Already authenticated via middleware
-
-    $socketId = $request->input('socket_id');
-    $channelName = $request->input('channel_name');
-
-    $appKey = env('REVERB_APP_KEY');
-    $appSecret = env('REVERB_APP_SECRET');
-
-    $stringToSign = $socketId.':'.$channelName;
-    $signature = hash_hmac('sha256', $stringToSign, $appSecret);
-
-    return response()->json([
-        'auth' => $appKey.':'.$signature,
-    ]);
-})->middleware('auth:sanctum');

@@ -19,7 +19,9 @@ class DatabaseSeeder extends Seeder
             UserTableSeeder::class,
             QuickReplyTableSeeder::class,
             WrapUpConversationTableSeeder::class,
-            // ChatSeeder::class
+            MessageTemplateTableSeeder::class,
+            // ChatSeeder::class,
+            SystemSettingsTableSeeder::class,
         ]);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Message;
 
+use App\Events\SendSystemConfigureMessageEvent;
 use App\Events\SocketIncomingMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Message\EndConversationRequest;
@@ -19,6 +20,7 @@ use App\Services\Platforms\FacebookService;
 use App\Services\Platforms\InstagramService;
 use App\Services\Platforms\WhatsAppService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
@@ -95,7 +97,7 @@ class MessageController extends Controller
         return jsonResponse('Conversation messages retrieved successfully', true, ['conversation' => new ConversationResource($conversation), 'messages' => MessageResource::collection($allMessages)]);
     }
 
-    public function incomingMsg(Request $request)
+    public function incomingMsg2(Request $request)
     {
         $data = $request->all();
         Log::info('[IncomingMsg] Data', $data);
@@ -120,7 +122,7 @@ class MessageController extends Controller
         $user = User::find($agentId);
         $user->current_limit = $agentAvailableScope;
         $user->save();
-        Log::info('[UserData]'.json_encode($user));
+        Log::info('[UserData]' . json_encode($user));
 
         // Fetch conversation
         $conversation = Conversation::find((int) $conversationId);
@@ -128,6 +130,8 @@ class MessageController extends Controller
 
         if ($conversationType === 'new' || empty($conversation->agent_id)) {
             $conversation->agent_id = $user->id;
+            $conversation->message_delivery_at = now();
+            $conversation->agent_assigned_at   = now();
             $conversation->save();
         }
 
@@ -151,7 +155,7 @@ class MessageController extends Controller
 
         $payload = [
             'conversation' => new ConversationInfoResource($conversation, $message),
-            'message' => $message ? new MessageResource($message) : null,
+            'message'      => $message ? new MessageResource($message) : null,
         ];
 
         $channelData = [
@@ -173,6 +177,93 @@ class MessageController extends Controller
         // }
     }
 
+    public function incomingMsg(Request $request)
+    {
+        $data = $request->all();
+        Log::info('[IncomingMsg2] Data', $data);
+
+        $agentId          = $data['agentId'] ?? null;
+        $availableScope   = $data['availableScope'] ?? null;
+        $source           = strtolower($data['source'] ?? '');
+        $conversationId   = $data['messageData']['conversationId'] ?? null;
+        $messageId        = $data['messageData']['messageId'] ?? null;
+        $conversationType = $data['messageData']['conversationType'] ?? null;
+
+        // Basic validation
+        if (! $conversationId || ! $agentId || ! $messageId) {
+            return jsonResponse('Missing required fields: conversationId, agentId or messageId.', false, null, 400);
+        }
+
+        DB::transaction(function () use ($agentId, $availableScope, $conversationId, $messageId, $conversationType, $source) {
+
+            // Update Agent Availability
+            $user = User::findOrFail($agentId);
+            $user->current_limit = $availableScope;
+            $user->save();
+
+            // Load Conversation & Message
+            $conversation      = Conversation::findOrFail($conversationId);
+            $message           = Message::findOrFail((int) $messageId);
+            $isFirstAssignment = false;
+
+
+            //Assign Agent Only First Time
+            if ($conversationType === 'new' && empty($conversation->agent_id)) {
+
+                $conversation->agent_id = $user->id;
+
+                if (!$conversation->first_message_at) {
+                    $conversation->first_message_at = now();
+                }
+
+                if (!$conversation->agent_assigned_at) {
+                    $conversation->agent_assigned_at = now();
+                }
+
+                $conversation->save();
+
+                $isFirstAssignment = true;
+            }
+
+            // Assign Message Receiver
+            if ($conversationType === 'new' || empty($message->receiver_id)) {
+                $message->receiver_id   = $conversation->agent_id ?? $user->id;
+                $message->receiver_type = User::class;
+            }
+
+            $message->delivered_at = now();
+            $message->save();
+
+            //Update Conversation Timestamps
+            $conversation->last_message_at = now();
+            $conversation->last_message_id = $message->id;
+            $conversation->save();
+
+            // After Commit → Fire Event + Broadcast
+            DB::afterCommit(function () use ($isFirstAssignment, $source, $conversation, $message, $user) {
+
+                // Fire event ONLY 1 time
+                if ($isFirstAssignment && $source === 'whatsapp') {
+                    event(new SendSystemConfigureMessageEvent($conversation, $user, $message->id, 'agent_assigned'));
+                }
+
+                // broadcasting payload
+                $payload = [
+                    'conversation' => new ConversationInfoResource($conversation, $message),
+                    'message'      => new MessageResource($message),
+                ];
+
+                $channelData = [
+                    'platform' => $source,
+                    'agentId'  => $user->id,
+                ];
+
+                broadcast(new SocketIncomingMessage($payload, $channelData));
+            });
+        });
+
+        return jsonResponse('Message received successfully.', true, null);
+    }
     /**
      * End a conversation
      * - Updates conversation table
@@ -201,11 +292,10 @@ class MessageController extends Controller
         }
 
         // ✅ End the conversation
-        $conversation->update([
-            'end_at' => now(),
-            'wrap_up_id' => $data['wrap_up_id'],
-            'ended_by' => $user->id,
-        ]);
+        $conversation->end_at     = now();
+        $conversation->wrap_up_id = $data['wrap_up_id'];
+        $conversation->ended_by   = $user->id;
+        $conversation->save();
 
         // ✅ Update agent current_limit based on platform weight
         $weight = getPlatformWeight($conversation->platform);
@@ -213,6 +303,8 @@ class MessageController extends Controller
 
         // ✅ Update Redis: hash + omnitrix list + conditional CONTACT_TYPE removal
         $this->updateUserInRedis($user, $conversation);
+
+        event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
 
         return jsonResponse('Conversation ended successfully.', true);
     }
@@ -246,12 +338,12 @@ class MessageController extends Controller
 
         // Remove platform only if no active conversations exist
         if ($endedPlatform && $activeConversations === 1 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
         }
 
         // Remove platform only if no active conversations exist
         if ($endedPlatform && $activeConversations === 0 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
         }
 
         // Prepare agent hash data
@@ -262,7 +354,7 @@ class MessageController extends Controller
             'MAX_SCOPE' => $user->max_limit,
             'AVAILABLE_SCOPE' => $user->current_limit,
             'CONTACT_TYPE' => json_encode($contactTypes),
-            'SKILL' => json_encode($user->platforms()->pluck('name')->map(fn ($n) => strtolower($n))->toArray()),
+            'SKILL' => json_encode($user->platforms()->pluck('name')->map(fn($n) => strtolower($n))->toArray()),
             'BUSYSINCE' => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
         ];
 
@@ -376,7 +468,7 @@ class MessageController extends Controller
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $file) {
                 $storedPath = $file->store('messenger_temp', 'public');
-                $fullPath = 'messenger_temp/'.basename($storedPath);
+                $fullPath = 'messenger_temp/' . basename($storedPath);
                 $mime = $file->getMimeType();
 
                 // Send via Facebook API
@@ -498,27 +590,28 @@ class MessageController extends Controller
                 'customer_id' => $customerId,
                 'agent_id' => $agentId,
                 'platform' => $platformName,
-                'trace_id' => strtoupper(substr($platformName, 0, 2)).'-'.now()->format('YmdHis').'-'.uniqid(),
+                'trace_id' => strtoupper(substr($platformName, 0, 2)) . '-' . now()->format('YmdHis') . '-' . uniqid(),
             ]);
         }
 
         return $conversation;
     }
 
-    protected function sendWhatsAppMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
+    protected function sendWhatsAppMessageFromAgent2(array $data, array $attachments, Conversation $conversation, Customer $customer)
     {
         $phone = $customer->phone;
 
         // Step 1: Save the text message in DB
         $message = Message::create([
             'conversation_id' => $conversation->id,
-            'sender_id' => auth()->id(),
-            'sender_type' => User::class,
-            'receiver_type' => Customer::class,
-            'receiver_id' => $customer->id,
-            'type' => 'text',
-            'content' => $data['content'] ?? '',
-            'direction' => 'outgoing',
+            'sender_id'       => auth()->id(),
+            'sender_type'     => User::class,
+            'receiver_type'   => Customer::class,
+            'receiver_id'     => $customer->id,
+            'type'            => 'text',
+            'content'         => $data['content'] ?? '',
+            'delivered_at'    => now(),
+            'direction'       => 'outgoing',
         ]);
 
         $whatsAppService = new WhatsAppService;
@@ -577,6 +670,108 @@ class MessageController extends Controller
             'text_message' => $message ? new MessageResource($message) : null,
             'media_responses' => $mediaResponses,
             'text_response' => $textResponse,
+        ]);
+    }
+
+    protected function sendWhatsAppMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
+    {
+        $phone           = $customer->phone;
+        $whatsAppService = new WhatsAppService;
+        $mediaResponses = [];
+
+        // Step 1: Save the text message in DB (if any content exists)
+        $message = null;
+        if (!empty($data['content'])) {
+            $message = Message::create([
+                'conversation_id' => $conversation->id,
+                'sender_id'       => auth()->id(),
+                'sender_type'     => User::class,
+                'receiver_type'   => Customer::class,
+                'receiver_id'     => $customer->id,
+                'type'            => 'text',
+                'content'         => $data['content'],
+                'delivered_at'    => now(),
+                'direction'       => 'outgoing',
+            ]);
+
+            // Send text via WhatsApp
+            $textResponse = $whatsAppService->sendTextMessage($phone, $data['content']);
+            $message->update([
+                'platform_message_id' => $textResponse['messages'][0]['id'] ?? null,
+            ]);
+
+            // ✅ Update conversation last_message_id
+            $conversation->last_message_id = $message->id;
+
+            if (empty($conversation->first_response_at)) {
+                $conversation->first_response_at = now();
+            }
+
+            $conversation->save();
+        }
+
+        // Step 2: Process attachments
+        foreach ($attachments as $file) {
+            $storedPath = $file->store('attachments', 'public');
+            $fullPath = storage_path("app/public/{$storedPath}");
+            $mime = $file->getMimeType();
+            $size = $file->getSize();
+
+            $type = match (true) {
+                str_starts_with($mime, 'image/') => 'image',
+                str_starts_with($mime, 'video/') => 'video',
+                str_starts_with($mime, 'audio/') => 'audio',
+                default => 'document',
+            };
+
+            // Save attachment under the existing message if text exists
+            if ($message) {
+                $attachmentMessage = $message;
+            } else {
+                // If no text, create a message for the attachment
+                $attachmentMessage = Message::create([
+                    'conversation_id' => $conversation->id,
+                    'sender_id'       => auth()->id(),
+                    'sender_type'     => User::class,
+                    'receiver_type'   => Customer::class,
+                    'receiver_id'     => $customer->id,
+                    'type'            => $type,
+                    'content'         => null,
+                    'delivered_at'    => now(),
+                    'direction'       => 'outgoing',
+                ]);
+            }
+
+            // Save attachment info
+            $attachmentRecord = $attachmentMessage->attachments()->create([
+                'type' => $type,
+                'path' => $storedPath,
+                'mime' => $mime,
+                'size' => $size,
+                'is_available' => 1,
+            ]);
+
+            // Upload and send via WhatsApp
+            $mediaId = $whatsAppService->uploadMedia($fullPath, $mime);
+            if ($mediaId) {
+                $mediaResponse = $whatsAppService->sendMediaMessage($phone, $mediaId, $type);
+                $mediaResponses[] = $mediaResponse;
+
+                $attachmentRecord->update([
+                    'attachment_id' => $mediaResponse['messages'][0]['id'] ?? null,
+                ]);
+            }
+
+            // ✅ Update last_message_id after each attachment
+            $conversation->last_message_id = $attachmentMessage->id;
+            $conversation->save();
+        }
+
+        // Step 3: Return structured response
+        return jsonResponse('WhatsApp message(s) sent successfully.', true, [
+            'text_message'    => $message ? new MessageResource($message) : null,
+            'media_responses' => $mediaResponses,
+            'text_response'   => $textResponse ?? null,
         ]);
     }
 
@@ -769,7 +964,7 @@ class MessageController extends Controller
          */
         $savedPaths = [];
         $attachmentRows = [];
-        $storagePath = 'mail_attachments/'.now()->format('Ymd');
+        $storagePath = 'mail_attachments/' . now()->format('Ymd');
 
         foreach ($attachments as $file) {
 
@@ -778,8 +973,8 @@ class MessageController extends Controller
             }
 
             $ext = strtolower($file->getClientOriginalExtension());
-            $filename = Str::uuid().'.'.$ext;
-            $relativePath = $storagePath.'/'.$filename;
+            $filename = Str::uuid() . '.' . $ext;
+            $relativePath = $storagePath . '/' . $filename;
 
             // Save file to storage/app/public
             Storage::disk('public')->put($relativePath, file_get_contents($file));
@@ -824,8 +1019,8 @@ class MessageController extends Controller
         $EmailService = new EmailService;
         // ---- 4. Prepare CC ----
         $ccEmail = ! empty($data['cc_email'])
-        ? array_map('trim', explode(',', $data['cc_email']))
-        : [];
+            ? array_map('trim', explode(',', $data['cc_email']))
+            : [];
 
         $emailResponse = $EmailService->sendEmail(
             $customer->email,
