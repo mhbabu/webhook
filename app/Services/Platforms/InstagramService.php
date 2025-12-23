@@ -27,6 +27,7 @@ class InstagramService
         $this->verifyToken = config('services.instagram.ig_verify_token');
         $this->systemUserToken = config('services.graph.system_user_token');
         $this->baseUrl = config('services.graph.base_url').'/'.config('services.graph.version');
+        // $this->baseUrl = config('services.graph.base_url').'/v21.0';
 
     }
 
@@ -35,8 +36,8 @@ class InstagramService
         $url = $this->baseUrl."/${senderId}";
 
         $response = Http::get($url, [
-            // 'fields' => 'id,name,username',
-            'fields' => 'id,username,name,profile_pic,follower_count,is_verified_user,is_user_follow_business,is_business_follow_user',
+            'fields' => 'id,name,username',
+            // 'fields' => 'id,username,name,profile_pic,follower_count,is_verified_user,is_user_follow_business,is_business_follow_user',
             'access_token' => $this->pageToken,
         ]);
 

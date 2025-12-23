@@ -7,6 +7,7 @@ use App\Models\PlatformAccount;
 use App\Services\SocialSyncService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * InstagramAdapter
@@ -43,6 +44,7 @@ class InstagramAdapter
     {
         $igUserId = $account->platform_account_id;
         Log::info("[InstagramAdapter] Starting media sync for IG User ID: {$igUserId}");
+        // Log::debug("[IG] page={$page}, account={$igUserId}");
         $endpoint = "https://graph.facebook.com/v24.0/{$igUserId}/media";
         // requested fields include children for carousel, and media fields.
         $fields = implode(',', [
@@ -89,8 +91,12 @@ class InstagramAdapter
 
                 $post = $this->syncService->upsertPost($platform, $account, $payload);
 
-                // Sync comments for this media
+                // 🔥 Sync post reactions (likes)
+                // $this->syncPostReactions($platform, $account, $post, $media['id']);
+
+                // Sync comments
                 $this->syncCommentsForMedia($platform, $account, $post, $media['id']);
+
                 // Note: reactions (likes) endpoint for IG media is /{media-id}/insights or /{media-id}/likes
                 // Instagram Graph supports /{media-id}/likes if permissions present; you can implement similarly.
             }
@@ -119,19 +125,28 @@ class InstagramAdapter
         $result = [];
 
         // Primary media
-        $primary = [
+        $primaryUrl = $this->downloadAndStoreInstagramMedia(
+            $media['media_url'] ?? $media['thumbnail_url'] ?? '',
+            $media['media_type'] ?? 'IMAGE'
+        );
+
+        $result[] = [
             'type' => $media['media_type'] ?? null,
-            'url' => $media['media_url'] ?? $media['thumbnail_url'] ?? null,
+            'url' => $primaryUrl,
             'thumbnail' => $media['thumbnail_url'] ?? null,
         ];
-        $result[] = $primary;
 
-        // Add children (carousel)
-        if (! empty($media['children']['data']) && is_array($media['children']['data'])) {
+        // Carousel children
+        if (! empty($media['children']['data'])) {
             foreach ($media['children']['data'] as $child) {
+                $childUrl = $this->downloadAndStoreInstagramMedia(
+                    $child['media_url'] ?? '',
+                    $child['media_type'] ?? 'IMAGE'
+                );
+
                 $result[] = [
                     'type' => $child['media_type'] ?? null,
-                    'url' => $child['media_url'] ?? null,
+                    'url' => $childUrl,
                     'thumbnail' => $child['thumbnail_url'] ?? null,
                 ];
             }
@@ -158,7 +173,7 @@ class InstagramAdapter
         $next = $endpoint.'?'.http_build_query($params);
 
         while ($next) {
-            $res = Http::get($next);
+            $res = Http::retry(3, 500)->get($next);
             if (! $res->successful()) {
                 $this->syncService->logSync($platform, $account, 'comments', 'failed', $res->body());
                 Log::error('[InstagramAdapter] comments fetch failed: '.$res->body());
@@ -191,8 +206,43 @@ class InstagramAdapter
         $this->syncService->logSync($platform, $account, 'comments', 'success', null);
     }
 
-    use Illuminate\Support\Facades\Log;
-    use Illuminate\Support\Str;
+    public function syncPostReactions(
+        Platform $platform,
+        PlatformAccount $account,
+        $post,
+        string $mediaId
+    ) {
+        $endpoint = "https://graph.facebook.com/v24.0/{$mediaId}";
+        $params = [
+            'fields' => 'like_count',
+            'access_token' => $this->token,
+        ];
+
+        $res = Http::retry(3, 500)->get($endpoint, $params);
+
+        if (! $res->successful()) {
+            Log::error('[InstagramAdapter] post reaction fetch failed', [
+                'media_id' => $mediaId,
+                'error' => $res->body(),
+            ]);
+
+            return;
+        }
+
+        $data = $res->json();
+
+        if (! isset($data['like_count'])) {
+            return;
+        }
+
+        // Store aggregated reaction
+        $this->syncService->upsertReactionAggregate(
+            post: $post,
+            reactionType: 'like',
+            count: (int) $data['like_count'],
+            raw: $data
+        );
+    }
 
     protected function downloadAndStoreInstagramMedia(
         string $remoteUrl,
@@ -247,5 +297,23 @@ class InstagramAdapter
 
             return null;
         }
+    }
+
+    protected function detectExtensionFromUrl(string $url, string $mediaType): string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        $ext = pathinfo($path, PATHINFO_EXTENSION);
+
+        $validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'webm'];
+
+        if (in_array(strtolower($ext), $validExtensions)) {
+            return strtolower($ext);
+        }
+
+        // Fallback based on media type
+        return match (strtoupper($mediaType)) {
+            'VIDEO' => 'mp4',
+            default => 'jpg',
+        };
     }
 }

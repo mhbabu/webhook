@@ -30,14 +30,14 @@ class PlatformWebhookController extends Controller
 
     protected $instagramService;
 
-    protected $EmailService;
+    protected $emailService;
 
-    public function __construct(WhatsAppService $whatsAppService, FacebookService $facebookService, InstagramService $instagramService, EmailService $EmailService)
+    public function __construct(WhatsAppService $whatsAppService, FacebookService $facebookService, InstagramService $instagramService, emailService $emailService)
     {
         $this->whatsAppService = $whatsAppService;
         $this->facebookService = $facebookService;
         $this->instagramService = $instagramService;
-        $this->EmailService = $EmailService;
+        $this->emailService = $emailService;
     }
 
     // Meta webhook callbackUrl verification endpoint
@@ -454,11 +454,11 @@ class PlatformWebhookController extends Controller
                         $type = 'text';
                     }
 
-                    Log::info('📎 Normalized Instagram attachment type', [
-                        'rawType' => $rawType ?? null,
-                        'normalizedType' => $type,
-                        'attachments' => $attachments,
-                    ]);
+                    // Log::info('📎 Normalized Instagram attachment type', [
+                    //     'rawType' => $rawType ?? null,
+                    //     'normalizedType' => $type,
+                    //     'attachments' => $attachments,
+                    // ]);
 
                     // 🧩 4️⃣ Safely resolve parent message (if exists)
                     $resolvedParentId = null;
@@ -958,7 +958,7 @@ class PlatformWebhookController extends Controller
 
     public function receiveEmailData1(Request $request)
     {
-        $receiveMail = $this->EmailService->receiveEmail();
+        $receiveMail = $this->emailService->receiveEmail();
 
         Log::info('Receive Email:', [
             'data' => $receiveMail,
