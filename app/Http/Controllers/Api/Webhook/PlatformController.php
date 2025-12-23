@@ -1,59 +1,77 @@
 <?php
 
-namespace App\Http\Controllers\Api\SystemSetting;
+namespace App\Http\Controllers\Api\Webhook;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\SystemSetting\StoreSystemSettingRequest;
-use App\Http\Requests\SystemSetting\UpdateSystemSettingRequest;
-use App\Http\Resources\SystemSetting\SystemSettingResource;
-use App\Models\SystemSetting;
+use App\Http\Requests\Platform\StorePlatformRequest;
+use App\Http\Requests\Platform\UpdatePlatformRequest;
+use App\Http\Resources\Webhook\PlatformResource;
+use App\Models\Platform;
 use Illuminate\Http\Request;
 
-class SystemSettingController extends Controller
+class PlatformController extends Controller
 {
     public function index(Request $request)
     {
-        $systemSettings = SystemSetting::all();
+        $data       = $request->all();
+        $pagination = !isset($data['pagination']) || $data['pagination'] === 'true' ? true : false;
+        $page       = $data['page'] ?? 1;
+        $perPage    = $data['per_page'] ?? 10;
+        $searchText = $data['search'] ?? null;
+        $searchBy   = $data['search_by'] ?? 'name';
+        $sortBy     = $data['sort_by'] ?? 'id';
+        $sortOrder  = $data['sort_order'] ?? 'asc';
 
-        return jsonResponse('System settings retrieved successfully', true, SystemSettingResource::collection($systemSettings));
-    }
+        $query = Platform::query();
 
-    public function store(StoreSystemSettingRequest $request)
-    {
-        $setting = SystemSetting::create($request->validated());
-        return jsonResponse('System setting created successfully', true, new SystemSettingResource($setting));
-    }
-
-    public function show($id)
-    {
-        $setting = SystemSetting::find($id);
-        if (!$setting) {
-            return jsonResponse('System setting not found', false);
+        if ($searchText && $searchBy) {
+            $query->where($searchBy, 'like', "%{$searchText}%");
         }
 
-        return jsonResponse('System setting retrieved successfully', true, new SystemSettingResource($setting));
-    }
+        $query->orderBy($sortBy, $sortOrder);
 
-    public function update(UpdateSystemSettingRequest $request, $id)
-    {
-        $setting = SystemSetting::find($id);
-        if (!$setting) {
-            return jsonResponse('System setting not found', false);
+        if ($pagination) {
+            $platforms = $query->paginate($perPage, ['*'], 'page', $page);
+            return jsonResponseWithPagination('Platform list retrieved successfully', true, PlatformResource::collection($platforms)->response()->getData(true));
         }
 
-        $setting->update($request->validated());
-        return jsonResponse('System setting updated successfully', true, new SystemSettingResource($setting));
+        return jsonResponse('Platform list retrieved successfully', true, PlatformResource::collection($query->get()));
     }
 
-    public function destroy($id)
+    public function store(StorePlatformRequest $request)
     {
-        $setting = SystemSetting::find($id);
-        if (!$setting) {
-            return jsonResponse('System setting not found', false);
+        $platform = Platform::create($request->validated());
+        return jsonResponse('Platform created successfully', true, new PlatformResource($platform));
+    }
+
+    public function show($platformId)
+    {
+        $platform = Platform::find($platformId);
+        if (!$platform) {
+            return jsonResponse('Platform not found', false);
         }
 
-        $setting->delete();
+        return jsonResponse('Platform retrieved successfully', true, new PlatformResource($platform));
+    }
 
-        return jsonResponse('System setting deleted successfully', true);
+    public function update(UpdatePlatformRequest $request, $platformId)
+    {
+        $platform = Platform::find($platformId);
+        if (!$platform) {
+            return jsonResponse('Platform not found', false);
+        }
+
+        $platform->update($request->validated());
+        return jsonResponse('Platform updated successfully', true, new PlatformResource($platform));
+    }
+
+    public function destroy($platformId)
+    {
+        $platform = Platform::find($platformId);
+        if (!$platform) {
+            return jsonResponse('Platform not found', false);
+        }
+        $platform->delete();
+        return jsonResponse('Platform deleted successfully', true);
     }
 }
