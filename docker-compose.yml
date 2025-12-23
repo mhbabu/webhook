@@ -15,7 +15,6 @@ services:
       - automatrix
     depends_on:
       - db
-      # - kafka
       - redis
     ports:
       - "8080:8080" # Reverb WebSocket server exposed here
@@ -35,7 +34,9 @@ services:
       - automatrix
 
   scheduler:
-    image: webhook-app
+    build:
+      context: /var/www/html/webhook
+      dockerfile: Dockerfile
     container_name: webhook-scheduler
     restart: unless-stopped
     working_dir: /var/www/html/webhook
@@ -64,33 +65,6 @@ services:
       - automatrix
     ports:
       - "3306:3306"   
-
-  # zookeeper:
-  #   image: bitnami/zookeeper:3.9.1-debian-11-r6
-  #   container_name: webhook-zookeeper
-  #   restart: unless-stopped
-  #   environment:
-  #     ALLOW_ANONYMOUS_LOGIN: "yes"
-  #   ports:
-  #     - "2181:2181"
-  #   networks:
-  #     - automatrix
-
-  # kafka:
-  #   image: bitnami/kafka:3.6.0-debian-11-r9
-  #   container_name: webhook-kafka
-  #   restart: unless-stopped
-  #   environment:
-  #     KAFKA_BROKER_ID: 1
-  #     KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-  #     KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-  #     ALLOW_PLAINTEXT_LISTENER: "yes"
-  #   ports:
-  #     - "9092:9092"
-  #   depends_on:
-  #     - zookeeper
-  #   networks:
-  #     - automatrix
 
   redis:
     image: redis:alpine
