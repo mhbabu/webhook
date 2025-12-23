@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Webhook\FacebookWebhookController;
+use App\Http\Controllers\Api\Webhook\InstagramWebhookController;
 use App\Http\Controllers\Api\Webhook\PlatformWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,8 +13,8 @@ Route::post('webhook/whatsapp', [PlatformWebhookController::class, 'incomingWhat
 Route::get('webhook/messenger', [PlatformWebhookController::class, 'verifyMessengerToken']); //  messenger token verification
 Route::post('webhook/messenger', [PlatformWebhookController::class, 'incomingMessengerMessage']); // receive messenger webhook response
 
-Route::get('webhook/instagram', [PlatformWebhookController::class, 'verifyInstagram']); // For for webhook verification
-Route::post('webhook/instagram', [PlatformWebhookController::class, 'receiveInstagramMessage']); // POST for message reception
+Route::get('webhook/instagram', [InstagramWebhookController::class, 'verifyInstagram']); // For for webhook verification
+Route::post('webhook/instagram', [InstagramWebhookController::class, 'receiveInstagramMessage']); // POST for message reception
 
 Route::get('webhook/facebook', [PlatformWebhookController::class, 'verifyFacebookPageToken']); //  facebook page token verification
 // Route::post('webhook/facebook', [PlatformWebhookController::class, 'receiveFacebookPageEventData']); // receive facebook page event data
