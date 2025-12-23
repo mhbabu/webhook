@@ -33,22 +33,22 @@ services:
     networks:
       - automatrix
 
-  scheduler:
-    build:
-      context: /var/www/html/webhook
-      dockerfile: Dockerfile
-    container_name: webhook-scheduler
-    restart: unless-stopped
-    working_dir: /var/www/html/webhook
-    volumes:
-      - /var/www/html/webhook:/var/www/html/webhook
-    command: sh -c "while true; do php artisan schedule:run; sleep 60; done"
-    depends_on:
-      - app
-      - db
-      - redis
-    networks:
-      - automatrix
+  # scheduler:
+  #   build:
+  #     context: /var/www/html/webhook
+  #     dockerfile: Dockerfile
+  #   container_name: webhook-scheduler
+  #   restart: unless-stopped
+  #   working_dir: /var/www/html/webhook
+  #   volumes:
+  #     - /var/www/html/webhook:/var/www/html/webhook
+  #   command: sh -c "while true; do php artisan schedule:run; sleep 60; done"
+  #   depends_on:
+  #     - app
+  #     - db
+  #     - redis
+  #   networks:
+  #     - automatrix
 
   db:
     image: mysql:8.0
