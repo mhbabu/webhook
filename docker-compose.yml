@@ -34,6 +34,21 @@ services:
     networks:
       - automatrix
 
+  scheduler:
+    image: webhook-app
+    container_name: webhook-scheduler
+    restart: unless-stopped
+    working_dir: /var/www/html/webhook
+    volumes:
+      - /var/www/html/webhook:/var/www/html/webhook
+    command: sh -c "while true; do php artisan schedule:run; sleep 60; done"
+    depends_on:
+      - app
+      - db
+      - redis
+    networks:
+      - automatrix
+
   db:
     image: mysql:8.0
     container_name: webhook-mysql
