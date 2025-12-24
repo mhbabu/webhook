@@ -188,6 +188,28 @@ class MessageController extends Controller
         $messageId        = $data['messageData']['messageId'] ?? null;
         $conversationType = $data['messageData']['conversationType'] ?? null;
 
+
+        /*
+    |--------------------------------------------------------------------------
+    | FACEBOOK / INSTAGRAM → RAW MOCK PAYLOAD
+    |--------------------------------------------------------------------------
+    */
+        if (in_array($source, ['facebook', 'instagram'])) {
+
+            // get mock conversation
+            $payload                = getRandomSocialPageConversation();
+            $payload['socket_type'] = 'page'; // ADD socket_type HERE (this goes to frontend)
+
+            $channelData = [
+                'platform'     => $source,
+                'agentId'      => $data['agentId'] ?? 0,
+            ];
+
+            broadcast(new SocketIncomingMessage($payload, $channelData));
+            return jsonResponse('Facebook/Instagram event broadcasted.', true);
+        }
+
+
         // Basic validation
         if (! $conversationId || ! $agentId || ! $messageId) {
             return jsonResponse('Missing required fields: conversationId, agentId or messageId.', false, null, 400);
@@ -250,7 +272,7 @@ class MessageController extends Controller
                 $payload = [
                     'conversation' => new ConversationInfoResource($conversation, $message),
                     'message'      => new MessageResource($message),
-                    'type'         => in_array($source, ['facebook', 'instagram']) ? 'page' : 'normal'
+                    'socket_type'  => 'normal'
                 ];
 
                 $channelData = [

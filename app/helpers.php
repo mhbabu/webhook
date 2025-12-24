@@ -312,3 +312,123 @@ if (!function_exists('sendToDispatcher')) {
         }
     }
 }
+
+
+if (! function_exists('getRandomSocialPageConversation')) {
+    /**
+     * Get a random social page conversation (mock).
+     *
+     * @return array|null
+     */
+    function getRandomSocialPageConversation(): ?array
+    {
+        $conversations = [
+            [
+                "id" => 1,
+                "post_id" => 101,
+                "platform" => "facebook",
+                "trace_id" => "C-101a",
+                "customer" => [
+                    "id" => 1,
+                    "name" => "Rumana Begum",
+                    "email" => null,
+                    "phone" => "",
+                    "type" => "customer",
+                    "profile_photo" => null
+                ],
+                "type" => "comment",
+                "info" => "Rumana commented on post 101: 'Great workshop, learned a lot!'",
+                "started_at" => "2025-12-18T01:28:09.000000Z",
+                "end_at" => null,
+                "wrap_up_info" => null,
+                "is_ended" => false
+            ],
+            [
+                "id" => 2,
+                "post_id" => 101,
+                "platform" => "facebook",
+                "trace_id" => "C-101b",
+                "customer" => [
+                    "id" => 2,
+                    "name" => "Tarek Hassan",
+                    "email" => null,
+                    "phone" => "",
+                    "type" => "customer",
+                    "profile_photo" => null
+                ],
+                "type" => "reply",
+                "info" => "Tarek replied on post 101: 'Totally agree, it was very insightful!'",
+                "started_at" => "2025-12-18T02:15:09.000000Z",
+                "end_at" => null,
+                "wrap_up_info" => null,
+                "is_ended" => false
+            ],
+            [
+                "id" => 3,
+                "post_id" => 102,
+                "platform" => "facebook",
+                "trace_id" => "C-102a",
+                "customer" => [
+                    "id" => 3,
+                    "name" => "Rafi Ahmed",
+                    "email" => null,
+                    "phone" => "",
+                    "type" => "customer",
+                    "profile_photo" => null
+                ],
+                "type" => "comment",
+                "info" => "Rafi commented on post 102: 'Congratulations! Great initiative.'",
+                "started_at" => "2025-12-18T03:05:00.000000Z",
+                "end_at" => null,
+                "wrap_up_info" => null,
+                "is_ended" => false
+            ],
+            [
+                "id" => 4,
+                "post_id" => 103,
+                "platform" => "facebook",
+                "trace_id" => "C-103a",
+                "customer" => [
+                    "id" => 4,
+                    "name" => "Nusrat Jahan",
+                    "email" => null,
+                    "phone" => "",
+                    "type" => "customer",
+                    "profile_photo" => null
+                ],
+                "type" => "reply",
+                "info" => "Nusrat replied on post 103: 'Loved the practical approach, very helpful!'",
+                "started_at" => "2025-12-18T04:10:00.000000Z",
+                "end_at" => null,
+                "wrap_up_info" => null,
+                "is_ended" => false
+            ],
+            [
+                "id" => 5,
+                "post_id" => 104,
+                "platform" => "facebook",
+                "trace_id" => "C-104a",
+                "customer" => [
+                    "id" => 5,
+                    "name" => "Hasan Mahmud",
+                    "email" => null,
+                    "phone" => "",
+                    "type" => "customer",
+                    "profile_photo" => null
+                ],
+                "type" => "comment",
+                "info" => "Hasan commented on post 104: 'Next workshop will be even better!'",
+                "started_at" => "2025-12-18T04:15:00.000000Z",
+                "end_at" => null,
+                "wrap_up_info" => null,
+                "is_ended" => false
+            ],
+        ];
+
+        if (empty($conversations)) {
+            return null;
+        }
+
+        return $conversations[array_rand($conversations)];
+    }
+}
