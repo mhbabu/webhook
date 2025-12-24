@@ -250,6 +250,7 @@ class MessageController extends Controller
                 $payload = [
                     'conversation' => new ConversationInfoResource($conversation, $message),
                     'message'      => new MessageResource($message),
+                    'type'         => in_array($source, ['facebook', 'instagram']) ? 'page' : 'normal'
                 ];
 
                 $channelData = [
