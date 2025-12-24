@@ -202,7 +202,7 @@ class MessageController extends Controller
 
             $channelData = [
                 'platform'     => $source,
-                'agentId'      => $data['agentId'] ?? 0,
+                'agentId'      => $data['agentId'] ?? 3,
             ];
 
             broadcast(new SocketIncomingMessage($payload, $channelData));
