@@ -33,10 +33,11 @@ class MessageController extends Controller
         $agentId = auth()->id(); // authenticated agent
         $data = $request->all();
 
+
         $pagination = ! isset($data['pagination']) || $data['pagination'] === 'true';
         $page = $data['page'] ?? 1;
         $perPage = $data['per_page'] ?? 10;
-        $query = Conversation::with(['customer', 'agent', 'lastMessage'])->where('agent_id', $agentId)->latest();
+        $query = Conversation::with(['customer', 'agent', 'lastMessage'])->where('agent_id', $agentId)->whereNotIn('platform', ['facebook', 'instagram'])->latest();
         $isEnded = isset($data['is_ended']) && $data['is_ended'] === 'true' ? true : false;
 
         if ($isEnded) {
@@ -44,8 +45,6 @@ class MessageController extends Controller
         } else {
             $query->whereNull('end_at');
         }
-
-        $query->latest();
 
         if ($pagination) {
             $conversations = $query->paginate($perPage, ['*'], 'page', $page);
