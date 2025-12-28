@@ -45,6 +45,10 @@ class EndChatAlertChecker extends Command
             ->whereBetween('end_at', [$fiveMinutesAgo, $now])
             ->get();
 
+        if (count($conversations) == 0) {
+            $this->info('No conversations found for end_cchat_alert.');
+            return 0; // ✅ Success
+        }
         foreach ($conversations as $conversation) {
             // Step 2: Find latest cchat message
             $cchatMessage = ConversationTemplateMessage::where('conversation_id', $conversation->id)

@@ -51,6 +51,11 @@ class CustomerInactivityChecker extends Command
             })
             ->get();
 
+        if(count($conversations) == 0) {
+            $this->info('No conversations found with customer inactivity.');
+            return 0; // ✅ Success
+        }
+        
         foreach ($conversations as $conversation) {
             $lastMessage = $conversation->lastMessage;
 
