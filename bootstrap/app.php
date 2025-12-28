@@ -41,8 +41,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
 
     ->withSchedule(function (Schedule $schedule) {
-        // $schedule->command(CustomerInactivityChecker::class)->everyMinute();
-        // $schedule->command(EndChatAlertChecker::class)->everyMinute();
+        $schedule->command(CustomerInactivityChecker::class)->everyMinute();
+        $schedule->command(EndChatAlertChecker::class)->everyMinute();
 
     })
 

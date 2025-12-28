@@ -71,6 +71,8 @@ class CustomerInactivityChecker extends Command
                 $this->sendAlertOnce($conversation, $thirdAlertTemplate);
             }
         }
+
+        return 0; // ✅ Success
     }
 
     /**
