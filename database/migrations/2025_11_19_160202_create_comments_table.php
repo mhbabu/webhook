@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('comments', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('conversation_id')->nullable()->constrained('conversations');
             $table->foreignId('post_id')->constrained()->cascadeOnDelete();
             $table->string('platform_comment_id')->index();
             $table->string('platform_parent_id')->nullable()->index(); // for replies

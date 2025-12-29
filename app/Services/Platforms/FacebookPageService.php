@@ -210,6 +210,7 @@ class FacebookPageService
         // Insert or update comment
         $comment = Comment::updateOrCreate(
             [
+                'conversation_id' => $conversation->id,
                 'platform_comment_id' => $commentId,
                 'post_id' => $post->id,
             ],
@@ -224,35 +225,23 @@ class FacebookPageService
             ]
         );
 
-        Log::info('Webhook comment stored', [
-            'source' => 'facebook',
-            'comment_id' => $comment->id,
-            'customer_id' => $comment->customer_id,
-            'platform_parent_id' => $comment->platform_parent_id,
-            'platform_comment_id' => $commentId,
-            'post_id' => $post->id,
-            'api_key' => config('dispatcher.facebook_api_key'),
-            'conversationType' => 'new',
-            'timestamp' => now()->timestamp,
-            'traceId' => $conversation->trace_id,
-        ]);
         $payload = [
             'source' => 'facebook',
             'traceId' => $conversation->trace_id,
             'conversationId' => $conversation->id,
-            'messageId' => $comment->id,
-            'comment_id' => $comment->id,
-            // 'traceId' => $conversation->trace_id,
-            'sender' => $comment->author_platform_id,
-            'message' => $comment->message,
-            'platform_parent_id' => $comment->platform_parent_id,
-            'platform_comment_id' => $commentId,
-            'post_id' => $post->id,
-            'api_key' => config('dispatcher.facebook_api_key'),
             'conversationType' => 'new',
+            'sender' => $comment->author_platform_id,
+            'api_key' => config('dispatcher.facebook_api_key'),
             'timestamp' => now()->timestamp,
+            'message' => $comment->message,
+            'attachmentId' => null,
+            'attachments' => [],
+            'subject' => 'Facebook-'.$post->id,
+            'messageId' => $comment->id,
+            'parentMessageId' => optional($comment->parent)->id ?? $post->id,
         ];
 
+        Log::info('Prepared payload for dispatcher', $payload);
         // Generate correct path now that parent chain exists
         $comment->update([
             'path' => $this->generateCommentPath($post, $comment),
@@ -344,7 +333,8 @@ class FacebookPageService
         try {
             // Fetch Post Details
             $response = Http::get("https://graph.facebook.com/v24.0/{$postId}", [
-                'fields' => 'id,message,created_time,permalink_url,attachments{type,media,media_type,url,subattachments},from',
+                // 'fields' => 'id,message,created_time,permalink_url,attachments{type,media,media_type,url,subattachments},from',
+                'fields' => 'id,message,created_time,permalink_url,from',
                 'access_token' => $token,
             ]);
 

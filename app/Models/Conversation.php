@@ -23,20 +23,20 @@ class Conversation extends Model
         'last_message_at',
         'agent_assigned_at',
         'last_message_id',
-        'is_feedback_sent'
+        'is_feedback_sent',
     ];
 
     protected $casts = [
-        'started_at'        => 'datetime',
-        'end_at'            => 'datetime',
-        'in_queue_at'       => 'datetime',
-        'first_message_at'  => 'datetime',
-        'last_message_at'   => 'datetime',
+        'started_at' => 'datetime',
+        'end_at' => 'datetime',
+        'in_queue_at' => 'datetime',
+        'first_message_at' => 'datetime',
+        'last_message_at' => 'datetime',
         'agent_assigned_at' => 'datetime',
-        'first_response_at' => 'datetime'
+        'first_response_at' => 'datetime',
     ];
 
-    // for reusing this filtering query 
+    // for reusing this filtering query
     public static function getConversationInfo(array $data)
     {
         $query = Conversation::with([
@@ -44,14 +44,14 @@ class Conversation extends Model
             'agent:id,name,email,employee_id',
             'lastMessage:id,content,delivered_at,created_at',
             'wrapUp:id,name',
-            'endedBy:id,name'
+            'endedBy:id,name',
         ])->latest();
 
-        if (!empty($data['start_date'])) {
+        if (! empty($data['start_date'])) {
             $query->whereDate('created_at', '>=', $data['start_date']);
         }
 
-        if (!empty($data['end_date'])) {
+        if (! empty($data['end_date'])) {
             $query->whereDate('created_at', '<=', $data['end_date']);
         }
 
@@ -88,12 +88,26 @@ class Conversation extends Model
         return $this->belongsTo(User::class, 'end_by');
     }
 
-    public function systemMessages() 
+    public function systemMessages()
     {
         return $this->hasMany(ConversationTemplateMessage::class, 'conversation_id');
     }
 
-    public function rating(){
-       return $this->belongsTo(ConversationRating::class, 'conversation_id');
+    public function rating()
+    {
+        return $this->belongsTo(ConversationRating::class, 'conversation_id');
+    }
+
+    public function comment()
+    {
+        // return $this->belongsTo(Comment::class, 'conversation_id');
+        return $this->hasOne(Comment::class, 'conversation_id');
+
+    }
+
+    public function commentTree()
+    {
+        return $this->hasMany(Comment::class, 'conversation_id');
+        // return $this->hasOne(Comment::class, 'conversation_id');
     }
 }
