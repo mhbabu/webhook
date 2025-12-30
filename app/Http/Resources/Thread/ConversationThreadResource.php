@@ -6,7 +6,7 @@ use App\Http\Resources\Customer\CustomerResource;
 // use App\Models\User;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class ConversationResource extends JsonResource
+class ConversationThreadResource extends JsonResource
 {
     /**
      * Transform the resource into an array.

@@ -47,7 +47,7 @@ class FacebookAdapter
                 'platform_post_id' => $p['id'],
                 'caption' => $p['message'] ?? null,
                 'posted_at' => $p['created_time'] ?? null,
-                'type' => null,
+                'type' => 'Post',
                 'raw' => $p,
                 'media' => $this->extractAttachments($p['attachments']['data'] ?? []),
             ]);

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\Threads;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Thread\CommentResource;
-use App\Http\Resources\Thread\ConversationResource;
+use App\Http\Resources\Thread\ConversationThreadResource;
 use App\Http\Resources\Thread\PostResource;
 use App\Http\Resources\Thread\ThreadResource;
 use App\Models\Comment;
@@ -20,9 +20,9 @@ class ThreadController extends Controller
         $agentId = auth()->id();
         $data = $request->all();
 
-        $pagination = ! isset($data['pagination']) || $data['pagination'] === 'true';
-        $page = $data['page'] ?? 1;
-        $perPage = $data['per_page'] ?? 10;
+        // $pagination = ! isset($data['pagination']) || $data['pagination'] === 'true';
+        // $page = $data['page'] ?? 1;
+        // $perPage = $data['per_page'] ?? 10;
 
         // ✅ build query first
         $query = Conversation::with([
@@ -33,15 +33,15 @@ class ThreadController extends Controller
             ->latest();
 
         // ✅ paginate or get
-        if ($pagination) {
-            $conversations = $query->paginate($perPage, ['*'], 'page', $page);
+        // if ($pagination) {
+        //     $conversations = $query->paginate($perPage, ['*'], 'page', $page);
 
-            return jsonResponseWithPagination(
-                'Social page conversations retrieved successfully',
-                true,
-                ConversationResource::collection($conversations)->response()->getData(true)
-            );
-        }
+        //     return jsonResponseWithPagination(
+        //         'Social page conversations retrieved successfully',
+        //         true,
+        //         ConversationResource::collection($conversations)->response()->getData(true)
+        //     );
+        // }
 
         $conversations = $query->get();
 
@@ -51,7 +51,7 @@ class ThreadController extends Controller
             'Social page conversations retrieved successfully',
             true,
             [
-                'conversations' => ConversationResource::collection($conversations),
+                'conversations' => ConversationThreadResource::collection($conversations),
             ]
         );
     }
