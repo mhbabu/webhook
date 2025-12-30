@@ -18,10 +18,10 @@ class ThreadResource extends JsonResource
         return [
             'id' => $this->id,
             'type' => $this->type,
-            'message' => $this->message,
-            'commented_at' => $this->commented_at?->toDateTimeString(),
+            'content' => $this->message,
+            'created_time' => $this->commented_at?->toDateTimeString(),
 
-            'customer' => $this->customer ? [
+            'from' => $this->customer ? [
                 'id' => $this->customer->id,
                 'name' => $this->customer->name,
             ] : null,

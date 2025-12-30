@@ -3,7 +3,6 @@
 namespace App\Http\Resources\Thread;
 
 use App\Http\Resources\Customer\CustomerResource;
-// use App\Http\Resources\User\UserInfoResource;
 // use App\Models\User;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -26,8 +25,8 @@ class ConversationResource extends JsonResource
                 ? new CustomerResource($this->customer)
                 : null,
 
-            'type' => $this->coment?->type,
-            'message' => $this->comment?->message,
+            'type' => $this->comment?->type,
+            'info' => $this->comment?->message,
 
             'started_at' => $this->started_at?->toDateTimeString(),
             'end_at' => $this->end_at?->toDateTimeString(),

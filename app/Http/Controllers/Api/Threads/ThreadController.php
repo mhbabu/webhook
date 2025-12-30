@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\Threads;
 
 use App\Http\Controllers\Controller;
-// use App\Http\Resources\Message\ConversationResource;
 use App\Http\Resources\Thread\CommentResource;
+use App\Http\Resources\Thread\ConversationResource;
 use App\Http\Resources\Thread\PostResource;
 use App\Http\Resources\Thread\ThreadResource;
 use App\Models\Comment;
@@ -45,89 +45,27 @@ class ThreadController extends Controller
 
         $conversations = $query->get();
 
+        Log::info('Conversations: ', $conversations->toArray());
+
         return jsonResponse(
             'Social page conversations retrieved successfully',
             true,
             [
-                'conversations' => ThreadResource::collection($conversations),
+                'conversations' => ConversationResource::collection($conversations),
             ]
         );
     }
 
-    public function getConversationWiseThread1(Request $request, string $conversationId)
-    {
-        // 1. Load conversation with post + root comment
-        $conversation = Conversation::with([
-            'comment:id,conversation_id,post_id,message,type',
-        ])->where('id', $conversationId)->firstOrFail();
-
-        // 2. Root comment of this conversation
-        $rootComment = $conversation->comment->post_id
-            ? $conversation->comment
-            : null;
-
-        Log::info('Root Comment: ', $rootComment ? $rootComment->toArray() : []);
-        // $postId = $conversation->comment->post_id;
-
-        // 3. Load replies recursively (level 2, 3, ...)
-        $replies = $rootComment
-            ? $this->loadReplies($rootComment)
-            : collect();
-
-        return jsonResponse(
-            'Conversation thread retrieved successfully',
-            true,
-            [
-                'conversation' => [
-                    'id' => $conversation->id,
-                    'platform' => $conversation->platform,
-                    'trace_id' => $conversation->trace_id,
-                    'started_at' => $conversation->started_at?->toDateTimeString(),
-                    'end_at' => $conversation->end_at?->toDateTimeString(),
-                ],
-
-                'post' => $rootComment?->post
-                ? [
-                    'id' => $rootComment->post->id,
-                    'caption' => $rootComment->post->caption,
-                    'posted_at' => $rootComment->post->posted_at,
-                ]
-                : null,
-
-                'customer' => $conversation->customer,
-                'comment' => $rootComment,
-
-                'replies' => $replies,
-            ]
-        );
-    }
-
-    private function loadReplies(Comment $comment)
-    {
-        return $comment->replies()
-            ->with(['customer'])
-            ->orderBy('commented_at')
-            ->get()
-            ->map(function ($reply) {
-                return [
-                    'id' => $reply->id,
-                    'type' => $reply->type,
-                    'message' => $reply->message,
-                    'author' => $reply->author_name,
-                    'customer' => $reply->customer,
-                    'created_at' => $reply->commented_at?->toDateTimeString(),
-                    'replies' => $this->loadReplies($reply), // recursion
-                ];
-            });
-    }
-
-    public function getConversationWiseThread2(Request $request, string $conversationId)
+    public function getConversationWiseThread(Request $request, string $conversationId)
     {
         // Load conversation with customer
         $conversation = Conversation::with('customer')->findOrFail($conversationId);
 
         // Get the post_id from the first comment of this conversation (if exists)
         $postId = $conversation->commentTree->first()?->post_id;
+        $post = Post::find($postId);
+
+        Log::info('Post ID: '.$post);
 
         if (! $postId) {
             return response()->json([
@@ -154,13 +92,19 @@ class ThreadController extends Controller
             'message' => 'Conversation thread retrieved successfully',
             'data' => [
                 'post_id' => $postId,
-                'caption' => $post?->caption ?? '',
+                'content' => $post?->caption ?? '',
+                'created_time' => $post?->created_at?->toDateTimeString(),
+                'from' => $conversation->customer ? [
+                    'id' => $conversation->customer->id,
+                    'name' => $conversation->customer->name,
+                ] : null,
+                'attachments' => [], // Add attachment handling if needed
                 'comments' => ThreadResource::collection($comments),
             ],
         ]);
     }
 
-    public function getConversationWiseThread(Request $request, string $conversationId)
+    public function getConversationWiseThread3(Request $request, string $conversationId)
     {
         $conversation = Conversation::with([
             'comment.post.media',
