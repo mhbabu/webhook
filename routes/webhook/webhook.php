@@ -9,15 +9,12 @@ Route::get('webhook/whatsapp', [PlatformWebhookController::class, 'verifyWhatsAp
 Route::post('webhook/whatsapp', [PlatformWebhookController::class, 'incomingWhatsAppMessage']); // receive whatsapp webhook incoming message
 
 Route::get('webhook/facebook', [FacebookWebhookController::class, 'verifyFacebookToken']); //  messenger token verification
-Route::post('webhook/facebook', [FacebookWebhookController::class, 'incomingFacebookEvent']); // receive messenger webhook response
+// Route::post('webhook/facebook', [FacebookWebhookController::class, 'incomingFacebookEvent']); // receive messenger webhook response
+// Route::post('webhook/facebook', [FacebookWebhookController::class, 'handle']);
+Route::post('webhook/facebook', [FacebookWebhookController::class, 'webhook']); // receive facebook page event data new and improved
 
 Route::get('webhook/instagram', [InstagramWebhookController::class, 'verifyInstagram']); // For for webhook verification
 Route::post('webhook/instagram', [InstagramWebhookController::class, 'receiveInstagramMessage']); // POST for message reception
-
-// Route::get('webhook/facebook', [PlatformWebhookController::class, 'verifyFacebookPageToken']); //  facebook page token verification
-// // Route::post('webhook/facebook', [PlatformWebhookController::class, 'receiveFacebookPageEventData']); // receive facebook page event data
-// Route::post('webhook/facebook', [FacebookWebhookController::class, 'receiveFacebookPageEventData']); // receive facebook page event data
-Route::post('webhook/facebook', [FacebookWebhookController::class, 'handle']);
 
 Route::post('webhook/website', [PlatformWebhookController::class, 'receiveWebsitePageData'])->middleware('customer.token'); // receive website message data
 

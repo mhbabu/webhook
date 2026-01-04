@@ -3,9 +3,8 @@
 namespace App\Http\Controllers\Api\Threads;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Thread\CommentResource;
 use App\Http\Resources\Thread\ConversationThreadResource;
-use App\Http\Resources\Thread\PostResource;
+use App\Http\Resources\Thread\PostMediaResource;
 use App\Http\Resources\Thread\ThreadResource;
 use App\Models\Comment;
 use App\Models\Conversation;
@@ -58,6 +57,63 @@ class ThreadController extends Controller
 
     public function getConversationWiseThread(Request $request, string $conversationId)
     {
+        $conversation = Conversation::with('customer')->findOrFail($conversationId);
+
+        $postId = $conversation->commentTree->first()?->post_id;
+
+        if (! $postId) {
+            return response()->json([
+                'status' => true,
+                'message' => 'No comments found for this conversation',
+                'data' => [],
+            ]);
+        }
+
+        $post = Post::with('media')->find($postId);
+
+        // Root comments + replies
+        $comments = Comment::with([
+            'customer:id,name',
+            'replies.customer:id,name',
+        ])
+            ->where('post_id', $postId)
+            ->whereNull('platform_parent_id')
+            ->orderBy('commented_at')
+            ->get();
+
+        // 🔗 Map post media as attachments
+        $attachments = $post->media->map(fn ($media) => [
+            'id' => $media->id,
+            'type' => $media->type,       // image | video | reel
+            'url' => $media->url,
+            'thumbnail' => $media->thumbnail,
+            'order' => $media->order,
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Conversation thread retrieved successfully',
+            'data' => [
+                'post_id' => $postId,
+                'content' => $post?->caption ?? '',
+                'created_time' => $post?->created_at?->toDateTimeString(),
+                'from' => $conversation->customer ? [
+                    'id' => $conversation->customer->id,
+                    'name' => $conversation->customer->name,
+                ] : null,
+
+                // ✅ POST ATTACHMENTS
+                'attachments' => $attachments,
+                // 'attachments' => PostMediaResource::collection($attachments),
+
+                // ✅ COMMENTS
+                'comments' => ThreadResource::collection($comments),
+            ],
+        ]);
+    }
+
+    public function getConversationWiseThread2(Request $request, string $conversationId)
+    {
         // Load conversation with customer
         $conversation = Conversation::with('customer')->findOrFail($conversationId);
 
@@ -100,41 +156,6 @@ class ThreadController extends Controller
                 ] : null,
                 'attachments' => [], // Add attachment handling if needed
                 'comments' => ThreadResource::collection($comments),
-            ],
-        ]);
-    }
-
-    public function getConversationWiseThread3(Request $request, string $conversationId)
-    {
-        $conversation = Conversation::with([
-            'comment.post.media',
-        ])->findOrFail($conversationId);
-
-        $post = $conversation->comment?->post;
-
-        if (! $post) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Post not found for this conversation',
-                'data' => null,
-            ], 404);
-        }
-
-        $comments = Comment::with([
-            'customer:id,name',
-            'replies.customer:id,name',
-        ])
-            ->where('post_id', $post->id)
-            ->whereNull('platform_parent_id')
-            ->orderBy('commented_at')
-            ->get();
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Conversation thread retrieved successfully',
-            'data' => [
-                'post' => new PostResource($post),
-                'comments' => CommentResource::collection($comments),
             ],
         ]);
     }

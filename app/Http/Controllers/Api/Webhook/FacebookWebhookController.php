@@ -32,115 +32,107 @@ class FacebookWebhookController extends Controller
     /**
      * Verify webhook token when Facebook sends GET request
      */
-    public function verifyFacebookPage(Request $request)
+    public function verifyFacebookToken(Request $request)
     {
-        $verify_token = env('FACEBOOK_VERIFY_TOKEN');
+        $verify_token = env('FB_VERIFY_TOKEN');
 
         $mode = $request->get('hub_mode');
         $token = $request->get('hub_verify_token');
         $challenge = $request->get('hub_challenge');
 
-        if ($mode && $token) {
-            if ($mode === 'subscribe' && $token === $verify_token) {
-                Log::info('✅ Facebook webhook verified successfully.');
-
-                return response($challenge, 200);
-            } else {
-                Log::warning('❌ Facebook webhook verification failed.');
-
-                return response('Forbidden', 403);
-            }
+        if ($mode === 'subscribe' && $token === $verify_token) {
+            return response($challenge, 200);
         }
 
-        return response('Bad Request', 400);
+        return response('Forbidden', 403);
     }
 
-    /**
-     * Receive webhook POST events from Facebook
-     */
-    // public function receiveFacebookPage(Request $request)
-    public function receiveFacebookPageEventData(Request $request)
+    public function webhook(Request $request, FacebookPageService $pageService)
     {
-        // 1️⃣ Log raw payload
-        $rawPayload = $request->getContent();
-        Log::info('📩 Facebook Webhook Payload: '.$rawPayload);
+        $payload = $request->all();
 
-        // 2️⃣ Decode safely
-        $data = json_decode($rawPayload, true);
+        Log::info('📥 Facebook Webhook Payload', $payload);
 
-        // 3️⃣ Validate structure
-        if (empty($data['entry'])) {
-            Log::warning('⚠️ Webhook received with no entries.');
+        foreach ($payload['entry'] ?? [] as $entry) {
 
-            return response('EVENT_RECEIVED', 200);
-        }
+            /**
+             * 1️⃣ Messenger Events (Inbox)
+             */
+            if (! empty($entry['messaging'])) {
+                $this->handleMessengerEvents($entry['messaging'], $request);
 
-        // 4️⃣ Process entries
-        foreach ($data['entry'] as $entry) {
-            if (empty($entry['changes'])) {
                 continue;
             }
 
-            foreach ($entry['changes'] as $change) {
-                $field = $change['field'] ?? '';
-                $value = $change['value'] ?? [];
+            /**
+             * 2️⃣ Page Feed Events (Post / Comment / Reaction)
+             */
+            if (! empty($entry['changes'])) {
+                $this->handlePageFeedEvents($entry['changes'], $pageService);
 
-                if ($field === 'feed') {
-                    $item = $value['item'] ?? '';
-                    $verb = $value['verb'] ?? '';
-
-                    switch ($item) {
-                        // 📝 New or updated post/status
-                        case 'post':
-                        case 'status':
-                            $action = $verb === 'remove' ? '🗑️ Post Deleted' : '📝 New/Updated Post';
-                            Log::info($action.': '.json_encode($value));
-                            break;
-
-                            // 💬 New, edited, or deleted comment
-                        case 'comment':
-                            $action = match ($verb) {
-                                'add' => '💬 New Comment',
-                                'edited' => '✏️ Comment Edited',
-                                'remove' => '🗑️ Comment Deleted',
-                                default => '💬 Comment Event',
-                            };
-
-                            // Detect comment reply (has parent_id)
-                            if (! empty($value['parent_id'])) {
-                                $action .= ' (↩️ Reply)';
-                            }
-
-                            Log::info($action.': '.json_encode($value));
-                            break;
-
-                            // ❤️ Reaction added or removed
-                        case 'reaction':
-                            $action = $verb === 'remove' ? '💔 Reaction Removed' : '❤️ New Reaction';
-                            Log::info($action.': '.json_encode($value));
-                            break;
-
-                            // 🔹 Fallback for other feed events
-                        default:
-                            Log::info('🔹 Other Feed Event: '.json_encode($value));
-                            break;
-                    }
-                }
-
-                // 📣 Page Mention events
-                elseif ($field === 'mention') {
-                    Log::info('📣 New Mention: '.json_encode($value));
-                }
-
-                // 🧩 Other non-feed fields
-                else {
-                    Log::info('🧩 Other Field ('.$field.'): '.json_encode($value));
-                }
+                continue;
             }
+
+            Log::warning('⚠️ Unknown Facebook entry format', ['entry' => $entry]);
         }
 
-        // 5️⃣ Always acknowledge to Facebook
         return response('EVENT_RECEIVED', 200);
+    }
+
+    private function handleMessengerEvents(array $messagingEvents, Request $request): void
+    {
+        Log::info('📩 Messenger Webhook Events', ['count' => count($messagingEvents)]);
+
+        $platform = Platform::whereRaw('LOWER(name) = ?', ['facebook_messenger'])->first();
+        $platformId = $platform->id ?? null;
+        $platformName = strtolower($platform->name ?? 'facebook_messenger');
+
+        foreach ($messagingEvents as $event) {
+
+            $senderId = $event['sender']['id'] ?? null;
+            $pageId = $event['recipient']['id'] ?? null;
+
+            // Skip page → user echoes
+            if (! $senderId || $senderId === $pageId) {
+                continue;
+            }
+
+            Log::info('💬 Messenger Event', ['event' => $event]);
+
+            // 🔁 CALL YOUR EXISTING CODE HERE
+            // You can literally paste your existing logic
+            // or extract it further into a MessengerService
+            $this->processMessengerMessage($event, $platformId, $platformName);
+        }
+    }
+
+    private function handlePageFeedEvents(array $changes, FacebookPageService $pageService): void
+    {
+        foreach ($changes as $change) {
+
+            $field = $change['field'] ?? null;
+            $value = $change['value'] ?? [];
+
+            Log::info('📰 Page Feed Event', [
+                'field' => $field,
+                'item' => $value['item'] ?? null,
+                'verb' => $value['verb'] ?? null,
+            ]);
+
+            if ($field === 'feed') {
+                $pageService->handleFeedChange($value);
+
+                continue;
+            }
+
+            if ($field === 'comments') {
+                $pageService->handleCommentChange($value);
+
+                continue;
+            }
+
+            Log::warning('⚠️ Unhandled page field', ['field' => $field]);
+        }
     }
 
     public function postMessage(Request $request)
@@ -255,34 +247,6 @@ class FacebookWebhookController extends Controller
         }
     }
 
-    public function handle(Request $request, FacebookPageService $syncService)
-    {
-        $payload = $request->all();
-
-        Log::info('Facebook Webhook Received Payload: ', $payload);
-        // Facebook sends multiple entries at once
-        foreach ($payload['entry'] ?? [] as $entry) {
-
-            foreach ($entry['changes'] ?? [] as $change) {
-
-                $value = $change['value'] ?? [];
-                $field = $change['field'] ?? null;
-
-                // Handle Page Posts (feed)
-                if ($field === 'feed') {
-                    $syncService->handleFeedChange($value);
-                }
-
-                // Handle Comment add/remove
-                if ($field === 'comments') {
-                    $syncService->handleCommentChange($value);
-                }
-            }
-        }
-
-        return response()->json(['status' => 'ok']);
-    }
-
     /**
      * Send payload to dispatcher API
      */
@@ -301,20 +265,6 @@ class FacebookWebhookController extends Controller
         }
     }
 
-    public function verifyFacebookToken(Request $request)
-    {
-        $verify_token = env('FB_VERIFY_TOKEN');
-
-        $mode = $request->get('hub_mode');
-        $token = $request->get('hub_verify_token');
-        $challenge = $request->get('hub_challenge');
-
-        if ($mode === 'subscribe' && $token === $verify_token) {
-            return response($challenge, 200);
-        }
-
-        return response('Forbidden', 403);
-    }
     // Receive Message (POST)
 
     public function incomingFacebookEvent(Request $request)
