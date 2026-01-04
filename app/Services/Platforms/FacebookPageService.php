@@ -248,7 +248,7 @@ class FacebookPageService
             'path' => $this->generateCommentPath($post, $comment),
         ]);
 
-        Log::info("Comment stored with path: {$comment->path}");
+        // Log::info("Comment stored with path: {$comment->path}");
 
         // Dispatch recursion job
         dispatch(new \App\Jobs\SyncCommentRepliesJob($post->id, $comment->platform_comment_id));
