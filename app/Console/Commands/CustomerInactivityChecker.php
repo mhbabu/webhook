@@ -27,8 +27,8 @@ class CustomerInactivityChecker extends Command
 
     public function handle()
     {
-        info('Running CustomerInactivityChecker...');
-
+        $now = now();
+        info("Running CustomerInactivityChecker at {$now}");
         // Get active message templates
         $alertTemplate       = MessageTemplate::where('type', 'alert')->where('is_active', true)->first();
         $secondAlertTemplate = MessageTemplate::where('type', 'second_alert')->where('is_active', true)->first();
@@ -51,11 +51,11 @@ class CustomerInactivityChecker extends Command
             })
             ->get();
 
-        if(count($conversations) == 0) {
+        if (count($conversations) == 0) {
             $this->info('No conversations found with customer inactivity.');
             return 0; // ✅ Success
         }
-        
+
         foreach ($conversations as $conversation) {
             $lastMessage = $conversation->lastMessage;
 
