@@ -11,5 +11,6 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command(CustomerInactivityChecker::class)->everyMinute();
-Schedule::command(EndChatAlertChecker::class)->everyMinute();
+// Define the application's command schedule.
+Schedule::command(CustomerInactivityChecker::class)->everyMinute()->withoutOverlapping();
+Schedule::command(EndChatAlertChecker::class)->everyMinute()->withoutOverlapping();

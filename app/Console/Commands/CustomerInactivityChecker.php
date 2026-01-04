@@ -27,17 +27,8 @@ class CustomerInactivityChecker extends Command
 
     public function handle()
     {
-        info('Running CustomerInactivityChecker...');
-
-        // ✅ Prevent crash if tables are not ready yet
-        if (
-            !Schema::hasTable('message_templates') ||
-            !Schema::hasTable('conversations') ||
-            !Schema::hasTable('conversation_template_messages')
-        ) {
-            info('Required tables not found. Skipping CustomerInactivityChecker.');
-            return;
-        }
+        $now = now();
+        info("Running CustomerInactivityChecker at {$now}");
         // Get active message templates
         $alertTemplate       = MessageTemplate::where('type', 'alert')->where('is_active', true)->first();
         $secondAlertTemplate = MessageTemplate::where('type', 'second_alert')->where('is_active', true)->first();
@@ -60,6 +51,11 @@ class CustomerInactivityChecker extends Command
             })
             ->get();
 
+        if (count($conversations) == 0) {
+            $this->info('No conversations found with customer inactivity.');
+            return 0; // ✅ Success
+        }
+
         foreach ($conversations as $conversation) {
             $lastMessage = $conversation->lastMessage;
 
@@ -80,6 +76,8 @@ class CustomerInactivityChecker extends Command
                 $this->sendAlertOnce($conversation, $thirdAlertTemplate);
             }
         }
+
+        return 0; // ✅ Success
     }
 
     /**
