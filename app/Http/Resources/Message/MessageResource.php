@@ -50,7 +50,7 @@ class MessageResource extends JsonResource
             'cc_email' => $this->cc_email ?? null,
             'subject' => $this->subject ?? null,
             'remarks' => $this->remarks ?? null,
-            'created_at' => $this->delivered_at->toDateTimeString() ?? null,
+            'created_at' => $this->delivered_at->toDateTimeString() ? $this->delivered_at->toDateTimeString() : null,
             'updated_at' => $this->updated_at->toDateTimeString(),
         ];
     }

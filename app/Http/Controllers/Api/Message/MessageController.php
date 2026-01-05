@@ -883,6 +883,7 @@ class MessageController extends Controller
             'receiver_type' => Customer::class,
             'receiver_id' => $customer->id,
             'type' => 'text',
+            'delivered_at' => now(),
             'content' => $data['content'] ?? '',
             'direction' => 'outgoing',
             'platform' => 'messenger',
@@ -1139,4 +1140,3 @@ class MessageController extends Controller
         return jsonResponse('Email message sent successfully.', true, new MessageResource($message->load('attachments')));
     }
 }
-
