@@ -55,7 +55,7 @@ class ThreadController extends Controller
         );
     }
 
-    public function getConversationWiseThread(Request $request, string $conversationId)
+    public function getConversationWiseThread(Request $request, $conversationId)
     {
         $conversation = Conversation::with('customer')->findOrFail($conversationId);
 
@@ -83,18 +83,19 @@ class ThreadController extends Controller
 
         // 🔗 Map post media as attachments
         $attachments = $post->media->map(fn ($media) => [
-            'id' => $media->id,
+            // 'id' => $media->id,
             'type' => $media->type,       // image | video | reel
-            'url' => $media->url,
-            'thumbnail' => $media->thumbnail,
-            'order' => $media->order,
+            'url' => url($media->url),
+            // 'thumbnail' => $media->thumbnail,
+            // 'order' => $media->order,
         ]);
 
         return response()->json([
             'status' => true,
             'message' => 'Conversation thread retrieved successfully',
             'data' => [
-                'post_id' => $postId,
+                'id' => $postId,
+                'conversation_id' => $conversationId,
                 'content' => $post?->caption ?? '',
                 'created_time' => $post?->created_at?->toDateTimeString(),
                 'from' => $conversation->customer ? [
