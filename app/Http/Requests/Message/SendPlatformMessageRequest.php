@@ -17,26 +17,26 @@ class SendPlatformMessageRequest extends FormRequest
     {
         return [
             'conversation_id' => ['required', 'integer', 'exists:conversations,id'],
-            'parent_id' => ['nullable', 'integer', 'exists:messages,id'],
-            'content' => ['nullable', 'string'],
-            'cc_email' => ['nullable', 'string'],
-            'subject' => ['nullable', 'string'],
-            'attachments' => ['nullable', 'array'],
-            'attachments.*' => ['file', 'max:10240'], // max 10MB each
+            'parent_id'       => ['nullable', 'integer', 'exists:messages,id'],
+            'content'         => ['nullable', 'string'],
+            'cc_email'        => ['nullable', 'string'],
+            'subject'         => ['nullable', 'string'],
+            'attachments'     => ['nullable', 'array'],
+            'attachments.*'   => ['file'], // max 10MB each
         ];
     }
 
     public function messages(): array
     {
         return [
-            'conversation_id.required' => 'Conversation ID is required.',
-            'conversation_id.exists' => 'The selected conversation does not exist.',
-            'parent_id.exists' => 'The parent message does not exist.',
-            'message_id.exists' => 'The selected message does not exist.',
-            'attachments.*.file' => 'Each attachment must be a valid file.',
-            'attachments.*.max' => 'Each attachment must not exceed 10MB.',
-            'subject.string' => 'The subject must be a string.',
-            'cc_email.string' => 'The CC email must be a string.',
+            'conversation_id.required'  => 'Conversation ID is required.',
+            'conversation_id.exists'    => 'The selected conversation does not exist.',
+            'parent_id.exists'          => 'The parent message does not exist.',
+            'message_id.exists'         => 'The selected message does not exist.',
+            'attachments.*.file'        => 'Each attachment must be a valid file.',
+            'attachments.*.max'         => 'Each attachment must not exceed 10MB.',
+            'subject.string'            => 'The subject must be a string.',
+            'cc_email.string'           => 'The CC email must be a string.',
         ];
     }
 
