@@ -30,6 +30,8 @@ class ConversationThreadResource extends JsonResource
 
             'started_at' => $this->started_at?->toDateTimeString(),
             'end_at' => $this->end_at?->toDateTimeString(),
+            'wrap_up_info' => null,
+            'is_ended' => false,
         ];
     }
 }

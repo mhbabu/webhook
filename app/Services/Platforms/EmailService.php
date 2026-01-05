@@ -250,7 +250,7 @@ class EmailService
 
             $messages = $inbox->messages()
                 ->seen()
-                ->limit(1)
+                ->limit(2)
                 ->leaveUnread()
                 ->fetchOrderDesc()
                 ->get();
