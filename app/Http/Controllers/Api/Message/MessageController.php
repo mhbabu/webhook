@@ -21,6 +21,7 @@ use App\Services\Platforms\EmailService;
 use App\Services\Platforms\FacebookService;
 use App\Services\Platforms\InstagramService;
 use App\Services\Platforms\WhatsAppService;
+use Dom\Comment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -246,8 +247,10 @@ class MessageController extends Controller
                 $user->save();
 
                 // Load Conversation & Message
-                $conversation = Conversation::findOrFail($conversationId);
-                $post         = Post::where('conversation_id', $conversation->id)->first();
+                $comment         = \App\Models\Comment::where('conversation_id', $conversationId)->first();
+                $post            = Post::findOrFail($comment->post_id);
+                $conversation    = Conversation::findOrFail($conversationId);
+
                 // Assign Agent Only First Time
                 if ($conversationType === 'new' && empty($conversation->agent_id)) {
                     $conversation->agent_id = $user->id;
