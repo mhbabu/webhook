@@ -983,6 +983,7 @@ class MessageController extends Controller
             'receiver_type' => Customer::class,
             'receiver_id' => $customer->id,
             'type' => 'text',
+            'delivered_at' => now(),
             'content' => $data['content'] ?? '',
             'direction' => 'outgoing',
             'platform' => 'instagram_message',
