@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('platform_accounts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('platform_id')->constrained()->cascadeOnDelete();
-            $table->string('platform_account_id')->index(); // page id, ig business id, org id
+            $table->string('platform_account_id')->nullable(); // page id, ig business id, org id
             $table->string('name')->nullable();
             $table->string('username')->nullable();
             $table->json('credentials')->nullable(); // tokens, refresh tokens
