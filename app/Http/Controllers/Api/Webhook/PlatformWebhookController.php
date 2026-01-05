@@ -27,16 +27,14 @@ use Webklex\IMAP\Facades\Client;
 class PlatformWebhookController extends Controller
 {
     protected $whatsAppService;
-
     protected $instagramService;
+    protected $EmailService;
 
-    protected $emailService;
-
-    public function __construct(WhatsAppService $whatsAppService, FacebookService $facebookService, InstagramService $instagramService, emailService $emailService)
+    public function __construct(WhatsAppService $whatsAppService, InstagramService $instagramService, EmailService $EmailService)
     {
-        $this->whatsAppService = $whatsAppService;
+        $this->whatsAppService  = $whatsAppService;
         $this->instagramService = $instagramService;
-        $this->emailService = $emailService;
+        $this->EmailService     = $EmailService;
     }
 
     // Meta webhook callbackUrl verification endpoint
@@ -103,9 +101,9 @@ class PlatformWebhookController extends Controller
                 $conversation = Conversation::create([
                     'customer_id' => $customer->id,
                     'platform' => $platformName,
-                    'trace_id' => 'WA-'.now()->format('YmdHis').'-'.uniqid(),
+                    'trace_id' => 'WA-' . now()->format('YmdHis') . '-' . uniqid(),
                     'agent_id' => null,
-                    'in_queue_at' => now(),
+                    'in_queue_at' => now()
                 ]);
 
                 $isNewConversation = true;
@@ -194,7 +192,7 @@ class PlatformWebhookController extends Controller
 
                 // Store attachments if present
                 if (! empty($attachments)) {
-                    $bulkInsert = array_map(fn ($att) => [
+                    $bulkInsert = array_map(fn($att) => [
                         'message_id' => $message->id,
                         'attachment_id' => $att['attachment_id'],
                         'path' => $att['path'],
@@ -258,7 +256,6 @@ class PlatformWebhookController extends Controller
         $phone = $contacts['wa_id'] ?? ($messages[0]['from'] ?? null);
         if (! $phone) {
             Log::warning('Invalid or missing phone number in request.');
-
             return response()->json(['status' => 'invalid_phone'], 400);
         }
 
@@ -292,10 +289,10 @@ class PlatformWebhookController extends Controller
 
                 $conversation = Conversation::create([
                     'customer_id' => $customer->id,
-                    'platform' => $platformName,
-                    'trace_id' => 'WA-'.now()->format('YmdHis').'-'.uniqid(),
-                    'agent_id' => null,
-                    'in_queue_at' => now(),
+                    'platform'    => $platformName,
+                    'trace_id'    => 'WA-' . now()->format('YmdHis') . '-' . uniqid(),
+                    'agent_id'    => null,
+                    'in_queue_at' => now()
                 ]);
 
                 $isNewConversation = true;
@@ -329,7 +326,6 @@ class PlatformWebhookController extends Controller
 
                 if (! in_array($type, ['text', 'image', 'video', 'document', 'audio'])) {
                     Log::info('Skipped unsupported WhatsApp message type', ['type' => $type, 'msg' => $msg]);
-
                     continue;
                 }
 
@@ -389,7 +385,7 @@ class PlatformWebhookController extends Controller
 
                 // Store attachments
                 if (! empty($attachments)) {
-                    $bulkInsert = array_map(fn ($att) => [
+                    $bulkInsert = array_map(fn($att) => [
                         'message_id' => $message->id,
                         'attachment_id' => $att['attachment_id'],
                         'path' => $att['path'],
@@ -459,26 +455,24 @@ class PlatformWebhookController extends Controller
         Log::info('WhatsApp Incoming Request', ['data' => $data]);
 
         // Safe parsing
-        $entry = $data['entry'][0]['changes'][0]['value'] ?? [];
+        $entry    = $data['entry'][0]['changes'][0]['value'] ?? [];
         $statuses = $entry['statuses'] ?? [];
         $messages = $entry['messages'] ?? [];
         $contacts = $entry['contacts'][0] ?? null;
 
         // Platform
         $platform = Platform::whereRaw('LOWER(name) = ?', ['whatsapp'])->first();
-        if (! $platform) {
+        if (!$platform) {
             Log::error('WhatsApp platform not found.');
-
             return response()->json(['status' => 'platform_not_found'], 500);
         }
-        $platformId = $platform->id;
+        $platformId   = $platform->id;
         $platformName = strtolower($platform->name);
 
         // Phone and sender
         $phone = $contacts['wa_id'] ?? ($messages[0]['from'] ?? null);
-        if (! $phone) {
+        if (!$phone) {
             Log::warning('Invalid or missing phone number in request.');
-
             return response()->json(['status' => 'invalid_phone'], 400);
         }
         $senderName = $contacts['profile']['name'] ?? $phone;
@@ -494,9 +488,9 @@ class PlatformWebhookController extends Controller
             // Determine if interactive payload maps to a rating label/value
             $iType = $msg['interactive']['type'] ?? null;
             $label = match ($iType) {
-                'list_reply' => $msg['interactive']['list_reply']['title'] ?? null,
+                'list_reply'   => $msg['interactive']['list_reply']['title'] ?? null,
                 'button_reply' => $msg['interactive']['button_reply']['title'] ?? null,
-                default => null,
+                default        => null,
             };
 
             $ratingValue = getFeedbackRatingsFromCustomer($label);
@@ -507,9 +501,8 @@ class PlatformWebhookController extends Controller
             // We have a rating label -> try to attach to last closed conversation.
             // IMPORTANT: Do NOT create a customer here. Only proceed if a customer exists for this phone.
             $customer = Customer::where('phone', $phone)->where('platform_id', $platformId)->first();
-            if (! $customer) {
+            if (!$customer) {
                 Log::info('Rating received but customer not found. Will treat interactive as normal message.', ['phone' => $phone, 'label' => $label]);
-
                 // Can't save rating if no customer exists to link to previous conversation — continue to normal flow
                 continue;
             }
@@ -521,7 +514,6 @@ class PlatformWebhookController extends Controller
                     'label' => $label,
                     'rating' => $ratingValue,
                 ]);
-
                 return jsonResponse('Rating received', true); // stop everything
             }
 
@@ -541,43 +533,42 @@ class PlatformWebhookController extends Controller
                 ['name' => $senderName]
             );
 
-            $sendWelcome = Conversation::where('customer_id', $customer->id)->exists() ? false : true;
-            $conversation = $this->getOrCreateConversation($customer, $platformName);
+            $sendWelcome       = Conversation::where('customer_id', $customer->id)->exists() ? false : true;
+            $conversation      = $this->getOrCreateConversation($customer, $platformName);
             $isNewConversation = $conversation->wasRecentlyCreated;
 
             // Handle statuses (delivery/read etc)
             foreach ($statuses as $status) {
                 $payloadsToSend[] = $this->buildPayload([
-                    'conversation' => $conversation,
-                    'sender' => $phone,
-                    'message' => $status['status'] ?? '',
-                    'timestamp' => $status['timestamp'] ?? time(),
+                    'conversation'     => $conversation,
+                    'sender'           => $phone,
+                    'message'          => $status['status'] ?? '',
+                    'timestamp'        => $status['timestamp'] ?? time(),
                     'conversationType' => $isNewConversation ? 'new' : 'old',
-                    'subject' => 'WhatsApp Status Update',
-                    'attachments' => [],
+                    'subject'          => 'WhatsApp Status Update',
+                    'attachments'      => [],
                 ]);
             }
 
             // Handle messages (including interactive messages that were NOT ratings)
             foreach ($messages as $msg) {
                 // treat interactive (non-rating) as normal message
-                if (! in_array($msg['type'] ?? '', ['text', 'image', 'video', 'document', 'audio', 'interactive'])) {
+                if (!in_array($msg['type'] ?? '', ['text', 'image', 'video', 'document', 'audio', 'interactive'])) {
                     Log::info('Skipped unsupported WhatsApp message type', ['msg' => $msg]);
-
                     continue;
                 }
 
                 $message = $this->storeMessage($msg, $conversation, $customer);
                 $payloadsToSend[] = $this->buildPayload([
-                    'conversation' => $conversation,
-                    'sender' => $phone,
-                    'message' => $message->content,
-                    'timestamp' => $msg['timestamp'] ?? time(),
+                    'conversation'     => $conversation,
+                    'sender'           => $phone,
+                    'message'          => $message->content,
+                    'timestamp'        => $msg['timestamp'] ?? time(),
                     'conversationType' => $isNewConversation ? 'new' : 'old',
-                    'subject' => "Customer Message from {$senderName}",
-                    'attachments' => $message->attachments->pluck('path')->toArray(),
-                    'messageId' => $message->id,
-                    'parentMessageId' => $message->parent_id,
+                    'subject'          => "Customer Message from {$senderName}",
+                    'attachments'      => $message->attachments->pluck('path')->toArray(),
+                    'messageId'        => $message->id,
+                    'parentMessageId'  => $message->parent_id,
                 ]);
             }
 
@@ -601,7 +592,7 @@ class PlatformWebhookController extends Controller
             });
         });
 
-        return jsonResponse(! empty($messages) ? 'Message received' : 'Status received', true);
+        return jsonResponse(!empty($messages) ? 'Message received' : 'Status received', true);
     }
 
     /**
@@ -617,7 +608,7 @@ class PlatformWebhookController extends Controller
 
         $expiredThreshold = now()->subHours(config('services.conversation.conversation_expire_hours'));
 
-        if (! $conversation || $conversation->end_at || ($conversation->first_message_at ?? $conversation->created_at) < $expiredThreshold) {
+        if (!$conversation || $conversation->end_at || ($conversation->first_message_at ?? $conversation->created_at) < $expiredThreshold) {
 
             if ($conversation) {
                 updateUserInRedis($conversation->agent_id ? User::find($conversation->agent_id) : null, $conversation);
@@ -625,9 +616,9 @@ class PlatformWebhookController extends Controller
 
             $conversation = Conversation::create([
                 'customer_id' => $customer->id,
-                'platform' => $platformName,
-                'trace_id' => 'WA-'.now()->format('YmdHis').'-'.uniqid(),
-                'agent_id' => null,
+                'platform'    => $platformName,
+                'trace_id'    => 'WA-' . now()->format('YmdHis') . '-' . uniqid(),
+                'agent_id'    => null,
                 'in_queue_at' => now(),
             ]);
         }
@@ -643,15 +634,13 @@ class PlatformWebhookController extends Controller
     {
         $iType = $msg['interactive']['type'] ?? null;
         $label = match ($iType) {
-            'list_reply' => $msg['interactive']['list_reply']['title'] ?? null,
+            'list_reply'   => $msg['interactive']['list_reply']['title'] ?? null,
             'button_reply' => $msg['interactive']['button_reply']['title'] ?? null,
-            default => null,
+            default        => null,
         };
 
         $ratingValue = getFeedbackRatingsFromCustomer($label);
-        if ($ratingValue === null) {
-            return false;
-        }
+        if ($ratingValue === null) return false;
 
         $lastConv = Conversation::where('customer_id', $customer->id)
             ->where('platform', $platformName)
@@ -660,12 +649,12 @@ class PlatformWebhookController extends Controller
             ->latest()
             ->first();
 
-        if ($lastConv && ! ConversationRating::where('conversation_id', $lastConv->id)->exists()) {
+        if ($lastConv && !ConversationRating::where('conversation_id', $lastConv->id)->exists()) {
             ConversationRating::create([
-                'conversation_id' => $lastConv->id,
-                'platform' => $platformName,
-                'option_label' => $label,
-                'rating_value' => $ratingValue,
+                'conversation_id'  => $lastConv->id,
+                'platform'         => $platformName,
+                'option_label'     => $label,
+                'rating_value'     => $ratingValue,
                 'interactive_type' => $iType,
             ]);
 
@@ -673,7 +662,7 @@ class PlatformWebhookController extends Controller
 
             Log::info('✅ Rating saved for closed conversation', [
                 'conversation_id' => $lastConv->id,
-                'rating' => $ratingValue,
+                'rating'          => $ratingValue,
             ]);
 
             return true;
@@ -708,15 +697,18 @@ class PlatformWebhookController extends Controller
 
             if ($iType === 'list_reply') {
                 $caption = $interactive['list_reply']['title'] ?? null;
-            } elseif ($iType === 'button_reply') {
+            }
+
+            elseif ($iType === 'button_reply') {
                 $caption = $interactive['button_reply']['title'] ?? null;
             }
 
             // If somehow title missing, fallback to text body
-            if (! $caption && isset($msg['text']['body'])) {
+            if (!$caption && isset($msg['text']['body'])) {
                 $caption = $msg['text']['body'];
             }
         }
+
 
         if ($type !== 'text' && $type !== 'interactive') {
             $mediaId = $msg[$type]['id'] ?? null;
@@ -725,42 +717,42 @@ class PlatformWebhookController extends Controller
                 if ($mediaData) {
                     $attachments[] = [
                         'attachment_id' => $mediaId,
-                        'path' => $mediaData['full_path'],
-                        'type' => $mediaData['type'],
-                        'mime' => $mediaData['mime'] ?? null,
-                        'size' => $mediaData['size'] ?? null,
+                        'path'          => $mediaData['full_path'],
+                        'type'          => $mediaData['type'],
+                        'mime'          => $mediaData['mime'] ?? null,
+                        'size'          => $mediaData['size'] ?? null,
                         // 'is_download'   => 1,
                     ];
                 }
             }
 
-            if (! $caption && ! empty($msg[$type]['caption'])) {
+            if (!$caption && !empty($msg[$type]['caption'])) {
                 $caption = $msg[$type]['caption'];
             }
         }
 
         // Parent message (if reply-to)
         $parentId = null;
-        if (! empty($msg['context']['id'])) {
+        if (!empty($msg['context']['id'])) {
             $parent = Message::where('platform_message_id', $msg['context']['id'])->first();
             $parentId = $parent?->id;
         }
 
         $message = Message::create([
-            'conversation_id' => $conversation->id,
-            'sender_id' => $customer->id,
-            'sender_type' => Customer::class,
-            'type' => $type,
-            'content' => $caption,
-            'direction' => 'incoming',
-            'receiver_type' => User::class,
-            'receiver_id' => $conversation->agent_id ?? null,
+            'conversation_id'     => $conversation->id,
+            'sender_id'           => $customer->id,
+            'sender_type'         => Customer::class,
+            'type'                => $type,
+            'content'             => $caption,
+            'direction'           => 'incoming',
+            'receiver_type'       => User::class,
+            'receiver_id'         => $conversation->agent_id ?? null,
             'platform_message_id' => $msg['id'] ?? null,
-            'parent_id' => $parentId,
+            'parent_id'           => $parentId,
         ]);
 
-        if (! empty($attachments)) {
-            $bulk = array_map(fn ($att) => array_merge($att, [
+        if (!empty($attachments)) {
+            $bulk = array_map(fn($att) => array_merge($att, [
                 'message_id' => $message->id,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -781,19 +773,19 @@ class PlatformWebhookController extends Controller
     private function buildPayload(array $data): array
     {
         return [
-            'source' => 'whatsapp',
-            'traceId' => $data['conversation']->trace_id,
-            'conversationId' => $data['conversation']->id,
+            'source'           => 'whatsapp',
+            'traceId'          => $data['conversation']->trace_id,
+            'conversationId'   => $data['conversation']->id,
             'conversationType' => $data['conversationType'] ?? 'old',
-            'sender' => $data['sender'],
-            'api_key' => config('dispatcher.whatsapp_api_key'),
-            'timestamp' => $data['timestamp'] ?? time(),
-            'message' => $data['message'],
-            'attachmentId' => $data['attachmentId'] ?? [],
-            'attachments' => $data['attachments'] ?? [],
-            'subject' => $data['subject'] ?? null,
-            'messageId' => $data['messageId'] ?? null,
-            'parentMessageId' => $data['parentMessageId'] ?? null,
+            'sender'           => $data['sender'],
+            'api_key'          => config('dispatcher.whatsapp_api_key'),
+            'timestamp'        => $data['timestamp'] ?? time(),
+            'message'          => $data['message'],
+            'attachmentId'     => $data['attachmentId'] ?? [],
+            'attachments'      => $data['attachments'] ?? [],
+            'subject'          => $data['subject'] ?? null,
+            'messageId'        => $data['messageId'] ?? null,
+            'parentMessageId'  => $data['parentMessageId'] ?? null,
         ];
     }
 
@@ -803,7 +795,7 @@ class PlatformWebhookController extends Controller
     private function sendToDispatcher(array $payload): void
     {
         try {
-            $response = Http::acceptJson()->post(config('dispatcher.url').config('dispatcher.endpoints.handler'), $payload);
+            $response = Http::acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
 
             if ($response->ok()) {
                 Log::info('[CUSTOMER MESSAGE FORWARDED]', $payload);
@@ -815,78 +807,114 @@ class PlatformWebhookController extends Controller
         }
     }
 
-    // 1. Verify Meta Webhook (GET)
-    public function verifyMessengerToken(Request $request)
+    // Meta webhook callbackUrl verification endpoint
+    public function verifyInstagram(Request $request)
     {
-        $verify_token = env('FB_VERIFY_TOKEN');
+        $VERIFY_TOKEN = env('INSTAGRAM_VERIFY_TOKEN');
 
         $mode = $request->get('hub_mode');
         $token = $request->get('hub_verify_token');
         $challenge = $request->get('hub_challenge');
 
-        if ($mode === 'subscribe' && $token === $verify_token) {
-            return response($challenge, 200);
+        Log::info('Instagram webhook verification attempt', [
+            'mode' => $mode,
+            'token' => $token,
+            'challenge' => $challenge,
+        ]);
+
+        if ($mode === 'subscribe' && $token === $VERIFY_TOKEN) {
+            return response($challenge, 200)
+                ->header('Content-Type', 'text/plain');
         }
 
-        return response('Forbidden', 403);
+        return response('Verification token mismatch', 403);
     }
 
-    // 2. Receive Message (POST)
-
-    public function incomingMessengerMessage(Request $request)
+    /**
+     * Receive webhook POST events from Instagram
+     *     entry.messaging → for DMs (Direct Messages)
+     *     entry.changes → for comments / mentions / feed events
+     */
+    public function receiveInstagramMessage(Request $request)
     {
-        Log::info('📩 Messenger Webhook Payload:', ['data' => $request->all()]);
+        Log::info('📩 Instagram Webhook Payload:', $request->all());
 
         $entries = $request->input('entry', []);
-        $platform = Platform::whereRaw('LOWER(name) = ?', ['facebook_messenger'])->first();
+        $platform = Platform::whereRaw('LOWER(name) = ?', ['instagram_message'])->first();
         $platformId = $platform->id ?? null;
-        $platformName = strtolower($platform->name ?? 'facebook_messenger');
+        $platformName = strtolower($platform->name ?? 'instagram_message');
 
         foreach ($entries as $entry) {
             foreach ($entry['messaging'] ?? [] as $event) {
                 $senderId = $event['sender']['id'] ?? null;
-                $pageId = $event['recipient']['id'] ?? null;
+                $instagramId = $event['recipient']['id'] ?? null;
+                $message = $event['message'] ?? [];
+                $text = $message['text'] ?? null;
+                $attachments = $message['attachments'] ?? [];
+                $platformMessageId = $message['mid'] ?? null;
+                // $isEcho = $message['is_echo'] ?? false;
                 $timestamp = $event['timestamp'] ?? now()->timestamp;
-                $messageData = $event['message'] ?? [];
+                $parentMessageId = $message['reply_to']['mid'] ?? null;
 
-                Log::info('⚠️ Messenger event', ['event' => $event]);
+                // ✅ Skip echoes or outgoing messages
+                // if ($isEcho || $senderId === $instagramId) {
+                //     Log::info('🌀 Skipping echo or outgoing message.', compact('senderId', 'instagramId'));
 
-                // Skip outgoing messages from the page itself
-                if ($senderId === $pageId) {
-                    Log::info('➡️ Skipped outgoing message from page.', ['event' => $event]);
+                //     continue;
+                // }
+
+                // ✅ Ensure valid IDs
+                if (! $senderId || ! $platformMessageId) {
+                    // Log::warning('⚠️ Missing senderId or message ID.', compact('event'));
 
                     continue;
                 }
 
-                if (! $senderId) {
-                    Log::warning('⚠️ Invalid Messenger event: missing senderId', ['event' => $event]);
+                Log::info('📥 Received new Instagram message', [
+                    'sender' => $senderId,
+                    'messageText' => $text,
+                    'attachments' => $attachments,
+                ]);
 
-                    continue;
-                }
+                /**
+                 * STEP 1️⃣: Try to find existing customer in DB
+                 */
+                $existingCustomer = Customer::where('platform_user_id', $senderId)->first();
 
-                $text = $messageData['text']['body'] ?? $messageData['text'] ?? null;
-                $attachments = $messageData['attachments'] ?? [];
-                $platformMessageId = $messageData['mid'] ?? null;
-                $replyToMessageId = $messageData['reply_to']['mid'] ?? null;
-                $parentMessageId = null;
-
-                // Link to parent message if it is a reply
-                if ($replyToMessageId) {
-                    $parentMessageId = Message::where('platform_message_id', $replyToMessageId)->value('id');
-                    Log::info('🔗 Found parent message for reply', [
-                        'platform_message_id' => $platformMessageId,
-                        'parent_message_id' => $parentMessageId,
+                if ($existingCustomer) {
+                    Log::info('👤 Existing Instagram customer found in DB', [
+                        'sender_id' => $senderId,
+                        'customer_id' => $existingCustomer->id,
+                        'name' => $existingCustomer->name,
+                        'username' => $existingCustomer->username,
                     ]);
+
+                    $username = $existingCustomer->username ?? 'unknown';
+                    $senderName = $existingCustomer->name ?? "IG-{$username}-{$senderId}";
+                    $profilePic = $existingCustomer->profile_photo ?? null;
+                } else {
+                    /**
+                     * STEP 2️⃣: Fetch sender info from Graph API (if not cached)
+                     */
+                    $senderInfo = $this->instagramService->getIgUserInfo($senderId);
+
+                    Log::info('👤 Instagram Sender Info (via API):', [
+                        'sender_id' => $senderId,
+                        'sender_info' => $senderInfo,
+                    ]);
+
+                    $username = $senderInfo['username'] ?? 'unknown';
+                    $senderName = $senderInfo['name'] ?? "IG-{$username}-{$senderId}";
+                    $profilePic = $senderInfo['profile_pic'] ?? null;
                 }
 
-                // Fetch sender info
-                $senderInfo = $this->facebookService->getSenderInfo($senderId);
-                $senderName = $senderInfo['name'] ?? "Facebook User {$senderId}";
-                $profilePic = $senderInfo['profile_pic'] ?? null;
-
+                /**
+                 * STEP 3️⃣: Save data inside a transaction
+                 */
                 DB::transaction(function () use (
                     $senderId,
                     $senderName,
+                    $username,
                     $profilePic,
                     $platformId,
                     $platformName,
@@ -896,68 +924,104 @@ class PlatformWebhookController extends Controller
                     $platformMessageId,
                     $parentMessageId
                 ) {
-                    // 1️⃣ Find or create customer
+                    // 1️⃣ Find or create the customer
                     $customer = Customer::firstOrCreate(
                         ['platform_user_id' => $senderId],
-                        ['name' => $senderName, 'platform_id' => $platformId]
+                        [
+                            'name' => $senderName,
+                            'username' => $username,
+                            'platform_id' => $platformId,
+                        ]
                     );
 
-                    // Download profile photo for new customers
+                    // 1️⃣a Download profile photo if new
                     if ($customer->wasRecentlyCreated && $profilePic) {
                         try {
                             $response = Http::get($profilePic);
                             if ($response->ok()) {
                                 $extension = pathinfo(parse_url($profilePic, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
-                                $filename = "profile_photos/fb_{$customer->id}.".$extension;
+                                $filename = "profile_photos/ig_{$customer->id}." . $extension;
                                 Storage::disk('public')->put($filename, $response->body());
                                 $customer->update(['profile_photo' => $filename]);
-                                Log::info('📷 Profile photo downloaded', ['customer_id' => $customer->id, 'path' => $filename]);
                             }
                         } catch (\Exception $e) {
-                            Log::error("⚠️ Failed to download Facebook profile photo: {$e->getMessage()}");
+                            Log::error('⚠️ Failed to download Instagram profile photo: ' . $e->getMessage());
                         }
                     }
 
-                    // 2️⃣ Find or create conversation
+                    // 2️⃣ Find or create active conversation
                     $conversation = Conversation::where('customer_id', $customer->id)
                         ->where('platform', $platformName)
+                        ->where(function ($query) {
+                            $query->whereNull('end_at')
+                                ->orWhere('first_message_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
+                        })
                         ->latest()
                         ->first();
 
                     $isNewConversation = false;
-                    if (! $conversation || $conversation->end_at || $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
-                        if ($conversation) {
-                            updateUserInRedis($conversation->agent_id ? User::find($conversation->agent_id) : null, $conversation);
-                        }
-
+                    if (
+                        ! $conversation ||
+                        $conversation->end_at ||
+                        $conversation->first_message_at < now()->subHours(config('services.conversation.conversation_expire_hours'))
+                    ) {
                         $conversation = Conversation::create([
                             'customer_id' => $customer->id,
                             'platform' => $platformName,
-                            'trace_id' => 'FB-'.now()->format('YmdHis').'-'.uniqid(),
+                            'trace_id' => 'IGM-' . now()->format('YmdHis') . '-' . uniqid(),
                         ]);
                         $isNewConversation = true;
-                        Log::info('🆕 New conversation created', ['conversation_id' => $conversation->id]);
                     }
 
-                    // 3️⃣ Handle attachments (including captions)
+                    // 3️⃣ Handle media attachments and determine normalized message type
                     $storedAttachments = [];
                     $mediaPaths = [];
-                    $finalText = $text;
+                    $type = 'text'; // default
 
-                    foreach ($attachments as $attachment) {
-                        $downloaded = $this->facebookService->downloadAttachment($attachment);
-                        if ($downloaded) {
-                            $storedAttachments[] = $downloaded;
-                            $mediaPaths[] = $downloaded['path'];
+                    if (! empty($attachments)) {
+                        $firstAttachment = $attachments[0];
+                        $rawType = strtolower($firstAttachment['type'] ?? 'media');
 
-                            // If attachment has caption and no text, use caption as message content
-                            if (empty($finalText) && ! empty($attachment['caption'])) {
-                                $finalText = $attachment['caption'];
+                        // Normalize type
+                        $type = match ($rawType) {
+                            'image' => 'image',
+                            'video' => 'video',
+                            'audio' => 'audio',
+                            'file', 'document' => 'document',
+                            default => 'media',
+                        };
+
+                        foreach ($attachments as $attachment) {
+                            $downloaded = $this->instagramService->downloadAttachment($attachment);
+                            if ($downloaded) {
+                                $storedAttachments[] = $downloaded;
+                                $mediaPaths[] = $downloaded['path'];
                             }
+                        }
+                    } else {
+                        $type = 'text';
+                    }
+
+                    Log::info('📎 Normalized Instagram attachment type', [
+                        'rawType' => $rawType ?? null,
+                        'normalizedType' => $type,
+                        'attachments' => $attachments,
+                    ]);
+
+                    // 🧩 4️⃣ Safely resolve parent message (if exists)
+                    $resolvedParentId = null;
+                    if (! empty($parentMessageId)) {
+                        $parentMessage = Message::where('platform_message_id', $parentMessageId)->first();
+                        if ($parentMessage) {
+                            // Threaded reply to a known message
+                            $resolvedParentId = $parentMessage->id;
+                        } else {
+                            // Keep the platform message ID for reference (string column)
+                            $resolvedParentId = $parentMessageId;
                         }
                     }
 
-                    // 4️⃣ Store message
+                    // 5️⃣ Safely create or skip duplicate messages
                     try {
                         $message = Message::firstOrCreate(
                             ['platform_message_id' => $platformMessageId],
@@ -965,63 +1029,65 @@ class PlatformWebhookController extends Controller
                                 'conversation_id' => $conversation->id,
                                 'sender_id' => $customer->id,
                                 'sender_type' => Customer::class,
-                                'type' => ! empty($attachments) ? 'media' : 'text',
-                                'content' => $finalText,
+                                // 'type' => ! empty($attachments) ? 'media' : 'text',
+                                'type' => $type,
+                                'content' => $text,
                                 'direction' => 'incoming',
                                 'receiver_type' => User::class,
                                 'receiver_id' => $conversation->agent_id ?? null,
-                                'parent_id' => $parentMessageId,
+                                'parent_id' => $resolvedParentId, // ✅ FIXED
                             ]
                         );
-                        Log::info('💬 Message stored', ['message_id' => $message->id]);
                     } catch (\Illuminate\Database\QueryException $e) {
                         if ($e->errorInfo[1] == 1062) {
-                            Log::info('⚠️ Duplicate message ignored', ['platform_message_id' => $platformMessageId]);
+                            Log::info('⚠️ Duplicate message ignored safely', [
+                                'platform_message_id' => $platformMessageId,
+                            ]);
 
                             return;
                         }
                         throw $e;
                     }
 
-                    // 5️⃣ Attach files to message
+                    // 6️⃣ Attach media files
                     if (! empty($storedAttachments)) {
-                        $bulkInsert = array_map(fn ($att) => [
-                            'message_id' => $message->id,
-                            'attachment_id' => $att['attachment_id'],
-                            'path' => $att['path'],
-                            'type' => $att['type'],
-                            'mime' => $att['mime'],
-                            'is_available' => $att['is_download'],
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ], $storedAttachments);
+                        $bulkInsert = array_map(function ($att) use ($message) {
+                            return [
+                                'message_id' => $message->id,
+                                'attachment_id' => $att['attachment_id'],
+                                'path' => $att['path'],
+                                'type' => $att['type'],
+                                'mime' => $att['mime'],
+                                'is_available' => $att['is_download'],
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ];
+                        }, $storedAttachments);
 
                         MessageAttachment::insert($bulkInsert);
-                        Log::info('📎 Attachments saved', ['message_id' => $message->id, 'count' => count($storedAttachments)]);
                     }
 
-                    // 6️⃣ Update conversation
+                    // 7️⃣ Update conversation with last message
                     $conversation->update(['last_message_id' => $message->id]);
-                    Log::info('📝 Conversation updated', ['conversation_id' => $conversation->id]);
 
-                    // 7️⃣ Prepare and dispatch payload
+                    // 8️⃣ Prepare dispatcher payload
                     $payload = [
-                        'source' => 'facebook_messenger',
+                        'source' => 'instagram_message',
                         'traceId' => $conversation->trace_id,
                         'conversationId' => $conversation->id,
                         'conversationType' => $isNewConversation ? 'new' : 'old',
                         'sender' => $senderId,
-                        'api_key' => config('dispatcher.messenger_api_key'),
+                        'api_key' => config('dispatcher.instagram_api_key'),
                         'timestamp' => $timestamp,
-                        'message' => $finalText ?? null,
+                        'message' => $text,
                         'attachments' => $mediaPaths,
-                        'subject' => "Facebook Messenger message from $senderName",
+                        'subject' => "Instagram message from $senderName",
                         'messageId' => $message->id,
-                        'parentMessageId' => $parentMessageId,
                     ];
 
+                    // ✅ Send payload only after DB commit
                     DB::afterCommit(function () use ($payload) {
-                        Log::info('📤 Forwarding Facebook payload (after commit)', ['payload' => $payload]);
+                        Log::info('📤 Forwarding Instagram payload (after commit)', ['payload' => $payload]);
                         $this->sendToDispatcher($payload);
                     });
                 });
@@ -1031,55 +1097,24 @@ class PlatformWebhookController extends Controller
         return response('EVENT_RECEIVED', 200);
     }
 
-    // 1. Verify Meta Webhook (GET)
-    public function verifyFacebookPageToken(Request $request)
+    protected function sendInstagramMessage($recipientId, $message)
     {
-        info(['requestData' => $request->all()]);
-        // $verify_token = env('FACEBOOK_VERIFY_TOKEN');
-        $verify_token = config('services.facebook.verify_token');
+        $accessToken = env('INSTAGRAM_PAGE_TOKEN'); // Page access token
+        $url = 'https://graph.facebook.com/v24.0/me/messages';
 
-        info(['verify_token' => $verify_token]);
+        $payload = [
+            'messaging_product' => 'instagram',
+            'recipient' => ['id' => $recipientId],
+            'message' => ['text' => $message],
+        ];
 
-        $mode = $request->get('hub_mode');
-        $token = $request->get('hub_verify_token');
-        $challenge = $request->get('hub_challenge');
+        $response = Http::withToken($accessToken)->post($url, $payload);
 
-        if ($mode === 'subscribe' && $token === $verify_token) {
-            return response($challenge, 200);
-        }
-
-        return response('Forbidden', 403);
-    }
-
-    // 2. Receive Message (POST)
-
-    public function receiveFacebookPageEventData(Request $request)
-    {
-        $payload = $request->all();
-        Log::info('📩 Facebook Webhook Payload:', $payload);
-
-        // Loop through entries
-        if (isset($payload['entry'])) {
-            foreach ($payload['entry'] as $entry) {
-                // Messenger messages
-                if (isset($entry['messaging'])) {
-                    foreach ($entry['messaging'] as $msg) {
-                        Log::info('Messenger Event:', $msg);
-                    }
-                }
-
-                // Page feed events (comments, reactions)
-                if (isset($entry['changes'])) {
-                    foreach ($entry['changes'] as $change) {
-                        if ($change['field'] === 'feed') {
-                            Log::info('Page Feed Event:', $change['value']);
-                        }
-                    }
-                }
-            }
-        }
-
-        return response('EVENT_RECEIVED', 200);
+        Log::info('📤 Instagram Reply Response:', [
+            'recipient' => $recipientId,
+            'payload' => $payload,
+            'response' => $response->json(),
+        ]);
     }
 
     public function receiveWebsitePageData(WebsiteCustomerMessageRequest $request)
@@ -1117,7 +1152,7 @@ class PlatformWebhookController extends Controller
                 $conversation = Conversation::create([
                     'customer_id' => $customer->id,
                     'platform' => $platformName,
-                    'trace_id' => 'WEB-'.now()->format('YmdHis').'-'.uniqid(),
+                    'trace_id' => 'WEB-' . now()->format('YmdHis') . '-' . uniqid(),
                     'agent_id' => null,
                 ]);
 
@@ -1204,7 +1239,7 @@ class PlatformWebhookController extends Controller
 
     public function receiveEmailData1(Request $request)
     {
-        $receiveMail = $this->emailService->receiveEmail();
+        $receiveMail = $this->EmailService->receiveEmail();
 
         Log::info('Receive Email:', [
             'data' => $receiveMail,
@@ -1232,7 +1267,7 @@ class PlatformWebhookController extends Controller
             $client->connect();
             Log::info('✅ Gmail IMAP connected successfully!');
         } catch (\Throwable $e) {
-            Log::error('❌ Gmail IMAP connection failed: '.$e->getMessage());
+            Log::error('❌ Gmail IMAP connection failed: ' . $e->getMessage());
 
             return false;
         }
@@ -1258,20 +1293,19 @@ class PlatformWebhookController extends Controller
                 try {
                     $this->processImapMessage($imapMsg, $platformId, $platformName);
                 } catch (\Throwable $e) {
-                    Log::error('⚠️ Error processing email: '.$e->getMessage(), [
+                    Log::error('⚠️ Error processing email: ' . $e->getMessage(), [
                         'subject' => (string) $imapMsg->getSubject(),
                         'from' => (string) optional($imapMsg->getFrom()->first())->mail,
                     ]);
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('IMAP read error: '.$e->getMessage());
+            Log::error('IMAP read error: ' . $e->getMessage());
         }
 
         $client->disconnect();
 
-        // return true;
-        return jsonResponse('Message received successfully', true);
+        return true;
     }
 
     /**
@@ -1289,8 +1323,8 @@ class PlatformWebhookController extends Controller
         $from = $imapMsg->getFrom()->first();
         $fromMail = (string) ($from->mail ?? '');
         $fromName = (string) ($from->personal ?? '');
-        $toMails = implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getTo()->all()));
-        $ccMails = implode(',', array_map(fn ($t) => (string) $t->mail, $imapMsg->getCc()->all()));
+        $toMails = implode(',', array_map(fn($t) => (string) $t->mail, $imapMsg->getTo()->all()));
+        $ccMails = implode(',', array_map(fn($t) => (string) $t->mail, $imapMsg->getCc()->all()));
         $subject = (string) $imapMsg->getSubject();
         $htmlBody = (string) $imapMsg->getHTMLBody();
         // $timestamp = now()->timestamp;
@@ -1317,7 +1351,7 @@ class PlatformWebhookController extends Controller
             // Conversation
             $conversation = Conversation::firstOrCreate(
                 ['customer_id' => $customer->id, 'platform' => $platformName],
-                ['trace_id' => 'mail-'.now()->format('YmdHis').'-'.uniqid()]
+                ['trace_id' => 'mail-' . now()->format('YmdHis') . '-' . uniqid()]
             );
 
             // Message
@@ -1387,11 +1421,11 @@ class PlatformWebhookController extends Controller
 
             // Generate safe unique filename
             // $filename = Str::uuid().'_'.$att->name.'.'.$extension;
-            $filename = Str::uuid().'.'.$extension;
+            $filename = Str::uuid() . '.' . $extension;
 
             // Storage folder: storage/app/public/mail_attachments/YYYYMMDD/
-            $storagePath = 'mail_attachments/'.now()->format('Ymd');
-            $fullPath = $storagePath.'/'.$filename;
+            $storagePath = 'mail_attachments/' . now()->format('Ymd');
+            $fullPath = $storagePath . '/' . $filename;
 
             // put file using Laravel Storage
             Storage::disk('public')->put($fullPath, $att->content);
@@ -1434,7 +1468,7 @@ class PlatformWebhookController extends Controller
     public function download(MessageAttachment $attachment)
     {
         $relativePath = $attachment->path;
-        $absolutePath = storage_path('app/public/'.$relativePath);
+        $absolutePath = storage_path('app/public/' . $relativePath);
 
         if (! file_exists($absolutePath)) {
             return abort(404, 'Attachment file not found.');
