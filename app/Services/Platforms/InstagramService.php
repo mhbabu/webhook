@@ -27,6 +27,7 @@ class InstagramService
         $this->verifyToken = config('services.instagram.ig_verify_token');
         $this->systemUserToken = config('services.graph.system_user_token');
         $this->baseUrl = config('services.graph.base_url').'/'.config('services.graph.version');
+        // $this->baseUrl = config('services.graph.base_url').'/v21.0';
 
     }
 
@@ -35,8 +36,8 @@ class InstagramService
         $url = $this->baseUrl."/${senderId}";
 
         $response = Http::get($url, [
-            // 'fields' => 'id,name,username',
-            'fields' => 'id,username,name,profile_pic,follower_count,is_verified_user,is_user_follow_business,is_business_follow_user',
+            'fields' => 'id,name,username',
+            // 'fields' => 'id,username,name,profile_pic,follower_count,is_verified_user,is_user_follow_business,is_business_follow_user',
             'access_token' => $this->pageToken,
         ]);
 
@@ -245,76 +246,6 @@ class InstagramService
             ]);
 
             return $response->json();
-        } catch (\Exception $e) {
-            Log::error('⚠️ Instagram sendAttachmentMessage failed: '.$e->getMessage());
-
-            return ['error' => $e->getMessage()];
-        }
-    }
-
-    public function sendAttachmentMessage1(string $recipientId, string $filePath, ?string $mime = null): array
-    {
-        try {
-            $file = Storage::disk('public')->path($filePath);
-
-            // Detect MIME if not provided
-            if (! $mime) {
-                $mime = mime_content_type($file) ?: 'application/octet-stream';
-            }
-
-            $type = $this->resolveMediaType($mime);
-
-            // Instagram only supports 'image' or 'video' in DMs
-            if (! in_array($type, ['image', 'video'])) {
-                return ['error' => 'Instagram DM only supports image/video attachments'];
-            }
-
-            $igUserId = $recipientId;
-            $accessToken = $this->pageToken;
-
-            // 1️⃣ Upload media to Instagram {$this->baseUrl}
-            $uploadUrl = "{$this->baseUrl}/{$igUserId}/media";
-            $mediaResponse = Http::post($uploadUrl, [
-                'image_url' => $type === 'image' ? asset("storage/{$filePath}") : null,
-                'video_url' => $type === 'video' ? asset("storage/{$filePath}") : null,
-                'access_token' => $accessToken,
-            ]);
-
-            $mediaJson = $mediaResponse->json();
-
-            if (! $mediaResponse->ok() || empty($mediaJson['id'])) {
-                Log::error('❌ Instagram media upload failed', ['response' => $mediaJson]);
-
-                return ['error' => 'Instagram media upload failed', 'response' => $mediaJson];
-            }
-
-            $creationId = $mediaJson['id'];
-
-            // 2️⃣ Send media via DM
-            $sendUrl = "{$this->url}/{$igUserId}/messages";
-            $payload = [
-                'recipient' => ['id' => $recipientId],
-                'message' => [
-                    'attachment' => [
-                        'type' => $type,
-                        'payload' => [
-                            'id' => $creationId,
-                        ],
-                    ],
-                ],
-                'messaging_type' => 'RESPONSE',
-                'access_token' => $accessToken,
-            ];
-
-            $sendResponse = Http::post($sendUrl, $payload);
-
-            Log::info('📤 Instagram Send Attachment Message Response', [
-                'type' => $type,
-                'upload_result' => $mediaJson,
-                'send_response' => $sendResponse->json(),
-            ]);
-
-            return $sendResponse->json();
         } catch (\Exception $e) {
             Log::error('⚠️ Instagram sendAttachmentMessage failed: '.$e->getMessage());
 

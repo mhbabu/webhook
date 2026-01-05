@@ -3,26 +3,25 @@
 use App\Enums\PlatformTypeWiseWeightage;
 use App\Models\Conversation;
 use App\Models\MessageTemplate;
-use App\Models\SystemSetting;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Redis;
 
 /**
  * Return a standardized JSON response.
  *
- * @param string $message
- * @param bool $status
- * @param mixed|null $data
- * @param int $statusCode
+ * @param  string  $message
+ * @param  bool  $status
+ * @param  mixed|null  $data
+ * @param  int  $statusCode
  * @return \Illuminate\Http\JsonResponse
  */
-if (!function_exists('jsonResponse')) {
+if (! function_exists('jsonResponse')) {
     function jsonResponse(string $message, bool $status, $data = null, int $statusCode = 200)
     {
         return response()->json([
-            'status'  => $status,
+            'status' => $status,
             'message' => $message,
-            'data'    => $data
+            'data' => $data,
         ], $statusCode);
     }
 }
@@ -30,13 +29,13 @@ if (!function_exists('jsonResponse')) {
 /**
  * Return a standardized JSON response with pagination data.
  *
- * @param string $message
- * @param bool $status
- * @param array $response
- * @param int $statusCode
+ * @param  string  $message
+ * @param  bool  $status
+ * @param  array  $response
+ * @param  int  $statusCode
  * @return \Illuminate\Http\JsonResponse
  */
-if (!function_exists('jsonResponseWithPagination')) {
+if (! function_exists('jsonResponseWithPagination')) {
     function jsonResponseWithPagination(string $message, bool $status, array $response, int $statusCode = 200)
     {
         return response()->json(['message' => $message, 'status' => $status] + $response, $statusCode);
@@ -46,18 +45,18 @@ if (!function_exists('jsonResponseWithPagination')) {
 /**
  * Check if the current role is authorized to create the target role.
  *
- * @param string $currentRole
- * @param string $targetRole
+ * @param  string  $currentRole
+ * @param  string  $targetRole
  * @return bool
  */
-if (!function_exists('isRoleCreationAuthorized')) {
+if (! function_exists('isRoleCreationAuthorized')) {
     function isRoleCreationAuthorized(string $currentRole, string $targetRole): bool
     {
         $roleHierarchy = [
             'Super Admin' => ['Admin', 'Supervisor', 'Agent'],
-            'Admin'       => ['Supervisor', 'Agent'],
-            'Supervisor'  => ['Agent'],
-            'Agent'       => [],
+            'Admin' => ['Supervisor', 'Agent'],
+            'Supervisor' => ['Agent'],
+            'Agent' => [],
         ];
 
         return in_array($targetRole, $roleHierarchy[$currentRole] ?? []);
@@ -70,10 +69,10 @@ if (!function_exists('isRoleCreationAuthorized')) {
  * Accepts a string (platform name), a PlatformTypeWiseWeightage enum instance, or null.
  * Returns the numeric weight for conversation limits/capacity.
  *
- * @param string|PlatformTypeWiseWeightage|null $platform
+ * @param  string|PlatformTypeWiseWeightage|null  $platform
  * @return int
  */
-if (!function_exists('getPlatformWeight')) {
+if (! function_exists('getPlatformWeight')) {
     function getPlatformWeight(string|PlatformTypeWiseWeightage|null $platform): int
     {
         if ($platform instanceof PlatformTypeWiseWeightage) {
@@ -92,10 +91,10 @@ if (!function_exists('getPlatformWeight')) {
  *
  * Active conversations = not ended yet OR ended within the configured expiration time.
  *
- * @param int $agentId
+ * @param  int  $agentId
  * @return int
  */
-if (!function_exists('getAgentActiveConversationsCount')) {
+if (! function_exists('getAgentActiveConversationsCount')) {
     function getAgentActiveConversationsCount(int $agentId): int
     {
         return Conversation::where('agent_id', $agentId)
@@ -107,15 +106,9 @@ if (!function_exists('getAgentActiveConversationsCount')) {
     }
 }
 
-
-if (!function_exists('storeAndDetectAttachment')) {
+if (! function_exists('storeAndDetectAttachment')) {
     /**
      * Store a file and detect its type.
-     *
-     * @param \Illuminate\Http\UploadedFile $file
-     * @param string $disk
-     * @param string $folder
-     * @return array
      */
     function storeAndDetectAttachment(UploadedFile $file, string $disk = 'public', string $folder = 'uploads/messages'): array
     {
@@ -135,11 +128,11 @@ if (!function_exists('storeAndDetectAttachment')) {
         };
 
         return [
-            'path'       => $path, // ✅ store only relative path (no '/storage/', no domain)
+            'path' => $path, // ✅ store only relative path (no '/storage/', no domain)
             'local_path' => storage_path("app/{$disk}/{$path}"),
-            'type'       => $type,
-            'mime'       => $mime,
-            'size'       => $size,
+            'type' => $type,
+            'mime' => $mime,
+            'size' => $size,
         ];
     }
 }
@@ -157,8 +150,8 @@ if (! function_exists('getFeedbackRatingsFromCustomer')) {
      *
      * Works for WhatsApp, Facebook, or other platforms.
      *
-     * @param string $label The interactive option label
-     * @param string|null $templateType Template type, default 'cchat'
+     * @param  string  $label  The interactive option label
+     * @param  string|null  $templateType  Template type, default 'cchat'
      * @return int|null Numeric rating or null if label not found
      */
     function getFeedbackRatingsFromCustomer(string $label, ?string $templateType = 'cchat'): ?int
@@ -188,15 +181,15 @@ if (! function_exists('getFeedbackRatingsFromCustomer')) {
  *   had exactly one active conversation on that platform.
  * - Deletes the ended conversation key ("conversation:{id}") from Redis.
  *
- * @param \App\Models\User $user
- * @param \App\Models\Conversation $conversation
+ * @param  \App\Models\User  $user
+ * @param  \App\Models\Conversation  $conversation
  * @return void
  */
-if (!function_exists('updateUserInRedis')) {
+if (! function_exists('updateUserInRedis')) {
     function updateUserInRedis($user, $conversation): void
     {
-        $endedPlatform       = $conversation->platform;
-        $hashKey             = "agent:{$user->id}";
+        $endedPlatform = $conversation->platform;
+        $hashKey = "agent:{$user->id}";
         $removedConversation = "conversation:{$conversation->id}";
 
         // Fetch CONTACT_TYPE from Redis
@@ -214,7 +207,7 @@ if (!function_exists('updateUserInRedis')) {
 
         // Remove platform only if agent had exactly one active conversation
         if ($endedPlatform && $activeConversations === 1 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
         }
 
         // Increment agent's current_limit by platform weight
@@ -223,19 +216,19 @@ if (!function_exists('updateUserInRedis')) {
 
         // Prepare agent data for Redis
         $agentData = [
-            "AGENT_ID"        => $user->id,
-            "AGENT_TYPE"      => 'NORMAL',
-            "STATUS"          => $user->current_status,
-            "MAX_SCOPE"       => $user->max_limit,
-            "AVAILABLE_SCOPE" => $user->current_limit,
-            "CONTACT_TYPE"    => json_encode($contactTypes),
-            "SKILL"           => json_encode(
+            'AGENT_ID' => $user->id,
+            'AGENT_TYPE' => 'NORMAL',
+            'STATUS' => $user->current_status,
+            'MAX_SCOPE' => $user->max_limit,
+            'AVAILABLE_SCOPE' => $user->current_limit,
+            'CONTACT_TYPE' => json_encode($contactTypes),
+            'SKILL' => json_encode(
                 $user->platforms()
                     ->pluck('name')
-                    ->map(fn($n) => strtolower($n))
+                    ->map(fn ($n) => strtolower($n))
                     ->toArray()
             ),
-            "BUSYSINCE"       => now()->format('Y-m-d H:i:s') ?? '',
+            'BUSYSINCE' => now()->format('Y-m-d H:i:s') ?? '',
         ];
 
         // Save to Redis and remove ended conversation key
@@ -244,51 +237,51 @@ if (!function_exists('updateUserInRedis')) {
     }
 }
 
-if (!function_exists('getSystemSettingData')) {
+if (! function_exists('getSystemSettingData')) {
     /**
      * Get a system setting by key.
      *
-     * @param string $key
-     * @param mixed $default
+     * @param  mixed  $default
      * @return mixed|null
      */
     function getSystemSettingData(string $key, $default = null)
     {
         // Avoid querying if table doesn't exist (migrations/seeding)
-        if (!\Schema::hasTable('system_settings')) {
+        if (! \Schema::hasTable('system_settings')) {
             return $default;
         }
 
         $setting = \App\Models\SystemSetting::where('setting_key', $key)->first();
+
         return $setting ? $setting->setting_value : $default;
     }
 }
 
-
-if (!function_exists('sendToDispatcher')) {
+if (! function_exists('sendToDispatcher')) {
     /**
      * Send payload to dispatcher API safely.
      *
-     * @param array $payload
-     * @param bool $logErrors Whether to log errors (default: true)
+     * @param  bool  $logErrors  Whether to log errors (default: true)
      * @return bool True if sent successfully, false otherwise
      */
     function sendToDispatcher(array $payload, bool $logErrors = true): bool
     {
         // Ensure dispatcher config exists
-        if (!config()->has('dispatcher.url') || !config()->has('dispatcher.endpoints.handler')) {
+        if (! config()->has('dispatcher.url') || ! config()->has('dispatcher.endpoints.handler')) {
             if ($logErrors) {
                 \Log::error('[DISPATCHER] Configuration missing', ['payload' => $payload]);
             }
+
             return false;
         }
 
         try {
             $response = \Illuminate\Support\Facades\Http::acceptJson()
-                ->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
+                ->post(config('dispatcher.url').config('dispatcher.endpoints.handler'), $payload);
 
             if ($response->ok()) {
                 \Log::info('[DISPATCHER] Payload sent successfully', ['payload' => $payload]);
+
                 return true;
             }
 
@@ -308,6 +301,7 @@ if (!function_exists('sendToDispatcher')) {
                     'exception' => $e->getMessage(),
                 ]);
             }
+
             return false;
         }
     }

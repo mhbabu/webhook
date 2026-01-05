@@ -2,10 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Contracts\Role;
 
 class DatabaseSeeder extends Seeder
 {
@@ -17,6 +15,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleTableSeeder::class,
             PlatformTableSeeder::class,
+            PlatformAccountSeeder::class,
             UserTableSeeder::class,
             QuickReplyTableSeeder::class,
             WrapUpConversationTableSeeder::class,

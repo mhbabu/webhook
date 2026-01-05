@@ -2,71 +2,39 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Post extends Model
 {
-    use HasFactory, SoftDeletes;
-
     protected $fillable = [
-        'facebook_id',
-        'content',
-        'source_id',
-        'privacy',
-        'posted_by',
-        'edited_by',
-        'deleted_by',
-        'posted_at',
-        'updated_at',
-        'deleted_at',
-        'scheduled_at',
-        'comments_count',
-        'shares_count',
-        'reactions',
-        'tags',
-        'hashtags',
-        'permalink_url',
-        'location',
-        'feeling',
-        'activity',
-        'post_type',
-        'language',
-        'is_pinned',
-        'is_sponsored',
+        'platform_id', 'platform_account_id', 'platform_post_id',
+        'type', 'caption', 'posted_at', 'raw',
     ];
 
-    protected $casts = [
-        'reactions'    => 'array',
-        'tags'         => 'array',
-        'hashtags'     => 'array',
-        'posted_at'    => 'datetime',
-        'updated_at'   => 'datetime',
-        'deleted_at'   => 'datetime',
-        'scheduled_at' => 'datetime',
-        'is_pinned'    => 'boolean',
-        'is_sponsored' => 'boolean'
-    ];
+    protected $casts = ['raw' => 'array', 'posted_at' => 'datetime'];
 
-    // Relationships
-    public function attachments()
+    public function platform()
     {
-        return $this->hasMany(PostAttachment::class);
+        return $this->belongsTo(Platform::class);
     }
 
-    public function postedBy()
+    public function account()
     {
-        return $this->belongsTo(Customer::class, 'posted_by');
+        return $this->belongsTo(PlatformAccount::class, 'platform_account_id');
     }
 
-    public function editedBy()
+    public function media()
     {
-        return $this->belongsTo(Customer::class, 'edited_by');
+        return $this->hasMany(PostMedia::class);
     }
 
-    public function deletedBy()
+    public function comments()
     {
-        return $this->belongsTo(Customer::class, 'deleted_by');
+        return $this->hasMany(Comment::class);
+    }
+
+    public function reactions()
+    {
+        return $this->hasMany(Reaction::class);
     }
 }

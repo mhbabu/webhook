@@ -7,14 +7,24 @@ use Illuminate\Database\Eloquent\Model;
 class Reaction extends Model
 {
     protected $fillable = [
-        'user_id',
-        'reaction_type',
-        'reactable_id',
-        'reactable_type'
+        'post_id', 'comment_id', 'platform_reaction_id', 'user_platform_id',
+        'customer_id', 'reaction_type', 'reacted_at', 'raw',
     ];
 
-    public function reactable()
+    protected $casts = ['raw' => 'array', 'reacted_at' => 'datetime'];
+
+    public function post()
     {
-        return $this->morphTo();
+        return $this->belongsTo(Post::class);
+    }
+
+    public function comment()
+    {
+        return $this->belongsTo(Comment::class);
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(\App\Models\Customer::class, 'customer_id');
     }
 }

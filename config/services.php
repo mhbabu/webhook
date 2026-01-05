@@ -42,14 +42,19 @@ return [
     ],
 
     'facebook' => [
-        'fb_verify_token' => env('FB_VERIFY_TOKEN'),
-        'token' => env('FB_PAGE_ACCESS_TOKEN'),
+        'verify_token' => env('FACEBOOK_VERIFY_TOKEN'),
+        'token' => env('FACEBOOK_PAGE_TOKEN'),
         'url' => 'https://graph.facebook.com/v18.0',
     ],
     'instagram' => [
         'ig_business_id' => env('INSTAGRAM_BUSINESS_ID'),
         'ig_page_token' => env('INSTAGRAM_PAGE_TOKEN'),
         'ig_verify_token' => env('INSTAGRAM_VERIFY_TOKEN'),
+    ],
+    'linkedin' => [
+        'client_id' => env('LINKEDIN_CLIENT_ID'),
+        'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
+        'organization_id' => env('LINKEDIN_ORGANIZATION_ID'),
     ],
     'graph' => [
         'base_url' => 'https://graph.facebook.com',
