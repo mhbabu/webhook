@@ -87,7 +87,7 @@ class PlatformAccountSeeder extends Seeder
             'platform_id' => $emailPlatform->id,
             'platform_account_id' => 'imap.gmail.com',
             'name' => 'Gmail Integration',
-            'username' => 'support@yourdomain.com',
+            'username' => 'akand.shahidul@gmail.com',
             'credentials' => [
                 'imap_host' => env('IMAP_HOST'),
                 'imap_username' => env('IMAP_USERNAME'),

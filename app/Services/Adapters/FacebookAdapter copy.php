@@ -22,7 +22,7 @@ class FacebookAdapter
     /** Main entry : Sync Posts of Page */
     public function syncPosts(Platform $platform, PlatformAccount $account)
     {
-        // Log::info("Starting Facebook posts sync for PlatformAccount ID: {$account->id}, Platform ID: {$platform->id}");
+        Log::info("Starting Facebook posts sync for PlatformAccount ID: {$account->id}, Platform ID: {$platform->id}");
         // Find page account
 
         $url = "https://graph.facebook.com/v24.0/{$account->platform_account_id}/posts";
@@ -56,8 +56,8 @@ class FacebookAdapter
             ]);
 
             // ⬇ queue based heavy sync
-            $this->fetchRootComments($platform, $post, $p['id']);
-            $this->syncReactionsForPost($platform, $post, $p['id']);
+            $this->fetchRootComments($post, $p['id']);
+            $this->syncReactionsForPost($post, $p['id']);
         }
         //     $next = $res->json('paging.next') ?? null;
         // }
@@ -140,12 +140,12 @@ class FacebookAdapter
     }
 
     /** Fetch level-1 comments and trigger recursion */
-    public function fetchRootComments(Platform $platform, $post, string $fbPostId)
+    public function fetchRootComments($post, string $fbPostId)
     {
         $res = Http::get("https://graph.facebook.com/v24.0/{$fbPostId}/comments", [
             'fields' => 'id,from,message,parent,created_time',
             'limit' => 100,
-            'access_token' => $this->resolvePageToken($platform),
+            'access_token' => $this->token,
         ]);
 
         if (! $res->successful()) {
@@ -175,7 +175,7 @@ class FacebookAdapter
                 'raw' => $c,
             ]);
 
-            dispatch(new FetchFacebookCommentReplies($post->platform_id, $post->id, $comment->platform_comment_id)); // 🔥 Recursion trigger
+            dispatch(new FetchFacebookCommentReplies($post->id, $comment->platform_comment_id)); // 🔥 Recursion trigger
             $this->syncReactionsForComment($comment, $c['id']);
         }
     }
@@ -183,13 +183,12 @@ class FacebookAdapter
     /**
      * Recursively fetch replies for a comment (Level-2,3,...∞)
      */
-    public function fetchReplies(Platform $platform, $post, string $parentCommentId, ?string $parentPlatformParentId = null)
+    public function fetchReplies($post, string $parentCommentId, ?string $parentPlatformParentId = null)
     {
-        Log::info("Fetching replies for Comment ID: {$parentCommentId}");
         $res = Http::get("https://graph.facebook.com/v24.0/{$parentCommentId}/comments", [
             'fields' => 'id,from,message,parent,created_time',
             'limit' => 100,
-            'access_token' => $this->resolvePageToken($platform),
+            'access_token' => $this->token,
         ]);
 
         if (! $res->successful()) {
@@ -216,10 +215,10 @@ class FacebookAdapter
     }
 
     /** Post reactions */
-    public function syncReactionsForPost(Platform $platform, $post, string $id)
+    public function syncReactionsForPost($post, string $id)
     {
         $res = Http::get("https://graph.facebook.com/v24.0/{$id}/reactions", [
-            'fields' => 'id,name,type', 'limit' => 200, 'access_token' => $this->resolvePageToken($platform),
+            'fields' => 'id,name,type', 'limit' => 200, 'access_token' => $this->token,
         ]);
 
         foreach ($res->json('data', []) as $r) {
@@ -286,18 +285,5 @@ class FacebookAdapter
         }
 
         return $token;
-    }
-
-    protected function graphGet(
-        Platform $platform,
-        string $endpoint,
-        array $params = []
-    ) {
-        return Http::get(
-            "https://graph.facebook.com/v24.0/{$endpoint}",
-            array_merge($params, [
-                'access_token' => $this->resolvePageToken($platform),
-            ])
-        );
     }
 }

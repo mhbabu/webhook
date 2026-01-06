@@ -2,7 +2,9 @@
 
 namespace App\Jobs;
 
+use App\Models\Platform;
 use App\Models\Post;
+use App\Services\Adapters\FacebookAdapter;
 use App\Services\Platforms\FacebookPageService;
 use App\Services\SocialSyncService;
 use Illuminate\Bus\Queueable;
@@ -17,6 +19,8 @@ class FetchFacebookCommentReplies implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public int $platformId;
+
     public int $postId;
 
     public string $commentFbId;
@@ -25,14 +29,15 @@ class FetchFacebookCommentReplies implements ShouldQueue
 
     private int $maxDepth = 10; // optional safety net
 
-    public function __construct(int $postId, string $commentFbId, int $depth = 1)
+    public function __construct(int $platformId, int $postId, string $commentFbId, int $depth = 1)
     {
+        $this->platformId = $platformId;
         $this->postId = $postId;
         $this->commentFbId = $commentFbId;
         $this->depth = $depth;
     }
 
-    public function handle(SocialSyncService $syncService, FacebookPageService $pageService)
+    public function handle(SocialSyncService $syncService, FacebookPageService $pageService, FacebookAdapter $facebookAdapter)
     {
         if ($this->depth > $this->maxDepth) {
             Log::warning("⚠ Max depth {$this->maxDepth} reached at comment: {$this->commentFbId}");
@@ -44,6 +49,19 @@ class FetchFacebookCommentReplies implements ShouldQueue
         if (! $post) {
             return;
         }
+
+        $platform = Platform::find($this->platformId);
+        if (! $platform) {
+            return;
+        }
+
+        // 🔥 Let adapter handle token + API + pagination
+        $facebookAdapter->fetchReplies(
+            $platform,
+            $post,
+            $this->commentFbId,
+            $this->depth
+        );
 
         $token = config('services.facebook.token');
         $url = "https://graph.facebook.com/v24.0/{$this->commentFbId}/comments";

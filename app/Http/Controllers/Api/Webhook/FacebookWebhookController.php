@@ -59,7 +59,8 @@ class FacebookWebhookController extends Controller
              * 1️⃣ Messenger Events (Inbox)
              */
             if (! empty($entry['messaging'])) {
-                $this->handleMessengerEvents($entry['messaging'], $request);
+                // $this->handleMessengerEvents($entry['messaging'], $request);
+                $this->incomingFacebookEvent($request);
 
                 continue;
             }
