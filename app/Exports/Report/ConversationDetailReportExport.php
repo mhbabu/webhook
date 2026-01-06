@@ -28,6 +28,7 @@ class ConversationDetailReportExport implements FromCollection, WithHeadings, Wi
             ->leftJoin('users as agents', 'conversations.agent_id', '=', 'agents.id')
             ->leftJoin('users as endedBy', 'conversations.ended_by', '=', 'endedBy.id')
             ->where('conversations.trace_id', $this->traceId)
+            ->whereIn('conversations.platform', ['facebook_messenger', 'whatsapp', 'website', 'instagram_message'])
             ->select(
                 // Message
                 'messages.delivered_at',

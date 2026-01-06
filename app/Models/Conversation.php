@@ -45,7 +45,7 @@ class Conversation extends Model
             'lastMessage:id,content,delivered_at,created_at',
             'wrapUp:id,name',
             'endedBy:id,name',
-        ])->latest();
+        ])->whereIn('platform', ['facebook_messenger', 'whatsapp', 'website', 'instagram_message'])->latest();
 
         if (! empty($data['start_date'])) {
             $query->whereDate('created_at', '>=', $data['start_date']);
