@@ -969,6 +969,7 @@ class PlatformWebhookController extends Controller
                             'customer_id' => $customer->id,
                             'platform' => $platformName,
                             'trace_id' => 'IGM-' . now()->format('YmdHis') . '-' . uniqid(),
+                            'in_queue_at' => now()
                         ]);
                         $isNewConversation = true;
                     }
@@ -1154,6 +1155,7 @@ class PlatformWebhookController extends Controller
                     'platform' => $platformName,
                     'trace_id' => 'WEB-' . now()->format('YmdHis') . '-' . uniqid(),
                     'agent_id' => null,
+                    'in_queue_at' => now(),
                 ]);
 
                 $isNewConversation = true;

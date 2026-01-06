@@ -226,12 +226,7 @@ class MessageController extends Controller
         // 1. Basic Validation
         // ----------------------------
         if (! $agentId || ! $conversationId || ! $messageId) {
-            return jsonResponse(
-                'Missing required fields: agentId, conversationId or messageId.',
-                false,
-                null,
-                400
-            );
+            return jsonResponse('Missing required fields: agentId, conversationId or messageId.', false, null, 400);
         }
 
         // ----------------------------
@@ -395,14 +390,17 @@ class MessageController extends Controller
         $conversation->save();
 
         // ✅ Update agent current_limit based on platform weight
-        if ($conversation->platform === 'whatsapp') {
+        // if ($conversation->platform === 'whatsapp') {
             $weight = getPlatformWeight($conversation->platform);
             $user->increment('current_limit', $weight);
-
-            event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
-        }
+            // event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
+        // }
 
         // ✅ Update Redis: hash + omnitrix list + conditional CONTACT_TYPE removal
+
+        if ($conversation->platform === 'whatsapp') {
+            event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
+        }
         $this->updateUserInRedis($user, $conversation);
         return jsonResponse('Conversation ended successfully.', true);
     }
@@ -893,6 +891,10 @@ class MessageController extends Controller
             'platform' => 'messenger',
         ]);
 
+        if(empty($conversation->first_response_at)) {
+            $conversation->first_response_at = now();
+            $conversation->save();
+        }
         // Step 2: Handle attachments
         foreach ($attachments as $file) {
             $storedPath = $file->store('messenger_temp', 'public');
@@ -938,11 +940,15 @@ class MessageController extends Controller
             'receiver_type' => Customer::class,
             'receiver_id' => $customer->id,
             'type' => $data['content'] ? 'text' : null,
+            'delivered_at' => now(),
             'content' => $data['content'] ?? null,
             'direction' => 'outgoing',
         ]);
 
-        $conversation->update(['last_message_id' => $message->id]);
+        if (empty($conversation->first_response_at)) {
+            $conversation->first_response_at = now();
+        }
+        $conversation->update(['last_message_id' => $message->id, 'first_response_at' => $conversation->first_response_at ?? now()]);
 
         // Step 2: Handle attachments using helper
         if (! empty($attachments)) {
@@ -992,6 +998,8 @@ class MessageController extends Controller
             'direction' => 'outgoing',
             'platform' => 'instagram_message',
         ]);
+
+        $conversation->update(['last_message_id' => $textMessage->id, 'first_response_at' => $conversation->first_response_at ?? now()]);
 
         // Step 2: Handle attachments
         // foreach ($attachments as $file) {
@@ -1044,6 +1052,7 @@ class MessageController extends Controller
             'receiver_type' => Customer::class,
             'receiver_id' => $customer->id,
             'type' => 'text',
+            'delivered_at'    => now(),
             'content' => $data['content'] ?? '',
             'cc_email' => $data['cc_email'] ?? '',
             'subject' => $data['subject'] ?? '',
@@ -1052,7 +1061,8 @@ class MessageController extends Controller
         ]);
 
         // $conversation->update(['last_message_id' => $message->id]);
-        $conversation->update(['end_at' => now()]); // Auto-end email conversations
+        $conversation->update(['end_at' => now(), 'first_response_at' => $conversation->first_response_at ?? now()]); // Auto-end email conversations
+        
 
         /**
          * --------------------------------------------------

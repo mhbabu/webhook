@@ -97,14 +97,15 @@ if (! function_exists('getPlatformWeight')) {
 if (! function_exists('getAgentActiveConversationsCount')) {
     function getAgentActiveConversationsCount(int $agentId): int
     {
+        $expireHours = config('services.conversation.conversation_expire_hours');
+
         return Conversation::where('agent_id', $agentId)
-            ->where(function ($query) {
-                $query->whereNull('end_at')
-                    ->orWhere('end_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
-            })
+            ->whereNull('end_at') // must be active
+            ->where('created_at', '>=', now()->subHours($expireHours))
             ->count();
     }
 }
+
 
 if (! function_exists('storeAndDetectAttachment')) {
     /**

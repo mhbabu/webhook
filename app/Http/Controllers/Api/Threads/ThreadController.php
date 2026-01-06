@@ -28,6 +28,7 @@ class ThreadController extends Controller
             'customer:id,name,email,phone',
             'comment:id,conversation_id,post_id,message,type',
         ])
+            ->whereIn('platform', ['facebook', 'instagram'])
             ->where('agent_id', $agentId)
             ->latest();
 
