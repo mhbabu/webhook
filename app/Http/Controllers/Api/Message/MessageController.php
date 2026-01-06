@@ -390,11 +390,11 @@ class MessageController extends Controller
         $conversation->save();
 
         // ✅ Update agent current_limit based on platform weight
-        if ($conversation->platform === 'whatsapp') {
+        // if ($conversation->platform === 'whatsapp') {
             $weight = getPlatformWeight($conversation->platform);
             $user->increment('current_limit', $weight);
             // event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
-        }
+        // }
 
         // ✅ Update Redis: hash + omnitrix list + conditional CONTACT_TYPE removal
 
