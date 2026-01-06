@@ -891,6 +891,10 @@ class MessageController extends Controller
             'platform' => 'messenger',
         ]);
 
+        if(empty($conversation->first_response_at)) {
+            $conversation->first_response_at = now();
+            $conversation->save();
+        }
         // Step 2: Handle attachments
         foreach ($attachments as $file) {
             $storedPath = $file->store('messenger_temp', 'public');

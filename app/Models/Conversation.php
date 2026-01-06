@@ -24,14 +24,15 @@ class Conversation extends Model
         'agent_assigned_at',
         'last_message_id',
         'is_feedback_sent',
+        'first_response_at'
     ];
 
     protected $casts = [
-        'started_at' => 'datetime',
-        'end_at' => 'datetime',
-        'in_queue_at' => 'datetime',
-        'first_message_at' => 'datetime',
-        'last_message_at' => 'datetime',
+        'started_at'        => 'datetime',
+        'end_at'            => 'datetime',
+        'in_queue_at'       => 'datetime',
+        'first_message_at'  => 'datetime',
+        'last_message_at'   => 'datetime',
         'agent_assigned_at' => 'datetime',
         'first_response_at' => 'datetime',
     ];
