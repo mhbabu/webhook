@@ -226,12 +226,7 @@ class MessageController extends Controller
         // 1. Basic Validation
         // ----------------------------
         if (! $agentId || ! $conversationId || ! $messageId) {
-            return jsonResponse(
-                'Missing required fields: agentId, conversationId or messageId.',
-                false,
-                null,
-                400
-            );
+            return jsonResponse('Missing required fields: agentId, conversationId or messageId.', false, null, 400);
         }
 
         // ----------------------------
@@ -941,6 +936,7 @@ class MessageController extends Controller
             'receiver_type' => Customer::class,
             'receiver_id' => $customer->id,
             'type' => $data['content'] ? 'text' : null,
+            'delivered_at' => now(),
             'content' => $data['content'] ?? null,
             'direction' => 'outgoing',
         ]);
@@ -1047,6 +1043,7 @@ class MessageController extends Controller
             'receiver_type' => Customer::class,
             'receiver_id' => $customer->id,
             'type' => 'text',
+            'delivered_at'    => now(),
             'content' => $data['content'] ?? '',
             'cc_email' => $data['cc_email'] ?? '',
             'subject' => $data['subject'] ?? '',
