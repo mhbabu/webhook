@@ -397,14 +397,15 @@ class FacebookWebhookController extends Controller
                             ['platform_message_id' => $platformMessageId],
                             [
                                 'conversation_id' => $conversation->id,
-                                'sender_id' => $customer->id,
-                                'sender_type' => Customer::class,
-                                'type' => ! empty($attachments) ? 'media' : 'text',
-                                'content' => $finalText,
-                                'direction' => 'incoming',
-                                'receiver_type' => User::class,
-                                'receiver_id' => $conversation->agent_id ?? null,
-                                'parent_id' => $parentMessageId,
+                                'sender_id'       => $customer->id,
+                                'sender_type'     => Customer::class,
+                                'type'            => ! empty($attachments) ? 'media' : 'text',
+                                'content'         => $finalText,
+                                'direction'       => 'incoming',
+                                'in_queue_at'     => now(),
+                                'receiver_type'   => User::class,
+                                'receiver_id'     => $conversation->agent_id ?? null,
+                                'parent_id'       => $parentMessageId,
                             ]
                         );
                         Log::info('💬 Message stored', ['message_id' => $message->id]);
