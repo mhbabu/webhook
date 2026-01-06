@@ -941,7 +941,10 @@ class MessageController extends Controller
             'direction' => 'outgoing',
         ]);
 
-        $conversation->update(['last_message_id' => $message->id]);
+        if (empty($conversation->first_response_at)) {
+            $conversation->first_response_at = now();
+        }
+        $conversation->update(['last_message_id' => $message->id, 'first_response_at' => $conversation->first_response_at ?? now()]);
 
         // Step 2: Handle attachments using helper
         if (! empty($attachments)) {
@@ -991,6 +994,8 @@ class MessageController extends Controller
             'direction' => 'outgoing',
             'platform' => 'instagram_message',
         ]);
+
+        $conversation->update(['last_message_id' => $textMessage->id, 'first_response_at' => $conversation->first_response_at ?? now()]);
 
         // Step 2: Handle attachments
         // foreach ($attachments as $file) {
@@ -1052,7 +1057,8 @@ class MessageController extends Controller
         ]);
 
         // $conversation->update(['last_message_id' => $message->id]);
-        $conversation->update(['end_at' => now()]); // Auto-end email conversations
+        $conversation->update(['end_at' => now(), 'first_response_at' => $conversation->first_response_at ?? now()]); // Auto-end email conversations
+        
 
         /**
          * --------------------------------------------------
