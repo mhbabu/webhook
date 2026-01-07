@@ -5,29 +5,29 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class PostReaction extends Model
+class PostAttachment extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'post_id',
-        'user_id',
         'type',
+        'url',
+        'thumbnail_url',
+        'description',
+        'tags',
+        'position',
+        'metadata',
     ];
 
-    /**
-     * The post this reaction belongs to
-     */
+    protected $casts = [
+        'tags' => 'array',
+        'metadata' => 'array',
+    ];
+
+    // Relationship with Post
     public function post()
     {
         return $this->belongsTo(Post::class);
-    }
-
-    /**
-     * The user who reacted
-     */
-    public function user()
-    {
-        return $this->belongsTo(User::class);
     }
 }
