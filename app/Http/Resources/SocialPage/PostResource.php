@@ -15,7 +15,6 @@ class PostResource extends JsonResource
             'create_at'       => $this->posted_at,
             'location'        => $this->location,
             'permalink_url'   => $this->permalink_url,
-            // 'post_type'       => $this->post_type,
             'tags'            => $this->tags,
             'attachments'     => $this->formatAttachments($this->attachment)
         ];
