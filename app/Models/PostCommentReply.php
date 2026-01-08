@@ -24,6 +24,7 @@ class PostCommentReply extends Model
     public function comment(){ 
         return $this->belongsTo(PostComment::class,'post_comment_id'); 
     }
+    
 
     public function customer(){ 
         return $this->belongsTo(User::class,'customer_id'); 

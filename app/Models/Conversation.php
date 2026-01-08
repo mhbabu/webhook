@@ -104,16 +104,18 @@ class Conversation extends Model
 
     public function post()
     {
-        return $this->hasOne(Post::class, 'id');
+        return $this->hasOne(Post::class, 'id', 'post_id');
     }
+
+    // Conversation.php
 
     public function comment()
     {
-        return $this->hasOne(PostComment::class, 'type_id')->where('type', 'comment');
+        return $this->belongsTo(PostComment::class, 'type_id', 'id');
     }
 
     public function reply()
     {
-        return $this->hasOne(PostCommentReply::class, 'type_id')->where('type', 'reply');
+        return $this->belongsTo(PostCommentReply::class, 'type_id', 'id');
     }
 }
