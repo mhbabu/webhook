@@ -13,6 +13,7 @@ return new class extends Migration {
             $table->foreignId('post_id')->constrained()->cascadeOnDelete();
             $table->string('platform_comment_id')->nullable();
             $table->foreignId('customer_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->longText('content')->nullable();
             $table->boolean('is_top_comment')->default(false);
             $table->json('mentions')->nullable();
@@ -23,7 +24,7 @@ return new class extends Migration {
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('deleted_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
-            $table->unique(['platform_comment_id','post_id']);
+            $table->unique(['platform_comment_id', 'post_id']);
         });
     }
 

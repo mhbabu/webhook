@@ -166,4 +166,48 @@ class FacebookPageService
 
         return $response->json();
     }
+
+    /**
+     * 🔹 Reply to a comment on a post
+     *
+     * @param string $commentId The ID of the comment to reply to
+     * @param string $message   The reply message
+     * @return array
+     */
+    public function replyToComment(string $commentId, string $message): array
+    {
+        try {
+            $response = Http::asForm()->post("{$this->url}/{$commentId}/comments", [
+                'message'      => $message,
+                'access_token' => $this->token,
+            ]);
+
+            if ($response->failed()) {
+                Log::error('Facebook replyToComment failed', [
+                    'comment_id' => $commentId,
+                    'message'    => $message,
+                    'response'   => $response->json(),
+                ]);
+                return [
+                    'success' => false,
+                    'error'   => $response->json(),
+                ];
+            }
+
+            return [
+                'success' => true,
+                'data'    => $response->json(),
+            ];
+        } catch (\Exception $e) {
+            Log::error("Facebook replyToComment exception: {$e->getMessage()}", [
+                'comment_id' => $commentId,
+                'message'    => $message,
+            ]);
+
+            return [
+                'success' => false,
+                'error'   => $e->getMessage(),
+            ];
+        }
+    }
 }

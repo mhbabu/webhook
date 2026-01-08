@@ -10,7 +10,7 @@ class PostCommentReply extends Model
     protected $fillable = [
         'post_comment_id','platform_reply_id','customer_id','content',
         'attachment','mentions',
-        'replied_at','edited_at','deleted_at','updated_by','deleted_by', 'attachment'
+        'replied_at','edited_at','deleted_at','updated_by','deleted_by', 'attachment', 'user_id',
     ];
 
     protected $casts = [

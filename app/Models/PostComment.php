@@ -13,6 +13,7 @@ class PostComment extends Model
         'customer_id',
         'content',
         'attachment',
+        'user_id',
         'is_top_comment',
         'mentions',
         'commented_at',

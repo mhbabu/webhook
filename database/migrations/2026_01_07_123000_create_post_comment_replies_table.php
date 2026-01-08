@@ -13,6 +13,7 @@ return new class extends Migration {
             $table->foreignId('post_comment_id')->constrained()->cascadeOnDelete();
             $table->string('platform_reply_id')->nullable();
             $table->foreignId('customer_id')->nullable()->constrained('users')->nullOnDelete();
+             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->longText('content')->nullable();
             $table->json('attachment')->nullable(); // [{"type":"photo","url":"..."},...]
             $table->json('mentions')->nullable();
