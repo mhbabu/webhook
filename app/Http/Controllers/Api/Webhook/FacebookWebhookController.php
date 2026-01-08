@@ -21,12 +21,9 @@ class FacebookWebhookController extends Controller
 {
     protected $facebookService;
 
-    protected $facebookPageService;
-
-    public function __construct(FacebookService $facebookService, FacebookPageService $facebookPageService)
+    public function __construct(FacebookService $facebookService)
     {
         $this->facebookService = $facebookService;
-        $this->facebookPageService = $facebookPageService;
     }
 
     /**
@@ -35,10 +32,9 @@ class FacebookWebhookController extends Controller
     public function verifyFacebookToken(Request $request)
     {
         $verify_token = env('FB_VERIFY_TOKEN');
-
-        $mode = $request->get('hub_mode');
-        $token = $request->get('hub_verify_token');
-        $challenge = $request->get('hub_challenge');
+        $mode         = $request->get('hub_mode');
+        $token        = $request->get('hub_verify_token');
+        $challenge    = $request->get('hub_challenge');
 
         if ($mode === 'subscribe' && $token === $verify_token) {
             return response($challenge, 200);
@@ -46,204 +42,6 @@ class FacebookWebhookController extends Controller
 
         return response('Forbidden', 403);
     }
-
-    public function webhook(Request $request, FacebookPageService $pageService)
-    {
-        $payload = $request->all();
-
-        Log::info('📥 Facebook Webhook Payload', $payload);
-
-        foreach ($payload['entry'] ?? [] as $entry) {
-
-            /**
-             * 1️⃣ Messenger Events (Inbox)
-             */
-            if (! empty($entry['messaging'])) {
-                $this->handleMessengerEvents($entry['messaging'], $request);
-
-                continue;
-            }
-
-            /**
-             * 2️⃣ Page Feed Events (Post / Comment / Reaction)
-             */
-            if (! empty($entry['changes'])) {
-                $this->handlePageFeedEvents($entry['changes'], $pageService);
-
-                continue;
-            }
-
-            Log::warning('⚠️ Unknown Facebook entry format', ['entry' => $entry]);
-        }
-
-        return response('EVENT_RECEIVED', 200);
-    }
-
-    private function handleMessengerEvents(array $messagingEvents, Request $request): void
-    {
-        Log::info('📩 Messenger Webhook Events', ['count' => count($messagingEvents)]);
-
-        $platform = Platform::whereRaw('LOWER(name) = ?', ['facebook_messenger'])->first();
-        $platformId = $platform->id ?? null;
-        $platformName = strtolower($platform->name ?? 'facebook_messenger');
-
-        foreach ($messagingEvents as $event) {
-
-            $senderId = $event['sender']['id'] ?? null;
-            $pageId = $event['recipient']['id'] ?? null;
-
-            // Skip page → user echoes
-            if (! $senderId || $senderId === $pageId) {
-                continue;
-            }
-
-            Log::info('💬 Messenger Event', ['event' => $event]);
-
-            // 🔁 CALL YOUR EXISTING CODE HERE
-            // You can literally paste your existing logic
-            // or extract it further into a MessengerService
-            $this->processMessengerMessage($event, $platformId, $platformName);
-        }
-    }
-
-    private function handlePageFeedEvents(array $changes, FacebookPageService $pageService): void
-    {
-        foreach ($changes as $change) {
-
-            $field = $change['field'] ?? null;
-            $value = $change['value'] ?? [];
-
-            Log::info('📰 Page Feed Event', [
-                'field' => $field,
-                'item' => $value['item'] ?? null,
-                'verb' => $value['verb'] ?? null,
-            ]);
-
-            if ($field === 'feed') {
-                $pageService->handleFeedChange($value);
-
-                continue;
-            }
-
-            if ($field === 'comments') {
-                $pageService->handleCommentChange($value);
-
-                continue;
-            }
-
-            Log::warning('⚠️ Unhandled page field', ['field' => $field]);
-        }
-    }
-
-    public function postMessage(Request $request)
-    {
-        // dd('Request received', $request->all());
-        $request->validate(['message' => 'required|string']);
-        $response = $this->facebookService->postToPage($request->message);
-
-        Log::info('📣 New Post Created: ' . json_encode($response));
-
-        return response()->json($response);
-    }
-
-    /**
-     * Post a message with an image to the Facebook Page.
-     */
-    public function postWithImage(Request $request)
-    {
-        // ✅ Validate the input
-        $validated = $request->validate([
-            'message' => 'required|string',
-            'image_url' => 'required|url', // must be a valid public URL
-        ]);
-
-        try {
-            // ✅ Call the Facebook service
-            $response = $this->facebookService->postWithImage(
-                $validated['message'],
-                $validated['image_url']
-            );
-
-            // ✅ Handle success
-            return response()->json([
-                'success' => true,
-                'data' => $response,
-            ]);
-        } catch (\Exception $e) {
-            // ❌ Log and return error
-            Log::error('❌ Error posting image to Facebook: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Post a comment on a Facebook post
-     */
-    public function postComment(Request $request)
-    {
-
-        $validated = $request->validate([
-            'post_id' => 'required|string',
-            'message' => 'required|string',
-        ]);
-
-        try {
-            $response = $this->facebookService->postComment(
-                $validated['message'],
-                $validated['post_id']
-            );
-
-            Log::info('📣 New Comment Posted: ' . json_encode($response));
-
-            return response()->json([
-                'success' => true,
-                'data' => $response,
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('❌ Error posting comment: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Post a reply to an existing Facebook comment (nested comment)
-     */
-    public function replyComment(Request $request)
-    {
-        $validated = $request->validate([
-            'comment_id' => 'required|string',  // this time we really mean comment_id
-            'message' => 'required|string',
-        ]);
-
-        try {
-            $response = $this->facebookService->replyToComment(
-                $validated['message'],
-                $validated['comment_id']
-            );
-            Log::info('↩️ Reply Posted: ' . json_encode($response));
-
-            return response()->json([
-                'success' => true,
-                'data' => $response,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('❌ Error replying to comment: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
     /**
      * Send payload to dispatcher API
      */

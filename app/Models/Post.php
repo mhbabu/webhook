@@ -8,20 +8,19 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Post extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
-        'facebook_id',
+        'platform_post_id',
+        'source',
         'content',
-        'source_id',
         'privacy',
         'posted_by',
         'edited_by',
         'deleted_by',
         'posted_at',
-        'updated_at',
-        'deleted_at',
         'scheduled_at',
+        'deleted_at',
         'comments_count',
         'shares_count',
         'reactions',
@@ -35,38 +34,43 @@ class Post extends Model
         'language',
         'is_pinned',
         'is_sponsored',
+        'attachment'
     ];
 
     protected $casts = [
-        'reactions'    => 'array',
+        'privacy'      => 'array',
+        'location'     => 'array',
         'tags'         => 'array',
+        'reactions'    => 'array',
         'hashtags'     => 'array',
+        'attachment'   => 'array',
         'posted_at'    => 'datetime',
-        'updated_at'   => 'datetime',
-        'deleted_at'   => 'datetime',
         'scheduled_at' => 'datetime',
-        'is_pinned'    => 'boolean',
-        'is_sponsored' => 'boolean'
+        'deleted_at'   => 'datetime',
     ];
 
-    // Relationships
-    public function attachments()
+    public function comments()
     {
-        return $this->hasMany(PostAttachment::class);
+        return $this->hasMany(PostComment::class);
+    }
+
+    public function reactionsList()
+    {
+        return $this->hasMany(PostReaction::class);
     }
 
     public function postedBy()
     {
-        return $this->belongsTo(Customer::class, 'posted_by');
+        return $this->belongsTo(User::class, 'posted_by');
     }
 
     public function editedBy()
     {
-        return $this->belongsTo(Customer::class, 'edited_by');
+        return $this->belongsTo(User::class, 'edited_by');
     }
-
+    
     public function deletedBy()
     {
-        return $this->belongsTo(Customer::class, 'deleted_by');
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 }

@@ -44,6 +44,7 @@ return [
     'facebook' => [
         'verify_token' => env('FACEBOOK_VERIFY_TOKEN'),
         'token' => env('FB_PAGE_ACCESS_TOKEN'),
+        'page_id' => env('FB_PAGE_ID'),
         'url' => 'https://graph.facebook.com/v18.0',
     ],
     'instagram' => [

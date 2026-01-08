@@ -104,7 +104,7 @@ class Conversation extends Model
 
     public function post()
     {
-        return $this->hasOne(Post::class, 'post_id');
+        return $this->hasOne(Post::class, 'id');
     }
 
     public function comment()
