@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\SocialPage;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SocialPage\Facebook\PostCommentReplyRequest;
 use App\Http\Resources\SocialPage\ConversationPageDetailResource;
 use App\Http\Resources\SocialPage\ConversationPageResource;
 use App\Models\Post;
@@ -52,5 +53,34 @@ class FacebookPageController extends Controller
             return jsonResponse('Conversation not found', false);
         }
         return jsonResponse('Social page conversations retrieved successfully', true, new ConversationPageDetailResource($conversation));
+    }
+
+    public function replyAComment(PostCommentReplyRequest $request, $conversationId)
+    {
+        $conversation = Conversation::find($conversationId);
+
+        if (!$conversation) {
+            return jsonResponse('Conversation not found', false);
+        }
+
+        if ($conversation->type === 'comment') {
+            return jsonResponse('Conversation is not a comment type', false);
+        }
+
+        try {
+            $reply = $this->facebookPageService->replyToComment($conversation->comment->platform_comment_id, $request->input('content'));
+
+            $postCommentReply = new PostCommentReply();
+            $postCommentReply->post_comment_id = $conversation->comment->id;
+            $postCommentReply->platform_reply_id = $reply['data']['id'] ?? null; // <-- fixed here
+            $postCommentReply->content = $request->input('content');
+            $postCommentReply->user_id = auth()->id();
+            $postCommentReply->save();
+
+            return jsonResponse('Reply sent successfully', true);
+        } catch (\Exception $e) {
+            Log::error('Error replying to comment: ' . $e->getMessage());
+            return jsonResponse('Failed to send reply', false);
+        }
     }
 }

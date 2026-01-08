@@ -22,7 +22,7 @@ class PostCommentReplyRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'message' => ['required', 'string', 'max:2000'], // only message is required
+            'content' => ['required', 'string', 'max:2000'], // only content is required
         ];
     }
 
@@ -32,9 +32,9 @@ class PostCommentReplyRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'message.required' => 'The message field is required.',
-            'message.string'   => 'The message must be a valid string.',
-            'message.max'      => 'The message must not exceed 2000 characters.',
+            'content.required' => 'The content field is required.',
+            'content.string'   => 'The content must be a valid string.',
+            'content.max'      => 'The content must not exceed 2000 characters.',
         ];
     }
 
