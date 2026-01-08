@@ -42,9 +42,13 @@ return [
     ],
 
     'facebook' => [
-        'verify_token' => env('FACEBOOK_VERIFY_TOKEN'),
-        'token' => env('FB_PAGE_ACCESS_TOKEN'),
+        'verify_token' => env('FB_VERIFY_TOKEN'), // For webhook verification
+        'token' => env('FB_PAGE_ACCESS_TOKEN'), // For Shahidul only need to change later
         'url' => 'https://graph.facebook.com/v18.0',
+    ],
+    'facebookPage' => [
+        'verify_token' => env('FACEBOOK_VERIFY_TOKEN'), // For webhook verification
+        'token' => env('FACEBOOK_PAGE_TOKEN'), // For Shahidul only need to change later
     ],
     'instagram' => [
         'ig_business_id' => env('INSTAGRAM_BUSINESS_ID'),

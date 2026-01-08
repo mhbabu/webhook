@@ -18,10 +18,10 @@ use App\Models\MessageAttachment;
 use App\Models\Post;
 use App\Models\User;
 use App\Services\Platforms\EmailService;
+use App\Services\Platforms\FacebookPageService;
 use App\Services\Platforms\FacebookService;
 use App\Services\Platforms\InstagramService;
 use App\Services\Platforms\WhatsAppService;
-use Dom\Comment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -35,7 +35,6 @@ class MessageController extends Controller
     {
         $agentId = auth()->id(); // authenticated agent
         $data = $request->all();
-
 
         $pagination = ! isset($data['pagination']) || $data['pagination'] === 'true';
         $page = $data['page'] ?? 1;
@@ -104,13 +103,12 @@ class MessageController extends Controller
         $data = $request->all();
         Log::info('[IncomingMsg2] Data', $data);
 
-        $agentId          = $data['agentId'] ?? null;
-        $availableScope   = $data['availableScope'] ?? null;
-        $source           = strtolower($data['source'] ?? '');
-        $conversationId   = $data['messageData']['conversationId'] ?? null;
-        $messageId        = $data['messageData']['messageId'] ?? null;
+        $agentId = $data['agentId'] ?? null;
+        $availableScope = $data['availableScope'] ?? null;
+        $source = strtolower($data['source'] ?? '');
+        $conversationId = $data['messageData']['conversationId'] ?? null;
+        $messageId = $data['messageData']['messageId'] ?? null;
         $conversationType = $data['messageData']['conversationType'] ?? null;
-
 
         /*
     |--------------------------------------------------------------------------
@@ -120,18 +118,18 @@ class MessageController extends Controller
         if (in_array($source, ['facebook', 'instagram'])) {
 
             // get mock conversation
-            $payload                = getRandomSocialPageConversation();
+            $payload = getRandomSocialPageConversation();
             $payload['socket_type'] = 'page'; // ADD socket_type HERE (this goes to frontend)
 
             $channelData = [
-                'platform'     => $source,
-                'agentId'      => $data['agentId'] ?? 2,
+                'platform' => $source,
+                'agentId' => $data['agentId'] ?? 2,
             ];
 
             broadcast(new SocketIncomingMessage($payload, $channelData));
+
             return jsonResponse('Facebook/Instagram event broadcasted.', true);
         }
-
 
         // Basic validation
         if (! $conversationId || ! $agentId || ! $messageId) {
@@ -146,21 +144,20 @@ class MessageController extends Controller
             $user->save();
 
             // Load Conversation & Message
-            $conversation      = Conversation::findOrFail($conversationId);
-            $message           = Message::findOrFail((int) $messageId);
+            $conversation = Conversation::findOrFail($conversationId);
+            $message = Message::findOrFail((int) $messageId);
             $isFirstAssignment = false;
 
-
-            //Assign Agent Only First Time
+            // Assign Agent Only First Time
             if ($conversationType === 'new' && empty($conversation->agent_id)) {
 
                 $conversation->agent_id = $user->id;
 
-                if (!$conversation->first_message_at) {
+                if (! $conversation->first_message_at) {
                     $conversation->first_message_at = now();
                 }
 
-                if (!$conversation->agent_assigned_at) {
+                if (! $conversation->agent_assigned_at) {
                     $conversation->agent_assigned_at = now();
                 }
 
@@ -171,14 +168,14 @@ class MessageController extends Controller
 
             // Assign Message Receiver
             if ($conversationType === 'new' || empty($message->receiver_id)) {
-                $message->receiver_id   = $conversation->agent_id ?? $user->id;
+                $message->receiver_id = $conversation->agent_id ?? $user->id;
                 $message->receiver_type = User::class;
             }
 
             $message->delivered_at = now();
             $message->save();
 
-            //Update Conversation Timestamps
+            // Update Conversation Timestamps
             $conversation->last_message_at = now();
             $conversation->last_message_id = $message->id;
             $conversation->save();
@@ -194,13 +191,13 @@ class MessageController extends Controller
                 // broadcasting payload
                 $payload = [
                     'conversation' => new ConversationInfoResource($conversation, $message),
-                    'message'      => new MessageResource($message),
-                    'socket_type'  => 'normal'
+                    'message' => new MessageResource($message),
+                    'socket_type' => 'normal',
                 ];
 
                 $channelData = [
                     'platform' => $source,
-                    'agentId'  => $user->id,
+                    'agentId' => $user->id,
                 ];
 
                 broadcast(new SocketIncomingMessage($payload, $channelData));
@@ -215,11 +212,11 @@ class MessageController extends Controller
         $data = $request->all();
         Log::info('[IncomingMsg] Data', $data);
 
-        $agentId          = $data['agentId'] ?? null;
-        $availableScope   = $data['availableScope'] ?? null;
-        $source           = strtolower($data['source'] ?? '');
-        $conversationId   = $data['messageData']['conversationId'] ?? null;
-        $messageId        = $data['messageData']['messageId'] ?? null;
+        $agentId = $data['agentId'] ?? null;
+        $availableScope = $data['availableScope'] ?? null;
+        $source = strtolower($data['source'] ?? '');
+        $conversationId = $data['messageData']['conversationId'] ?? null;
+        $messageId = $data['messageData']['messageId'] ?? null;
         $conversationType = $data['messageData']['conversationType'] ?? null;
 
         // ----------------------------
@@ -234,17 +231,17 @@ class MessageController extends Controller
         // ----------------------------
         if (in_array($source, ['facebook', 'instagram'])) {
 
-            DB::transaction(function () use ($agentId, $availableScope, $conversationId, $messageId, $conversationType,  $source) {
+            DB::transaction(function () use ($agentId, $availableScope, $conversationId, $conversationType, $source) {
 
                 // Update Agent Availability
-                $user                = User::findOrFail($agentId);
+                $user = User::findOrFail($agentId);
                 $user->current_limit = $availableScope;
                 $user->save();
 
                 // Load Conversation & Message
-                $comment         = \App\Models\Comment::where('conversation_id', $conversationId)->first();
-                $post            = Post::findOrFail($comment->post_id);
-                $conversation    = Conversation::findOrFail($conversationId);
+                $comment = \App\Models\Comment::where('conversation_id', $conversationId)->first();
+                $post = Post::findOrFail($comment->post_id);
+                $conversation = Conversation::findOrFail($conversationId);
 
                 // Assign Agent Only First Time
                 if ($conversationType === 'new' && empty($conversation->agent_id)) {
@@ -260,7 +257,7 @@ class MessageController extends Controller
                     // Broadcasting payload (Page Conversation)
                     $payload = [
                         'conversation' => new ConversationThreadResource($conversation),
-                        'socket_type'  => 'page',
+                        'socket_type' => 'page',
                     ];
 
                     $channelData = ['platform' => $source, 'agentId' => $user->id];
@@ -290,7 +287,7 @@ class MessageController extends Controller
 
             // Load Conversation & Message
             $conversation = Conversation::findOrFail($conversationId);
-            $message      = Message::findOrFail((int) $messageId);
+            $message = Message::findOrFail((int) $messageId);
 
             $isFirstAssignment = false;
 
@@ -307,7 +304,7 @@ class MessageController extends Controller
 
             // Assign Message Receiver
             if ($conversationType === 'new' || empty($message->receiver_id)) {
-                $message->receiver_id   = $conversation->agent_id ?? $user->id;
+                $message->receiver_id = $conversation->agent_id ?? $user->id;
                 $message->receiver_type = User::class;
             }
 
@@ -341,20 +338,19 @@ class MessageController extends Controller
                 // Broadcasting payload
                 $payload = [
                     'conversation' => new ConversationInfoResource($conversation, $message),
-                    'message'      => new MessageResource($message),
-                    'socket_type'  => 'normal',
+                    'message' => new MessageResource($message),
+                    'socket_type' => 'normal',
                 ];
 
                 broadcast(new SocketIncomingMessage($payload, [
                     'platform' => $source,
-                    'agentId'  => $user->id,
+                    'agentId' => $user->id,
                 ]));
             });
         });
 
         return jsonResponse('Message received successfully.', true);
     }
-
 
     /**
      * End a conversation
@@ -384,16 +380,16 @@ class MessageController extends Controller
         }
 
         // ✅ End the conversation
-        $conversation->end_at     = now();
+        $conversation->end_at = now();
         $conversation->wrap_up_id = $data['wrap_up_id'];
-        $conversation->ended_by   = $user->id;
+        $conversation->ended_by = $user->id;
         $conversation->save();
 
         // ✅ Update agent current_limit based on platform weight
         // if ($conversation->platform === 'whatsapp') {
-            $weight = getPlatformWeight($conversation->platform);
-            $user->increment('current_limit', $weight);
-            // event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
+        $weight = getPlatformWeight($conversation->platform);
+        $user->increment('current_limit', $weight);
+        // event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
         // }
 
         // ✅ Update Redis: hash + omnitrix list + conditional CONTACT_TYPE removal
@@ -402,6 +398,7 @@ class MessageController extends Controller
             event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
         }
         $this->updateUserInRedis($user, $conversation);
+
         return jsonResponse('Conversation ended successfully.', true);
     }
 
@@ -434,12 +431,12 @@ class MessageController extends Controller
 
         // Remove platform only if no active conversations exist
         if ($endedPlatform && $activeConversations === 1 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
         }
 
         // Remove platform only if no active conversations exist
         if ($endedPlatform && $activeConversations === 0 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
         }
 
         // Prepare agent hash data
@@ -450,7 +447,7 @@ class MessageController extends Controller
             'MAX_SCOPE' => $user->max_limit,
             'AVAILABLE_SCOPE' => $user->current_limit,
             'CONTACT_TYPE' => json_encode($contactTypes),
-            'SKILL' => json_encode($user->platforms()->pluck('name')->map(fn($n) => strtolower($n))->toArray()),
+            'SKILL' => json_encode($user->platforms()->pluck('name')->map(fn ($n) => strtolower($n))->toArray()),
             'BUSYSINCE' => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
         ];
 
@@ -564,7 +561,7 @@ class MessageController extends Controller
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $file) {
                 $storedPath = $file->store('messenger_temp', 'public');
-                $fullPath = 'messenger_temp/' . basename($storedPath);
+                $fullPath = 'messenger_temp/'.basename($storedPath);
                 $mime = $file->getMimeType();
 
                 // Send via Facebook API
@@ -659,6 +656,8 @@ class MessageController extends Controller
             return $this->sendInstagramMessageFromAgent($data, $attachments, $conversation, $customer);
         } elseif ($platformName === 'email') {
             return $this->sendEmailMessageFromAgent($data, $attachments, $conversation, $customer);
+        } elseif ($platformName === 'facebook') {
+            return $this->sendFacebookMessageFromAgent($data, $attachments, $conversation, $customer);
         }
 
         return jsonResponse('Unsupported platform', false, [], 422);
@@ -686,7 +685,7 @@ class MessageController extends Controller
                 'customer_id' => $customerId,
                 'agent_id' => $agentId,
                 'platform' => $platformName,
-                'trace_id' => strtoupper(substr($platformName, 0, 2)) . '-' . now()->format('YmdHis') . '-' . uniqid(),
+                'trace_id' => strtoupper(substr($platformName, 0, 2)).'-'.now()->format('YmdHis').'-'.uniqid(),
             ]);
         }
 
@@ -700,14 +699,14 @@ class MessageController extends Controller
         // Step 1: Save the text message in DB
         $message = Message::create([
             'conversation_id' => $conversation->id,
-            'sender_id'       => auth()->id(),
-            'sender_type'     => User::class,
-            'receiver_type'   => Customer::class,
-            'receiver_id'     => $customer->id,
-            'type'            => 'text',
-            'content'         => $data['content'] ?? '',
-            'delivered_at'    => now(),
-            'direction'       => 'outgoing',
+            'sender_id' => auth()->id(),
+            'sender_type' => User::class,
+            'receiver_type' => Customer::class,
+            'receiver_id' => $customer->id,
+            'type' => 'text',
+            'content' => $data['content'] ?? '',
+            'delivered_at' => now(),
+            'direction' => 'outgoing',
         ]);
 
         $whatsAppService = new WhatsAppService;
@@ -771,23 +770,23 @@ class MessageController extends Controller
 
     protected function sendWhatsAppMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
     {
-        $phone           = $customer->phone;
+        $phone = $customer->phone;
         $whatsAppService = new WhatsAppService;
         $mediaResponses = [];
 
         // Step 1: Save the text message in DB (if any content exists)
         $message = null;
-        if (!empty($data['content'])) {
+        if (! empty($data['content'])) {
             $message = Message::create([
                 'conversation_id' => $conversation->id,
-                'sender_id'       => auth()->id(),
-                'sender_type'     => User::class,
-                'receiver_type'   => Customer::class,
-                'receiver_id'     => $customer->id,
-                'type'            => 'text',
-                'content'         => $data['content'],
-                'delivered_at'    => now(),
-                'direction'       => 'outgoing',
+                'sender_id' => auth()->id(),
+                'sender_type' => User::class,
+                'receiver_type' => Customer::class,
+                'receiver_id' => $customer->id,
+                'type' => 'text',
+                'content' => $data['content'],
+                'delivered_at' => now(),
+                'direction' => 'outgoing',
             ]);
 
             // Send text via WhatsApp
@@ -827,14 +826,14 @@ class MessageController extends Controller
                 // If no text, create a message for the attachment
                 $attachmentMessage = Message::create([
                     'conversation_id' => $conversation->id,
-                    'sender_id'       => auth()->id(),
-                    'sender_type'     => User::class,
-                    'receiver_type'   => Customer::class,
-                    'receiver_id'     => $customer->id,
-                    'type'            => $type,
-                    'content'         => null,
-                    'delivered_at'    => now(),
-                    'direction'       => 'outgoing',
+                    'sender_id' => auth()->id(),
+                    'sender_type' => User::class,
+                    'receiver_type' => Customer::class,
+                    'receiver_id' => $customer->id,
+                    'type' => $type,
+                    'content' => null,
+                    'delivered_at' => now(),
+                    'direction' => 'outgoing',
                 ]);
             }
 
@@ -865,9 +864,9 @@ class MessageController extends Controller
 
         // Step 3: Return structured response
         return jsonResponse('WhatsApp message(s) sent successfully.', true, [
-            'text_message'    => $message ? new MessageResource($message) : null,
+            'text_message' => $message ? new MessageResource($message) : null,
             'media_responses' => $mediaResponses,
-            'text_response'   => $textResponse ?? null,
+            'text_response' => $textResponse ?? null,
         ]);
     }
 
@@ -891,7 +890,7 @@ class MessageController extends Controller
             'platform' => 'messenger',
         ]);
 
-        if(empty($conversation->first_response_at)) {
+        if (empty($conversation->first_response_at)) {
             $conversation->first_response_at = now();
             $conversation->save();
         }
@@ -1052,7 +1051,7 @@ class MessageController extends Controller
             'receiver_type' => Customer::class,
             'receiver_id' => $customer->id,
             'type' => 'text',
-            'delivered_at'    => now(),
+            'delivered_at' => now(),
             'content' => $data['content'] ?? '',
             'cc_email' => $data['cc_email'] ?? '',
             'subject' => $data['subject'] ?? '',
@@ -1062,7 +1061,6 @@ class MessageController extends Controller
 
         // $conversation->update(['last_message_id' => $message->id]);
         $conversation->update(['end_at' => now(), 'first_response_at' => $conversation->first_response_at ?? now()]); // Auto-end email conversations
-        
 
         /**
          * --------------------------------------------------
@@ -1074,7 +1072,7 @@ class MessageController extends Controller
          */
         $savedPaths = [];
         $attachmentRows = [];
-        $storagePath = 'mail_attachments/' . now()->format('Ymd');
+        $storagePath = 'mail_attachments/'.now()->format('Ymd');
 
         foreach ($attachments as $file) {
 
@@ -1083,8 +1081,8 @@ class MessageController extends Controller
             }
 
             $ext = strtolower($file->getClientOriginalExtension());
-            $filename = Str::uuid() . '.' . $ext;
-            $relativePath = $storagePath . '/' . $filename;
+            $filename = Str::uuid().'.'.$ext;
+            $relativePath = $storagePath.'/'.$filename;
 
             // Save file to storage/app/public
             Storage::disk('public')->put($relativePath, file_get_contents($file));
@@ -1153,5 +1151,42 @@ class MessageController extends Controller
          * --------------------------------------------------
          */
         return jsonResponse('Email message sent successfully.', true, new MessageResource($message->load('attachments')));
+    }
+
+    protected function sendFacebookMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
+    {
+        info('Sending facebook message from agent', [
+            'data' => $data,
+            'attachmentsCount' => count($attachments),
+        ]);
+
+        $commentId = '122111719575055838_1293916235752900';
+        $replyMessage = $data['content'] ?? null;
+
+        if ($commentId && $replyMessage) {
+            Log::info('↩️ New reply to comment detected', [
+                'comment_id' => $commentId,
+                'message' => $replyMessage,
+            ]);
+
+            $FacebookPageService = new FacebookPageService;
+            // Here you can call your service to post the reply
+            try {
+                $response = $FacebookPageService->replyToComment(
+                    $commentId,
+                    $replyMessage
+                );
+
+                Log::info('↩️ Reply Posted via Webhook: '.json_encode($response));
+            } catch (\Exception $e) {
+                Log::error('❌ Error replying to comment via webhook: '.$e->getMessage());
+            }
+        } else {
+            Log::warning('⚠️ Incomplete reply data in webhook', ['change' => $change]);
+        }
+
+        // Currently not implemented
+        return response($response, 200);
+        // ?return response('EVENT_RECEIVED', 200);
     }
 }

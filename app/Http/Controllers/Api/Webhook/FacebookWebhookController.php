@@ -47,6 +47,23 @@ class FacebookWebhookController extends Controller
         return response('Forbidden', 403);
     }
 
+    public function verifyFacebookPageToken(Request $request)
+    {
+        Log::info('Incoming webhook request', $request->all());
+
+        $verify_token = env('FACEBOOK_VERIFY_TOKEN');
+
+        $mode = $request->get('hub_mode');
+        $token = $request->get('hub_verify_token');
+        $challenge = $request->get('hub_challenge');
+
+        if ($mode === 'subscribe' && $token === $verify_token) {
+            return response($challenge, 200);
+        }
+
+        return response('Forbidden', 403);
+    }
+
     public function webhook(Request $request, FacebookPageService $pageService)
     {
         $payload = $request->all();
@@ -142,7 +159,7 @@ class FacebookWebhookController extends Controller
         $request->validate(['message' => 'required|string']);
         $response = $this->facebookService->postToPage($request->message);
 
-        Log::info('📣 New Post Created: ' . json_encode($response));
+        Log::info('📣 New Post Created: '.json_encode($response));
 
         return response()->json($response);
     }
@@ -172,7 +189,7 @@ class FacebookWebhookController extends Controller
             ]);
         } catch (\Exception $e) {
             // ❌ Log and return error
-            Log::error('❌ Error posting image to Facebook: ' . $e->getMessage());
+            Log::error('❌ Error posting image to Facebook: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -198,14 +215,14 @@ class FacebookWebhookController extends Controller
                 $validated['post_id']
             );
 
-            Log::info('📣 New Comment Posted: ' . json_encode($response));
+            Log::info('📣 New Comment Posted: '.json_encode($response));
 
             return response()->json([
                 'success' => true,
                 'data' => $response,
             ], 200);
         } catch (\Exception $e) {
-            Log::error('❌ Error posting comment: ' . $e->getMessage());
+            Log::error('❌ Error posting comment: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -229,14 +246,14 @@ class FacebookWebhookController extends Controller
                 $validated['message'],
                 $validated['comment_id']
             );
-            Log::info('↩️ Reply Posted: ' . json_encode($response));
+            Log::info('↩️ Reply Posted: '.json_encode($response));
 
             return response()->json([
                 'success' => true,
                 'data' => $response,
             ]);
         } catch (\Exception $e) {
-            Log::error('❌ Error replying to comment: ' . $e->getMessage());
+            Log::error('❌ Error replying to comment: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
@@ -251,7 +268,7 @@ class FacebookWebhookController extends Controller
     private function sendToDispatcher(array $payload): void
     {
         try {
-            $response = Http::acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
+            $response = Http::acceptJson()->post(config('dispatcher.url').config('dispatcher.endpoints.handler'), $payload);
 
             if ($response->ok()) {
                 Log::info('[CUSTOMER MESSAGE FORWARDED]', $payload);
@@ -340,7 +357,7 @@ class FacebookWebhookController extends Controller
                             $response = Http::get($profilePic);
                             if ($response->ok()) {
                                 $extension = pathinfo(parse_url($profilePic, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
-                                $filename = "profile_photos/fb_{$customer->id}." . $extension;
+                                $filename = "profile_photos/fb_{$customer->id}.".$extension;
                                 Storage::disk('public')->put($filename, $response->body());
                                 $customer->update(['profile_photo' => $filename]);
                                 Log::info('📷 Profile photo downloaded', ['customer_id' => $customer->id, 'path' => $filename]);
@@ -365,8 +382,8 @@ class FacebookWebhookController extends Controller
                         $conversation = Conversation::create([
                             'customer_id' => $customer->id,
                             'platform' => $platformName,
-                            'trace_id' => 'FB-' . now()->format('YmdHis') . '-' . uniqid(),
-                            'in_queue_at'     => now(),
+                            'trace_id' => 'FB-'.now()->format('YmdHis').'-'.uniqid(),
+                            'in_queue_at' => now(),
                         ]);
                         $isNewConversation = true;
                         Log::info('🆕 New conversation created', ['conversation_id' => $conversation->id]);
@@ -396,14 +413,14 @@ class FacebookWebhookController extends Controller
                             ['platform_message_id' => $platformMessageId],
                             [
                                 'conversation_id' => $conversation->id,
-                                'sender_id'       => $customer->id,
-                                'sender_type'     => Customer::class,
-                                'type'            => ! empty($attachments) ? 'media' : 'text',
-                                'content'         => $finalText,
-                                'direction'       => 'incoming',
-                                'receiver_type'   => User::class,
-                                'receiver_id'     => $conversation->agent_id ?? null,
-                                'parent_id'       => $parentMessageId,
+                                'sender_id' => $customer->id,
+                                'sender_type' => Customer::class,
+                                'type' => ! empty($attachments) ? 'media' : 'text',
+                                'content' => $finalText,
+                                'direction' => 'incoming',
+                                'receiver_type' => User::class,
+                                'receiver_id' => $conversation->agent_id ?? null,
+                                'parent_id' => $parentMessageId,
                             ]
                         );
                         Log::info('💬 Message stored', ['message_id' => $message->id]);
@@ -418,7 +435,7 @@ class FacebookWebhookController extends Controller
 
                     // 5️⃣ Attach files to message
                     if (! empty($storedAttachments)) {
-                        $bulkInsert = array_map(fn($att) => [
+                        $bulkInsert = array_map(fn ($att) => [
                             'message_id' => $message->id,
                             'attachment_id' => $att['attachment_id'],
                             'path' => $att['path'],
@@ -458,6 +475,44 @@ class FacebookWebhookController extends Controller
                         $this->sendToDispatcher($payload);
                     });
                 });
+            }
+        }
+
+        return response('EVENT_RECEIVED', 200);
+    }
+
+    public function replyToCommentWebhook(Request $request)
+    {
+        Log::info('↩️ Facebook Comment Reply Webhook Payload:', ['data' => $request->all()]);
+        Log::info('↩️ Facebook Comment Reply Webhook Payload:', ['data' => $request->all()]);
+
+        $entries = $request->input('entry', []);
+
+        foreach ($entries as $entry) {
+            foreach ($entry['changes'] ?? [] as $change) {
+                $value = $change['value'] ?? [];
+                $commentId = $value['comment_id'] ?? null;
+                $replyMessage = $value['message'] ?? null;
+
+                if ($commentId && $replyMessage) {
+                    Log::info('↩️ New reply to comment detected', [
+                        'comment_id' => $commentId,
+                        'message' => $replyMessage,
+                    ]);
+
+                    // Here you can call your service to post the reply
+                    try {
+                        $response = $this->facebookService->replyToComment(
+                            $replyMessage,
+                            $commentId
+                        );
+                        Log::info('↩️ Reply Posted via Webhook: '.json_encode($response));
+                    } catch (\Exception $e) {
+                        Log::error('❌ Error replying to comment via webhook: '.$e->getMessage());
+                    }
+                } else {
+                    Log::warning('⚠️ Incomplete reply data in webhook', ['change' => $change]);
+                }
             }
         }
 

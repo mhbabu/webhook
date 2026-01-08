@@ -16,6 +16,16 @@ use Illuminate\Support\Facades\Storage;
 
 class FacebookPageService
 {
+    protected string $url;
+
+    protected string $token;
+
+    public function __construct()
+    {
+        $this->url = config('services.facebook.url');
+        $this->token = config('services.facebookPage.token');
+    }
+
     /**
      * Handle feed events (posts & comments)
      */
@@ -669,5 +679,37 @@ class FacebookPageService
             ->count();
 
         return "{$parent->path}.{$replyOrder}";
+    }
+
+    public function replyToComment(string $commentId, string $message)
+    {
+
+        $baseUrl = 'https://graph.facebook.com/v24.0';
+        $token = 'EAAK41gxYxZB4BP3ZAXmZCIheIOUZCLxdlN5dbKw27b83Fd3Eb0uPjTCToaNZCHZCPQQSwdYXLI4d5LetawIktlyVEsTbQc8h0t6WSgqhoZCipKjVZBYxwvlj2kv0Ugpm7Rniy7Qa81ENWzSEgXUEMipttdpvsuow2LXJzB7s9LE3JM4kZABSvgVm7Wb9x6RafHCIezfCn';
+        Log::info("Using page access token: $token");
+        $response = Http::post(
+            "{$baseUrl}/{$commentId}/comments",
+            [
+                'message' => $message,
+                'access_token' => $token,
+            ]
+        );
+
+        if ($response->failed()) {
+            Log::error('Facebook comment reply failed', [
+                'comment_id' => $commentId,
+                'response' => $response->json(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $response->json(),
+            ];
+        }
+
+        return [
+            'success' => true,
+            'data' => $response->json(),
+        ];
     }
 }

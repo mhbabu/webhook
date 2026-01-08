@@ -19,14 +19,17 @@ class Kernel extends ConsoleKernel
         Commands\SyncSocialCommand::class,
 
         // php artisan social:sync facebook
+        // php artisan email:fetch
     ];
 
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
-
-        // $schedule->command('idra:data')
-        //     ->everyMinute();
+        $schedule->command('email:fetch')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->onOneServer() // safe for multi-server
+            ->appendOutputTo(storage_path('logs/email-cron.log'));
     }
 
     /**
