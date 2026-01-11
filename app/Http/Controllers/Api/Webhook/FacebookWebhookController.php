@@ -21,12 +21,9 @@ class FacebookWebhookController extends Controller
 {
     protected $facebookService;
 
-    protected $facebookPageService;
-
-    public function __construct(FacebookService $facebookService, FacebookPageService $facebookPageService)
+    public function __construct(FacebookService $facebookService)
     {
         $this->facebookService = $facebookService;
-        $this->facebookPageService = $facebookPageService;
     }
 
     /**
@@ -35,10 +32,9 @@ class FacebookWebhookController extends Controller
     public function verifyFacebookToken(Request $request)
     {
         $verify_token = env('FB_VERIFY_TOKEN');
-
-        $mode = $request->get('hub_mode');
-        $token = $request->get('hub_verify_token');
-        $challenge = $request->get('hub_challenge');
+        $mode         = $request->get('hub_mode');
+        $token        = $request->get('hub_verify_token');
+        $challenge    = $request->get('hub_challenge');
 
         if ($mode === 'subscribe' && $token === $verify_token) {
             return response($challenge, 200);
@@ -46,6 +42,7 @@ class FacebookWebhookController extends Controller
 
         return response('Forbidden', 403);
     }
+<<<<<<< HEAD
 
     public function verifyFacebookPageToken(Request $request)
     {
@@ -262,6 +259,8 @@ class FacebookWebhookController extends Controller
         }
     }
 
+=======
+>>>>>>> 8c8e196dd61e7a2df1e5e9579e04dd6cd72b6851
     /**
      * Send payload to dispatcher API
      */

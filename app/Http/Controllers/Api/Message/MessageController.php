@@ -10,15 +10,13 @@ use App\Http\Requests\Message\SendPlatformMessageRequest;
 use App\Http\Resources\Message\ConversationInfoResource;
 use App\Http\Resources\Message\ConversationResource;
 use App\Http\Resources\Message\MessageResource;
-use App\Http\Resources\Thread\ConversationThreadResource;
+use App\Http\Resources\SocialPage\ConversationPageResource;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
 use App\Models\MessageAttachment;
-use App\Models\Post;
 use App\Models\User;
 use App\Services\Platforms\EmailService;
-use App\Services\Platforms\FacebookPageService;
 use App\Services\Platforms\FacebookService;
 use App\Services\Platforms\InstagramService;
 use App\Services\Platforms\WhatsAppService;
@@ -98,115 +96,6 @@ class MessageController extends Controller
         return jsonResponse('Conversation messages retrieved successfully', true, ['conversation' => new ConversationResource($conversation), 'messages' => MessageResource::collection($allMessages)]);
     }
 
-    public function incomingMsg1(Request $request)
-    {
-        $data = $request->all();
-        Log::info('[IncomingMsg2] Data', $data);
-
-        $agentId = $data['agentId'] ?? null;
-        $availableScope = $data['availableScope'] ?? null;
-        $source = strtolower($data['source'] ?? '');
-        $conversationId = $data['messageData']['conversationId'] ?? null;
-        $messageId = $data['messageData']['messageId'] ?? null;
-        $conversationType = $data['messageData']['conversationType'] ?? null;
-
-        /*
-    |--------------------------------------------------------------------------
-    | FACEBOOK / INSTAGRAM → RAW MOCK PAYLOAD
-    |--------------------------------------------------------------------------
-    */
-        if (in_array($source, ['facebook', 'instagram'])) {
-
-            // get mock conversation
-            $payload = getRandomSocialPageConversation();
-            $payload['socket_type'] = 'page'; // ADD socket_type HERE (this goes to frontend)
-
-            $channelData = [
-                'platform' => $source,
-                'agentId' => $data['agentId'] ?? 2,
-            ];
-
-            broadcast(new SocketIncomingMessage($payload, $channelData));
-
-            return jsonResponse('Facebook/Instagram event broadcasted.', true);
-        }
-
-        // Basic validation
-        if (! $conversationId || ! $agentId || ! $messageId) {
-            return jsonResponse('Missing required fields: conversationId, agentId or messageId.', false, null, 400);
-        }
-
-        DB::transaction(function () use ($agentId, $availableScope, $conversationId, $messageId, $conversationType, $source) {
-
-            // Update Agent Availability
-            $user = User::findOrFail($agentId);
-            $user->current_limit = $availableScope;
-            $user->save();
-
-            // Load Conversation & Message
-            $conversation = Conversation::findOrFail($conversationId);
-            $message = Message::findOrFail((int) $messageId);
-            $isFirstAssignment = false;
-
-            // Assign Agent Only First Time
-            if ($conversationType === 'new' && empty($conversation->agent_id)) {
-
-                $conversation->agent_id = $user->id;
-
-                if (! $conversation->first_message_at) {
-                    $conversation->first_message_at = now();
-                }
-
-                if (! $conversation->agent_assigned_at) {
-                    $conversation->agent_assigned_at = now();
-                }
-
-                $conversation->save();
-
-                $isFirstAssignment = true;
-            }
-
-            // Assign Message Receiver
-            if ($conversationType === 'new' || empty($message->receiver_id)) {
-                $message->receiver_id = $conversation->agent_id ?? $user->id;
-                $message->receiver_type = User::class;
-            }
-
-            $message->delivered_at = now();
-            $message->save();
-
-            // Update Conversation Timestamps
-            $conversation->last_message_at = now();
-            $conversation->last_message_id = $message->id;
-            $conversation->save();
-
-            // After Commit → Fire Event + Broadcast
-            DB::afterCommit(function () use ($isFirstAssignment, $source, $conversation, $message, $user) {
-
-                // Fire event ONLY 1 time
-                if ($isFirstAssignment && $source === 'whatsapp') {
-                    event(new SendSystemConfigureMessageEvent($conversation, $user, $message->id, 'agent_assigned'));
-                }
-
-                // broadcasting payload
-                $payload = [
-                    'conversation' => new ConversationInfoResource($conversation, $message),
-                    'message' => new MessageResource($message),
-                    'socket_type' => 'normal',
-                ];
-
-                $channelData = [
-                    'platform' => $source,
-                    'agentId' => $user->id,
-                ];
-
-                broadcast(new SocketIncomingMessage($payload, $channelData));
-            });
-        });
-
-        return jsonResponse('Message received successfully.', true, null);
-    }
-
     public function incomingMsg(Request $request)
     {
         $data = $request->all();
@@ -222,7 +111,7 @@ class MessageController extends Controller
         // ----------------------------
         // 1. Basic Validation
         // ----------------------------
-        if (! $agentId || ! $conversationId || ! $messageId) {
+        if (! $agentId && ! $conversationId && ! $messageId) {
             return jsonResponse('Missing required fields: agentId, conversationId or messageId.', false, null, 400);
         }
 
@@ -239,8 +128,6 @@ class MessageController extends Controller
                 $user->save();
 
                 // Load Conversation & Message
-                $comment = \App\Models\Comment::where('conversation_id', $conversationId)->first();
-                $post = Post::findOrFail($comment->post_id);
                 $conversation = Conversation::findOrFail($conversationId);
 
                 // Assign Agent Only First Time
@@ -256,7 +143,7 @@ class MessageController extends Controller
                 DB::afterCommit(function () use ($conversation, $user, $source) {
                     // Broadcasting payload (Page Conversation)
                     $payload = [
-                        'conversation' => new ConversationThreadResource($conversation),
+                        'conversation' => new ConversationPageResource($conversation),
                         'socket_type' => 'page',
                     ];
 
@@ -397,63 +284,9 @@ class MessageController extends Controller
         if ($conversation->platform === 'whatsapp') {
             event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
         }
-        $this->updateUserInRedis($user, $conversation);
+        updateUserInRedis($user, $conversation);
 
         return jsonResponse('Conversation ended successfully.', true);
-    }
-
-    /**
-     * Update or add user data in Redis
-     * - Updates agent hash ("agent:{id}")
-     * - Removes the ended platform from CONTACT_TYPE if no other active conversations
-     * - Pushes platform into "omnitrix_agent:{id}" list
-     *
-     * @param  \App\Models\User  $user
-     * @param  string|null  $endedPlatform
-     */
-    private function updateUserInRedis($user, $conversation)
-    {
-        $endedPlatform = $conversation->platform;
-        $hashKey = "agent:{$user->id}";
-        $removedConversation = "conversation:{$conversation->id}";
-
-        // Fetch existing CONTACT_TYPE from Redis hash
-        $contactTypesJson = Redis::hGet($hashKey, 'CONTACT_TYPE') ?? '[]';
-        $contactTypes = json_decode($contactTypesJson, true) ?: [];
-
-        // Get all active conversations for this platform
-        $activeConversations = Conversation::where('agent_id', $user->id)->where('platform', $endedPlatform)
-            ->where(function ($query) {
-                $query->whereNull('end_at')
-                    ->orWhere('end_at', '>=', now()->subHours(config('services.conversation_expire_hours')));
-            })
-            ->count();
-
-        // Remove platform only if no active conversations exist
-        if ($endedPlatform && $activeConversations === 1 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
-        }
-
-        // Remove platform only if no active conversations exist
-        if ($endedPlatform && $activeConversations === 0 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
-        }
-
-        // Prepare agent hash data
-        $agentData = [
-            'AGENT_ID' => $user->id,
-            'AGENT_TYPE' => 'NORMAL',
-            'STATUS' => $user->current_status,
-            'MAX_SCOPE' => $user->max_limit,
-            'AVAILABLE_SCOPE' => $user->current_limit,
-            'CONTACT_TYPE' => json_encode($contactTypes),
-            'SKILL' => json_encode($user->platforms()->pluck('name')->map(fn ($n) => strtolower($n))->toArray()),
-            'BUSYSINCE' => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
-        ];
-
-        // Save hash in Redis
-        Redis::hMSet($hashKey, $agentData);
-        Redis::del($removedConversation); // Remove ended conversation key
     }
 
     public function sendWhatsAppMessageFromAgent1(SendPlatformMessageRequest $request)
@@ -656,8 +489,6 @@ class MessageController extends Controller
             return $this->sendInstagramMessageFromAgent($data, $attachments, $conversation, $customer);
         } elseif ($platformName === 'email') {
             return $this->sendEmailMessageFromAgent($data, $attachments, $conversation, $customer);
-        } elseif ($platformName === 'facebook') {
-            return $this->sendFacebookMessageFromAgent($data, $attachments, $conversation, $customer);
         }
 
         return jsonResponse('Unsupported platform', false, [], 422);
@@ -1151,42 +982,5 @@ class MessageController extends Controller
          * --------------------------------------------------
          */
         return jsonResponse('Email message sent successfully.', true, new MessageResource($message->load('attachments')));
-    }
-
-    protected function sendFacebookMessageFromAgent(array $data, array $attachments, Conversation $conversation, Customer $customer)
-    {
-        info('Sending facebook message from agent', [
-            'data' => $data,
-            'attachmentsCount' => count($attachments),
-        ]);
-
-        $commentId = '122111719575055838_1293916235752900';
-        $replyMessage = $data['content'] ?? null;
-
-        if ($commentId && $replyMessage) {
-            Log::info('↩️ New reply to comment detected', [
-                'comment_id' => $commentId,
-                'message' => $replyMessage,
-            ]);
-
-            $FacebookPageService = new FacebookPageService;
-            // Here you can call your service to post the reply
-            try {
-                $response = $FacebookPageService->replyToComment(
-                    $commentId,
-                    $replyMessage
-                );
-
-                Log::info('↩️ Reply Posted via Webhook: '.json_encode($response));
-            } catch (\Exception $e) {
-                Log::error('❌ Error replying to comment via webhook: '.$e->getMessage());
-            }
-        } else {
-            Log::warning('⚠️ Incomplete reply data in webhook', ['change' => $change]);
-        }
-
-        // Currently not implemented
-        return response($response, 200);
-        // ?return response('EVENT_RECEIVED', 200);
     }
 }

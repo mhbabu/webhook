@@ -13,6 +13,9 @@ return new class extends Migration
             $table->foreignId('customer_id')->nullable()->constrained('customers')->onDelete('cascade');
             $table->foreignId('agent_id')->nullable()->constrained('users')->onDelete('set null');
             $table->bigInteger('last_message_id')->nullable()->constrained('messages')->onDelete('set null');
+            $table->bigInteger('post_id')->nullable()->constrained('posts')->onDelete('set null');
+            $table->string('type')->nullable();
+            $table->bigInteger('type_id')->nullable();
             $table->string('platform')->nullable();
             $table->string('trace_id')->nullable();
             $table->timestamp('started_at')->useCurrent();

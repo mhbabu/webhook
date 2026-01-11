@@ -3,6 +3,7 @@
 use App\Enums\PlatformTypeWiseWeightage;
 use App\Models\Conversation;
 use App\Models\MessageTemplate;
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Redis;
 
@@ -97,11 +98,8 @@ if (! function_exists('getPlatformWeight')) {
 if (! function_exists('getAgentActiveConversationsCount')) {
     function getAgentActiveConversationsCount(int $agentId): int
     {
-        $expireHours = config('services.conversation.conversation_expire_hours');
-
         return Conversation::where('agent_id', $agentId)
             ->whereNull('end_at') // must be active
-            ->where('created_at', '>=', now()->subHours($expireHours))
             ->count();
     }
 }
@@ -200,20 +198,18 @@ if (! function_exists('updateUserInRedis')) {
         // Count active conversations for this agent + platform
         $activeConversations = Conversation::where('agent_id', $user->id)
             ->where('platform', $endedPlatform)
-            ->where(function ($query) {
-                $query->whereNull('end_at')
-                    ->orWhere('end_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
-            })
+            ->whereNull('end_at') // must be active
             ->count();
 
         // Remove platform only if agent had exactly one active conversation
         if ($endedPlatform && $activeConversations === 1 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
         }
 
         // Increment agent's current_limit by platform weight
         $weight = getPlatformWeight($endedPlatform ?? null);
-        $user->increment('current_limit', $weight);
+        $user->current_limit = min($user->current_limit + $weight, $user->max_limit);
+        $user->save();
 
         // Prepare agent data for Redis
         $agentData = [
@@ -226,11 +222,13 @@ if (! function_exists('updateUserInRedis')) {
             'SKILL' => json_encode(
                 $user->platforms()
                     ->pluck('name')
-                    ->map(fn ($n) => strtolower($n))
+                    ->map(fn($n) => strtolower($n))
                     ->toArray()
             ),
             'BUSYSINCE' => now()->format('Y-m-d H:i:s') ?? '',
         ];
+
+        info('Updating agent in Redis', ['agent_id' => $user->id, 'data' => $agentData]);
 
         // Save to Redis and remove ended conversation key
         Redis::hMSet($hashKey, $agentData);
@@ -278,7 +276,7 @@ if (! function_exists('sendToDispatcher')) {
 
         try {
             $response = \Illuminate\Support\Facades\Http::acceptJson()
-                ->post(config('dispatcher.url').config('dispatcher.endpoints.handler'), $payload);
+                ->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
 
             if ($response->ok()) {
                 \Log::info('[DISPATCHER] Payload sent successfully', ['payload' => $payload]);
@@ -425,5 +423,91 @@ if (! function_exists('getRandomSocialPageConversation')) {
         }
 
         return $conversations[array_rand($conversations)];
+    }
+}
+
+if (! function_exists('updateAgentInRedis')) {
+
+    /**
+     * Sync agent data in Redis after a conversation update (end/start).
+     *
+     * Responsibilities:
+     * - Update agent availability & limits
+     * - Maintain active contact platforms
+     * - Remove ended conversation cache
+     *
+     * @param  User         $user
+     * @param  Conversation $conversation
+     * @return void
+     */
+    function updateAgentInRedis(User $user, Conversation $conversation): void
+    {
+        // Platform where the conversation ended (facebook, whatsapp, etc.)
+        $endedPlatform = $conversation->platform;
+
+        // Redis keys
+        $hashKey         = "agent:{$user->id}";
+        $conversationKey = "conversation:{$conversation->id}";
+
+        // -------------------------------------------------
+        // Fetch existing CONTACT_TYPE list from Redis
+        // -------------------------------------------------
+        // Stored as JSON array: ["facebook", "whatsapp"]
+        $contactTypesJson = Redis::hGet($hashKey, 'CONTACT_TYPE') ?? '[]';
+        $contactTypes     = json_decode($contactTypesJson, true) ?: [];
+
+        // -------------------------------------------------
+        // Count active conversations for this agent & platform
+        // -------------------------------------------------
+        // Only conversations with end_at = NULL are considered active
+        $activeConversations = Conversation::where('agent_id', $user->id)
+            ->where('platform', $endedPlatform)
+            ->whereNull('end_at')
+            ->count();
+
+        // -------------------------------------------------
+        // Remove platform from CONTACT_TYPE if no active
+        // conversations remain for that platform
+        // -------------------------------------------------
+        if (
+            $endedPlatform &&
+            $activeConversations === 0 &&
+            in_array($endedPlatform, $contactTypes, true)
+        ) {
+            $contactTypes = array_values(
+                array_filter($contactTypes, fn ($p) => $p !== $endedPlatform)
+            );
+        }
+
+        // -------------------------------------------------
+        // Prepare agent data to be stored in Redis hash
+        // -------------------------------------------------
+        $agentData = [
+            'AGENT_ID'        => $user->id,
+            'AGENT_TYPE'      => 'NORMAL',
+            'STATUS'          => $user->current_status,
+            'MAX_SCOPE'       => $user->max_limit,
+            'AVAILABLE_SCOPE' => $user->current_limit,
+            'CONTACT_TYPE'    => json_encode($contactTypes),
+
+            // Agent skills derived from supported platforms
+            'SKILL' => json_encode(
+                $user->platforms()
+                    ->pluck('name')
+                    ->map(fn ($n) => strtolower($n))
+                    ->toArray()
+            ),
+
+            // Timestamp since agent became busy (if available)
+            'BUSYSINCE' => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
+        ];
+
+        // -------------------------------------------------
+        // Update Redis data
+        // -------------------------------------------------
+        // 1. Store agent hash
+        // 2. Remove ended conversation cache key
+        Redis::hMSet($hashKey, $agentData);
+        Redis::del($conversationKey);
     }
 }

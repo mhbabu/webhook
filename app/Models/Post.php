@@ -2,39 +2,75 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Post extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
-        'platform_id', 'platform_account_id', 'platform_post_id',
-        'type', 'caption', 'posted_at', 'raw',
+        'platform_post_id',
+        'source',
+        'content',
+        'privacy',
+        'posted_by',
+        'edited_by',
+        'deleted_by',
+        'posted_at',
+        'scheduled_at',
+        'deleted_at',
+        'comments_count',
+        'shares_count',
+        'reactions',
+        'tags',
+        'hashtags',
+        'permalink_url',
+        'location',
+        'feeling',
+        'activity',
+        'post_type',
+        'language',
+        'is_pinned',
+        'is_sponsored',
+        'attachment'
     ];
 
-    protected $casts = ['raw' => 'array', 'posted_at' => 'datetime'];
-
-    public function platform()
-    {
-        return $this->belongsTo(Platform::class);
-    }
-
-    public function account()
-    {
-        return $this->belongsTo(PlatformAccount::class, 'platform_account_id');
-    }
-
-    public function media()
-    {
-        return $this->hasMany(PostMedia::class);
-    }
+    protected $casts = [
+        'privacy'      => 'array',
+        'location'     => 'array',
+        'tags'         => 'array',
+        'reactions'    => 'array',
+        'hashtags'     => 'array',
+        'attachment'   => 'array',
+        'posted_at'    => 'datetime',
+        'scheduled_at' => 'datetime',
+        'deleted_at'   => 'datetime',
+    ];
 
     public function comments()
     {
-        return $this->hasMany(Comment::class);
+        return $this->hasMany(PostComment::class);
     }
 
-    public function reactions()
+    public function reactionsList()
     {
-        return $this->hasMany(Reaction::class);
+        return $this->hasMany(PostReaction::class);
+    }
+
+    public function postedBy()
+    {
+        return $this->belongsTo(User::class, 'posted_by');
+    }
+
+    public function editedBy()
+    {
+        return $this->belongsTo(User::class, 'edited_by');
+    }
+    
+    public function deletedBy()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 }

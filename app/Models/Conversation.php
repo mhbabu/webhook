@@ -24,7 +24,10 @@ class Conversation extends Model
         'agent_assigned_at',
         'last_message_id',
         'is_feedback_sent',
-        'first_response_at'
+        'first_response_at',
+        'post_id',
+        'type',
+        'type_id'
     ];
 
     protected $casts = [
@@ -99,16 +102,20 @@ class Conversation extends Model
         return $this->belongsTo(ConversationRating::class, 'conversation_id');
     }
 
-    public function comment()
+    public function post()
     {
-        // return $this->belongsTo(Comment::class, 'conversation_id');
-        return $this->hasOne(Comment::class, 'conversation_id');
-
+        return $this->hasOne(Post::class, 'id', 'post_id');
     }
 
-    public function commentTree()
+    // Conversation.php
+
+    public function comment()
     {
-        return $this->hasMany(Comment::class, 'conversation_id');
-        // return $this->hasOne(Comment::class, 'conversation_id');
+        return $this->belongsTo(PostComment::class, 'type_id', 'id');
+    }
+
+    public function reply()
+    {
+        return $this->belongsTo(PostCommentReply::class, 'type_id', 'id');
     }
 }

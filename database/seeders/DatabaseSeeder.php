@@ -15,7 +15,6 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleTableSeeder::class,
             PlatformTableSeeder::class,
-            PlatformAccountSeeder::class,
             UserTableSeeder::class,
             QuickReplyTableSeeder::class,
             WrapUpConversationTableSeeder::class,

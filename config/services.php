@@ -42,8 +42,14 @@ return [
     ],
 
     'facebook' => [
+<<<<<<< HEAD
         'verify_token' => env('FB_VERIFY_TOKEN'), // For webhook verification
         'token' => env('FB_PAGE_ACCESS_TOKEN'), // For Shahidul only need to change later
+=======
+        'verify_token' => env('FACEBOOK_VERIFY_TOKEN'),
+        'token' => env('FB_PAGE_ACCESS_TOKEN'),
+        'page_id' => env('FB_PAGE_ID'),
+>>>>>>> 8c8e196dd61e7a2df1e5e9579e04dd6cd72b6851
         'url' => 'https://graph.facebook.com/v18.0',
     ],
     'facebookPage' => [
