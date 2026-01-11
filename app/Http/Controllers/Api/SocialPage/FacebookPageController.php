@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SocialPage\Facebook\PostCommentReplyRequest;
 use App\Http\Resources\SocialPage\ConversationPageDetailResource;
 use App\Http\Resources\SocialPage\ConversationPageResource;
+use App\Http\Resources\SocialPage\PostCommentReplyResource;
 use App\Models\Post;
 use App\Models\PostComment;
 use App\Models\PostCommentReply;
@@ -85,7 +86,7 @@ class FacebookPageController extends Controller
 
             updateUserInRedis($conversation->agent, $conversation);
 
-            return jsonResponse('Reply sent successfully', true, new ConversationPageDetailResource($conversation));
+            return jsonResponse('Reply sent successfully', true, new PostCommentReplyResource($postCommentReply));
         } catch (\Exception $e) {
             Log::error('Error replying to comment: ' . $e->getMessage());
             return jsonResponse('Failed to send reply', false);
