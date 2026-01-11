@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->id();
 
             // Platform info
-            $table->string('platform_post_id'); // e.g., Facebook, Instagram post ID
+            $table->string('platform_post_id')->nullable(); // e.g., Facebook, Instagram post ID
             $table->string('source')->nullable(); // platform name
             $table->longText('content')->nullable();
             // Privacy
@@ -49,7 +49,7 @@ return new class extends Migration {
 
             $table->timestamps();
 
-            $table->unique(['platform_post_id','source']);
+            // $table->unique(['platform_post_id','source']);
             $table->index('posted_at');
             $table->index('scheduled_at');
         });
