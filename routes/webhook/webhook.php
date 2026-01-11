@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Webhook\EmailWebhookController;
 use App\Http\Controllers\Api\Webhook\FacebookWebhookController;
 use App\Http\Controllers\Api\Webhook\InstagramWebhookController;
 use App\Http\Controllers\Api\Webhook\PlatformWebhookController;
@@ -18,7 +19,8 @@ Route::post('webhook/instagram', [InstagramWebhookController::class, 'receiveIns
 
 Route::post('webhook/website', [PlatformWebhookController::class, 'receiveWebsitePageData'])->middleware('customer.token'); // receive website message data
 
-Route::post('webhook/receive-email', [PlatformWebhookController::class, 'receiveEmailData']);
+// Route::post('webhook/receive-email', [PlatformWebhookController::class, 'receiveEmailData']);
+Route::post('webhook/receive-email', [EmailWebhookController::class, 'receiveEmailData']);
 // Route::get('attachments/{attachment}/download', [PlatformWebhookController::class, 'download'])->name('attachments.download');
 
 require __DIR__.'/platform.php';
