@@ -197,17 +197,18 @@ if (! function_exists('updateUserInRedis')) {
         // Count active conversations for this agent + platform
         $activeConversations = Conversation::where('agent_id', $user->id)
             ->where('platform', $endedPlatform)
-             ->whereNull('end_at') // must be active
+            ->whereNull('end_at') // must be active
             ->count();
 
         // Remove platform only if agent had exactly one active conversation
         if ($endedPlatform && $activeConversations === 1 && in_array($endedPlatform, $contactTypes)) {
-            $contactTypes = array_values(array_filter($contactTypes, fn ($p) => $p !== $endedPlatform));
+            $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
         }
 
         // Increment agent's current_limit by platform weight
         $weight = getPlatformWeight($endedPlatform ?? null);
-        $user->increment('current_limit', $weight);
+        $user->current_limit = min($user->current_limit + $weight, $user->max_limit);
+        $user->save();
 
         // Prepare agent data for Redis
         $agentData = [
@@ -220,11 +221,13 @@ if (! function_exists('updateUserInRedis')) {
             'SKILL' => json_encode(
                 $user->platforms()
                     ->pluck('name')
-                    ->map(fn ($n) => strtolower($n))
+                    ->map(fn($n) => strtolower($n))
                     ->toArray()
             ),
             'BUSYSINCE' => now()->format('Y-m-d H:i:s') ?? '',
         ];
+
+        info('Updating agent in Redis', ['agent_id' => $user->id, 'data' => $agentData]);
 
         // Save to Redis and remove ended conversation key
         Redis::hMSet($hashKey, $agentData);
@@ -272,7 +275,7 @@ if (! function_exists('sendToDispatcher')) {
 
         try {
             $response = \Illuminate\Support\Facades\Http::acceptJson()
-                ->post(config('dispatcher.url').config('dispatcher.endpoints.handler'), $payload);
+                ->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
 
             if ($response->ok()) {
                 \Log::info('[DISPATCHER] Payload sent successfully', ['payload' => $payload]);
