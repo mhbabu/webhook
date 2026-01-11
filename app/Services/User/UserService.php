@@ -347,22 +347,61 @@ class UserService
      */
     public function deleteUser($userId): array
     {
+        // 1️⃣ Find user or return error
         $user = User::find($userId);
-        if (!$user) {
-            return ['message' => 'User not found', 'status' => false];
+        if (! $user) {
+            return [
+                'message' => 'User not found',
+                'status'  => false,
+            ];
         }
 
+        // 2️⃣ Prevent self-deletion
         if ($user->id === auth()->id()) {
-            return ['message' => 'You cannot delete your own account', 'status' => false];
+            return [
+                'message' => 'You cannot delete your own account',
+                'status'  => false,
+            ];
         }
 
-        if ($user->id != 3) {
-            return ['message' => 'Only super admin can take this action', 'status' => false];
+        // 3️⃣ Check authenticated user role
+        $authRole = strtolower(trim(auth()->user()?->role?->name ?? ''));
+
+        if (! in_array($authRole, ['super admin', 'supervisor'], true)) {
+            return ['message' => 'Only Super Admin or Supervisor can take this action', 'status'  => false,];
         }
 
-        $user->delete();
-        return ['message' => 'User deleted successfully', 'status' => true];
+        // 4️⃣ Delete user and related pivot records in transaction
+        DB::beginTransaction();
+
+        try {
+            // Detach platforms (pivot table)
+            if ($user->platforms()->exists()) {
+                $user->platforms()->detach();
+            }
+
+            // Delete profile picture collection if exists
+            if ($user->hasMedia('profile_pictures')) {
+                $user->clearMediaCollection('profile_pictures');
+            }
+
+            // Track who deleted
+            $user->deleted_by = auth()->id();
+            $user->save();
+
+            // Delete the user
+            $user->delete();
+
+            DB::commit();
+
+            return ['message' => 'User deleted successfully', 'status' => true];
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return ['message' => 'Failed to delete user: ' . $e->getMessage(), 'status'  => false];
+        }
     }
+
 
     /**
      * Log out the user.
