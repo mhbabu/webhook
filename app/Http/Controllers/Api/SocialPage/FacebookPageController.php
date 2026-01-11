@@ -77,6 +77,14 @@ class FacebookPageController extends Controller
             $postCommentReply->user_id = auth()->id();
             $postCommentReply->save();
 
+            // ✅ End the conversation
+            $conversation->end_at     = now();
+            $conversation->wrap_up_id = 30; //'Agent replied and the conversation was ended', from WrapUpConversationFactory
+            $conversation->ended_by   = $conversation->agent_id;
+            $conversation->save();
+
+            updateUserInRedis($conversation->agent, $conversation);
+
             return jsonResponse('Reply sent successfully', true);
         } catch (\Exception $e) {
             Log::error('Error replying to comment: ' . $e->getMessage());

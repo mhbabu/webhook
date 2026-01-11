@@ -31,6 +31,7 @@ class WrapUpConversationFactory extends Factory
             'Agent had an emergency',
             'Scheduled callback',
             'Customer resolved issue themselves',
+            'Agent replied and the conversation was ended',
         ];
 
         return [
