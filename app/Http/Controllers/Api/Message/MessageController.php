@@ -387,9 +387,9 @@ class MessageController extends Controller
 
         // ✅ Update agent current_limit based on platform weight
         // if ($conversation->platform === 'whatsapp') {
-            $weight = getPlatformWeight($conversation->platform);
-            $user->increment('current_limit', $weight);
-            // event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
+        $weight = getPlatformWeight($conversation->platform);
+        $user->increment('current_limit', $weight);
+        // event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
         // }
 
         // ✅ Update Redis: hash + omnitrix list + conditional CONTACT_TYPE removal
@@ -412,20 +412,18 @@ class MessageController extends Controller
      */
     private function updateUserInRedis($user, $conversation)
     {
-        $endedPlatform = $conversation->platform;
-        $hashKey = "agent:{$user->id}";
+        $endedPlatform       = $conversation->platform;
+        $hashKey             = "agent:{$user->id}";
         $removedConversation = "conversation:{$conversation->id}";
 
         // Fetch existing CONTACT_TYPE from Redis hash
         $contactTypesJson = Redis::hGet($hashKey, 'CONTACT_TYPE') ?? '[]';
-        $contactTypes = json_decode($contactTypesJson, true) ?: [];
+        $contactTypes     = json_decode($contactTypesJson, true) ?: [];
 
         // Get all active conversations for this platform
-        $activeConversations = Conversation::where('agent_id', $user->id)->where('platform', $endedPlatform)
-            ->where(function ($query) {
-                $query->whereNull('end_at')
-                    ->orWhere('end_at', '>=', now()->subHours(config('services.conversation_expire_hours')));
-            })
+        $activeConversations = Conversation::where('agent_id', $user->id)
+            ->where('platform', $endedPlatform)
+            ->whereNull('end_at')
             ->count();
 
         // Remove platform only if no active conversations exist
@@ -887,7 +885,7 @@ class MessageController extends Controller
             'platform' => 'messenger',
         ]);
 
-        if(empty($conversation->first_response_at)) {
+        if (empty($conversation->first_response_at)) {
             $conversation->first_response_at = now();
             $conversation->save();
         }
@@ -1058,7 +1056,7 @@ class MessageController extends Controller
 
         // $conversation->update(['last_message_id' => $message->id]);
         $conversation->update(['end_at' => now(), 'first_response_at' => $conversation->first_response_at ?? now()]); // Auto-end email conversations
-        
+
 
         /**
          * --------------------------------------------------
