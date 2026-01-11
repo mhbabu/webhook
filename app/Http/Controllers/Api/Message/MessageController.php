@@ -10,18 +10,16 @@ use App\Http\Requests\Message\SendPlatformMessageRequest;
 use App\Http\Resources\Message\ConversationInfoResource;
 use App\Http\Resources\Message\ConversationResource;
 use App\Http\Resources\Message\MessageResource;
-use App\Http\Resources\Thread\ConversationThreadResource;
+use App\Http\Resources\SocialPage\ConversationPageResource;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Message;
 use App\Models\MessageAttachment;
-use App\Models\Post;
 use App\Models\User;
 use App\Services\Platforms\EmailService;
 use App\Services\Platforms\FacebookService;
 use App\Services\Platforms\InstagramService;
 use App\Services\Platforms\WhatsAppService;
-use Dom\Comment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -225,7 +223,7 @@ class MessageController extends Controller
         // ----------------------------
         // 1. Basic Validation
         // ----------------------------
-        if (! $agentId || ! $conversationId || ! $messageId) {
+        if (! $agentId && ! $conversationId && ! $messageId) {
             return jsonResponse('Missing required fields: agentId, conversationId or messageId.', false, null, 400);
         }
 
@@ -242,8 +240,6 @@ class MessageController extends Controller
                 $user->save();
 
                 // Load Conversation & Message
-                $comment         = \App\Models\Comment::where('conversation_id', $conversationId)->first();
-                $post            = Post::findOrFail($comment->post_id);
                 $conversation    = Conversation::findOrFail($conversationId);
 
                 // Assign Agent Only First Time
@@ -259,7 +255,7 @@ class MessageController extends Controller
                 DB::afterCommit(function () use ($conversation, $user, $source) {
                     // Broadcasting payload (Page Conversation)
                     $payload = [
-                        'conversation' => new ConversationThreadResource($conversation),
+                        'conversation' => new ConversationPageResource($conversation),
                         'socket_type'  => 'page',
                     ];
 
