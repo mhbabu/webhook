@@ -52,7 +52,136 @@ class InstagramWebhookController extends Controller
      *     entry.messaging → for DMs (Direct Messages)
      *     entry.changes → for comments / mentions / feed events
      */
-    public function receiveInstagramMessage(Request $request)
+    public function receiveInstagramWebhook(Request $request)
+    {
+        Log::info('📩 Instagram Webhook Payload:', $request->all());
+
+        foreach ($request->input('entry', []) as $entry) {
+
+            /**
+             * =========================
+             * 1️⃣ HANDLE INSTAGRAM DMs
+             * =========================
+             */
+            if (! empty($entry['messaging'])) {
+                // $this->handleInstagramDM($entry['messaging']);
+                $this->handleInstagramDM($request);
+            }
+
+            /**
+             * =========================
+             * 2️⃣ HANDLE FEED COMMENTS
+             * =========================
+             */
+            if (! empty($entry['changes'])) {
+                foreach ($entry['changes'] as $change) {
+                    if ($change['field'] === 'comments') {
+                        $this->handleInstagramFeedComment($change['value']);
+                    }
+                }
+            }
+        }
+
+        return response('EVENT_RECEIVED', 200);
+    }
+
+    protected function handleInstagramFeedComment(array $value)
+    {
+        $platform = Platform::whereRaw('LOWER(name) = ?', ['instagram'])->first();
+        $platformId = $platform->id ?? null;
+        $platformName = strtolower($platform->name ?? 'instagram');
+
+        $commentId = $value['id'] ?? null;
+        $text = $value['text'] ?? null;
+        $username = $value['username'] ?? 'unknown';
+        $timestamp = isset($value['timestamp'])
+            ? \Carbon\Carbon::parse($value['timestamp'])->timestamp
+            : now()->timestamp;
+
+        // $mediaId = $value['media']['id'] ?? null;
+        // $mediaType = $value['media']['media_product_type'] ?? 'FEED';
+
+        // if (! $commentId || ! $mediaId) {
+        //     return;
+        // }
+
+        /**
+         * 1️⃣ Find or create customer (username-based)
+         */
+        $customer = Customer::firstOrCreate(
+            ['platform_user_id' => 'ig_comment_'.$username],
+            [
+                'name' => $username,
+                'username' => $username,
+                'platform_id' => $platformId,
+            ]
+        );
+
+        /**
+         * 2️⃣ Conversation is POST/MEDIA scoped
+         */
+        $conversation = Conversation::firstOrCreate(
+            [
+                'platform' => $platformName,
+                // 'external_reference' => $mediaId, // 🔑 VERY IMPORTANT
+            ],
+            [
+                'customer_id' => $customer->id,
+                'trace_id' => 'IGF-'.now()->format('YmdHis').'-'.uniqid(),
+            ]
+        );
+
+        /**
+         * 3️⃣ Store comment as message
+         */
+        try {
+            $message = Message::firstOrCreate(
+                ['platform_message_id' => $commentId],
+                [
+                    'conversation_id' => $conversation->id,
+                    'sender_id' => $customer->id,
+                    'sender_type' => Customer::class,
+                    'type' => 'comment',
+                    'content' => $text,
+                    'direction' => 'incoming',
+                    'receiver_type' => User::class,
+                ]
+            );
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($e->errorInfo[1] == 1062) {
+                Log::info('⚠️ Duplicate Instagram comment ignored', [
+                    'comment_id' => $commentId,
+                ]);
+
+                return;
+            }
+            throw $e;
+        }
+
+        /**
+         * 4️⃣ Update conversation
+         */
+        $conversation->update(['last_message_id' => $message->id]);
+
+        /**
+         * 5️⃣ Dispatch (optional)
+         */
+        $payload = [
+            'source' => 'instagram_feed',
+            'traceId' => $conversation->trace_id,
+            'conversationId' => $conversation->id,
+            'mediaId' => $mediaId,
+            'mediaType' => $mediaType,
+            'username' => $username,
+            'message' => $text,
+            'messageId' => $message->id,
+            'timestamp' => $timestamp,
+        ];
+
+        DB::afterCommit(fn () => $this->sendToDispatcher($payload));
+    }
+
+    public function handleInstagramDM(Request $request)
     {
         Log::info('📩 Instagram Webhook Payload:', $request->all());
 

@@ -17,7 +17,8 @@ Route::get('webhook/facebookPage', [FacebookWebhookController::class, 'verifyFac
 Route::post('webhook/facebookPage', [FacebookWebhookController::class, 'webhook']); // receive facebook page event data new and improved
 
 Route::get('webhook/instagram', [InstagramWebhookController::class, 'verifyInstagram']); // For for webhook verification
-Route::post('webhook/instagram', [InstagramWebhookController::class, 'receiveInstagramMessage']); // POST for message reception
+// Route::post('webhook/instagram', [InstagramWebhookController::class, 'receiveInstagramMessage']); // POST for message reception
+Route::post('webhook/instagram', [InstagramWebhookController::class, 'receiveInstagramWebhook']); // Receive webhook enents for instagram
 
 Route::post('webhook/website', [PlatformWebhookController::class, 'receiveWebsitePageData'])->middleware('customer.token'); // receive website message data
 
