@@ -103,6 +103,7 @@ class UserService
                 'is_verified'       => 1,
                 'account_status'    => 'active',
                 'password'          => bcrypt($password),
+                'email_verified_at'   => now(),
             ]);
 
             if (isset($data['profile_picture'])) {
@@ -286,39 +287,46 @@ class UserService
         DB::beginTransaction();
 
         try {
-            // Fetch the user here
+            // Fetch the user
             $user = User::findOrFail($userId);
 
-            $authUser = auth()->user();
-            $isSuperAdmin = $authUser?->role?->name === 'Super Admin';
+            // Directly update all fields if provided
+            if (isset($data['name'])) {
+                $user->name = $data['name'];
+            }
 
-            // Allow different updatable fields based on role
-            $fields = $isSuperAdmin
-                ? ['name', 'mobile', 'email', 'employee_id', 'max_limit', 'role_id']  // full access
-                : ['name', 'mobile'];  // limited access for non–Super Admins
+            if (isset($data['mobile'])) {
+                $user->mobile = $data['mobile'];
+            }
 
-            foreach ($fields as $field) {
-                if (isset($data[$field])) {
-                    $user->$field = $data[$field];
+            if (isset($data['email'])) {
+                $user->email = $data['email'];
+            }
 
-                    // If max_limit is updated, also update current_limit (only for Super Admin)
-                    if ($isSuperAdmin && $field === 'max_limit') {
-                        $user->current_limit = $data[$field];
-                    }
-                }
+            if (isset($data['employee_id'])) {
+                $user->employee_id = $data['employee_id'];
+            }
+
+            if (isset($data['max_limit'])) {
+                $user->max_limit = $data['max_limit'];
+                $user->current_limit = $data['max_limit']; // sync current_limit
+            }
+
+            if (isset($data['role_id'])) {
+                $user->role_id = $data['role_id'];
             }
 
             // Save changes
             $user->save();
 
-            // Handle profile picture (allowed for everyone)
+            // Profile picture
             if (!empty($data['profile_picture'])) {
                 $user->clearMediaCollection('profile_pictures');
                 $user->addMedia($data['profile_picture'])->toMediaCollection('profile_pictures');
             }
 
-            // Sync platforms — only Super Admin can change platforms
-            if ($isSuperAdmin && !empty($data['platform_ids']) && is_array($data['platform_ids'])) {
+            // Platforms
+            if (!empty($data['platform_ids']) && is_array($data['platform_ids'])) {
                 $user->platforms()->sync(array_unique($data['platform_ids']));
             }
 
@@ -330,6 +338,7 @@ class UserService
             return ['message' => 'User update failed: ' . $e->getMessage(), 'status'  => false];
         }
     }
+
 
 
 

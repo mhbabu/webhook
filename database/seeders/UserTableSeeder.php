@@ -27,7 +27,7 @@ class UserTableSeeder extends Seeder
                 'is_verified'         => 1,
                 'is_password_updated' => 1,
                 'max_limit'           => 5,
-                'current_limit'       => 5,
+                'current_limit'       => 0,
                 'platforms'           => [1, 2, 3, 4],
             ],
 
@@ -43,7 +43,7 @@ class UserTableSeeder extends Seeder
                 'is_verified'         => 1,
                 'is_password_updated' => 1,
                 'max_limit'           => 5,
-                'current_limit'       => 5,
+                'current_limit'       => 0,
                 'platforms'           => [1, 2, 3, 4, 5, 6, 7],
             ],
 
@@ -59,7 +59,7 @@ class UserTableSeeder extends Seeder
                 'is_verified'         => 1,
                 'is_password_updated' => 1,
                 'max_limit'           => 5,
-                'current_limit'       => 5,
+                'current_limit'       => 0,
                 'platforms'           => [1, 2, 3, 4],
             ],
         ];
@@ -85,7 +85,7 @@ class UserTableSeeder extends Seeder
                 'is_verified'         => 1,
                 'is_password_updated' => 1,
                 'max_limit'           => rand(2, 5),
-                'current_limit'       => rand(1, 5),
+                'current_limit'       => 0,
                 'platforms'           => [1, 2, 3], // customize if needed
                 'mobile'              => $this->generateBangladeshiPhone(),
             ];
