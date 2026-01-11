@@ -85,7 +85,7 @@ class FacebookPageController extends Controller
 
             updateUserInRedis($conversation->agent, $conversation);
 
-            return jsonResponse('Reply sent successfully', true);
+            return jsonResponse('Reply sent successfully', true, new ConversationPageDetailResource($conversation));
         } catch (\Exception $e) {
             Log::error('Error replying to comment: ' . $e->getMessage());
             return jsonResponse('Failed to send reply', false);
