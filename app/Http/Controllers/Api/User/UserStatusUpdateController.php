@@ -128,10 +128,6 @@ class UserStatusUpdateController extends Controller
      */
     public function saveStatus($user, $status)
     {
-        info(['user_status_update' => [
-            'user_id' => $user->id,
-            'status'  => $status,
-        ]]);
         $user->update(['current_status' => $status]);
 
         return UserStatusUpdate::create([
