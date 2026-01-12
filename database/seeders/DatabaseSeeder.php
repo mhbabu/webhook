@@ -3,6 +3,9 @@
 namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Database\Seeders\Conversation\ConversationCategorySeeder;
+use Database\Seeders\Conversation\ConversationSubCategorySeeder;
+use Database\Seeders\Conversation\ConversationTypeSeeder;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -21,8 +24,9 @@ class DatabaseSeeder extends Seeder
             MessageTemplateTableSeeder::class,
             ChatSeeder::class,
             SystemSettingsTableSeeder::class,
-            InteractionTypeSeeder::class,
-            CustomerModeSeeder::class,
+            ConversationTypeSeeder::class,
+            ConversationCategorySeeder::class,
+            ConversationSubCategorySeeder::class,
         ]);
     }
 }

@@ -11,17 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('customer_modes', function (Blueprint $table) {
+        Schema::create('conversation_sub_categories', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('interaction_type_id')
-                ->constrained('interaction_types')
+            $table->foreignId('conversation_category_id')
+                ->constrained('conversation_categories')
                 ->cascadeOnDelete();
 
             $table->string('name');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
-            $table->unique(['interaction_type_id', 'name']);
+            $table->unique(['conversation_category_id', 'name']);
         });
 
     }
@@ -31,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('customer_modes');
+        Schema::dropIfExists('conversation_sub_categories');
     }
 };
