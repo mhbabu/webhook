@@ -16,35 +16,85 @@ class UserStatusUpdateController extends Controller
     /**
      * Update user status and keep a tracking record.
      */
+    /**
+     * Update user status and keep a tracking record.
+     */
     public function updateUserStatus(StatusUpdateRequest $request)
     {
         $user   = Auth::user();
-        $status = UserStatus::tryFrom($request->status)->value;
+        $status = UserStatus::tryFrom($request->status)?->value;
 
-        if ($user->current_status === $status) {
-            $breakRequest = $status === 'BREAK_REQUEST' && $user->userStatusInfo->break_request_status === 'PENDING' ? ' and your request is PENDING.' : '';
-            return jsonResponse("You are already in {$status} status" . $breakRequest, false, null, 400);
+        if (! $status) {
+            return jsonResponse('Invalid status value.', false, null, 400);
         }
 
+        $activeConversations = getAgentActiveConversationsCount($user->id);
+
+        /**
+         * Same status guard
+         */
+        if ($user->current_status === $status) {
+            if ($status === UserStatus::BREAK_REQUEST->value && $user->userStatusInfo?->break_request_status === 'PENDING') {
+                return jsonResponse('Your break request is already pending.', false, null, 400);
+            }
+            return jsonResponse("You are already in {$status} status.", false, null, 400);
+        }
+
+        /**
+         * AVAILABLE (always allowed)
+         */
         if ($status === UserStatus::AVAILABLE->value) {
             $this->saveStatus($user, $status);
-        } elseif ($status === UserStatus::BREAK_REQUEST->value) {
-            if ($user->current_limit !== $user->max_limit) {
-                return jsonResponse("Complete all the tasks and then you can request a {$status}.", false, null, 400);
-            }
-            $this->saveStatus($user, $status, ['reason' => $request->reason, 'request_at' => now()]);
-        } elseif ($user->current_limit === $user->max_limit && $status === UserStatus::BREAK->value) {
-            $this->saveStatus($user, $status);
-        } else {
-            return jsonResponse('Invalid status update request', false, null, 400);
         }
 
-        // --- Redis Update ---
-        $this->updateUserInRedis($user);
+        /**
+         * BREAK (blocked if active conversations exist)
+         */
+        elseif ($status === UserStatus::BREAK->value) {
 
-        return jsonResponse('Status updated successfully', true, new UserResource($user), 200);
+            if ($activeConversations > 0) {
+                return jsonResponse("Resolve {$activeConversations} active conversations before taking a break.", false, null, 400);
+            }
+
+            $this->saveStatus($user, $status);
+        }
+
+        /**
+         * BREAK REQUEST (allowed only if conversations exist)
+         */
+        elseif ($status === UserStatus::BREAK_REQUEST->value) {
+
+            if ($activeConversations === 0) {
+                return jsonResponse('You have no active conversations. You can directly take a break.', false,  null, 400);
+            }
+
+            if ($user->userStatusInfo?->break_request_status === 'PENDING') {
+                return jsonResponse('Your break request is already pending.', false, null, 400);
+            }
+
+            $this->saveStatus($user, $status, ['reason' => $request->reason, 'request_at' => now()]);
+        }
+
+        /**
+         * OFFLINE (same logic as logout)
+         */
+        elseif ($status === UserStatus::OFFLINE->value) {
+
+            if ($activeConversations > 0) {
+                return jsonResponse("Resolve {$activeConversations} active conversations before going offline.", false, null, 400);
+            }
+
+            $this->saveStatus($user, $status);
+            Redis::del("agent:{$user->id}");
+        } else {
+            return jsonResponse('Invalid status update request.', false, null, 400);
+        }
+
+        // --- Redis Sync ---
+        $this->updateUserInRedis($user->fresh());
+
+        return jsonResponse('Status updated successfully.', true, new UserResource($user->fresh()), 200);
     }
-
     /**
      * Approve a break request and sync with user table
      */
@@ -117,9 +167,10 @@ class UserStatusUpdateController extends Controller
             "AGENT_TYPE"       => $user->agent_type ?? 'NORMAL', // Default to NORMAL if not set
             "STATUS"           => $user->current_status,
             "MAX_SCOPE"        => $user->max_limit,
-            "AVAILABLE_SCOPE"  => $user->current_limit,
+            "AVAILABLE_SCOPE"  => $user->available_scope,
             "CONTACT_TYPE"     => json_encode($user->contact_type ?? []),
             "SKILL"            => json_encode($user->platforms()->pluck('name')->map(fn($name) => strtolower($name))->toArray()),
+            "NAME"             => $user->name . '-' . $user->employee_id,
             "BUSYSINCE"        => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',
         ];
 

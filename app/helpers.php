@@ -187,8 +187,8 @@ if (! function_exists('getFeedbackRatingsFromCustomer')) {
 if (! function_exists('updateUserInRedis')) {
     function updateUserInRedis($user, $conversation): void
     {
-        $endedPlatform = $conversation->platform;
-        $hashKey = "agent:{$user->id}";
+        $endedPlatform       = $conversation->platform;
+        $hashKey             = "agent:{$user->id}";
         $removedConversation = "conversation:{$conversation->id}";
 
         // Fetch CONTACT_TYPE from Redis
@@ -206,26 +206,22 @@ if (! function_exists('updateUserInRedis')) {
             $contactTypes = array_values(array_filter($contactTypes, fn($p) => $p !== $endedPlatform));
         }
 
-        // Increment agent's current_limit by platform weight
-        $weight = getPlatformWeight($endedPlatform ?? null);
-        $user->current_limit = min($user->current_limit + $weight, $user->max_limit);
-        $user->save();
+        // // Increment agent's current_limit by platform weight
+        // $weight = getPlatformWeight($endedPlatform ?? null);
+        // $user->current_limit = min($user->current_limit + $weight, $user->max_limit);
+        // $user->save();
 
         // Prepare agent data for Redis
         $agentData = [
-            'AGENT_ID' => $user->id,
-            'AGENT_TYPE' => 'NORMAL',
-            'STATUS' => $user->current_status,
-            'MAX_SCOPE' => $user->max_limit,
-            'AVAILABLE_SCOPE' => $user->current_limit,
-            'CONTACT_TYPE' => json_encode($contactTypes),
-            'SKILL' => json_encode(
-                $user->platforms()
-                    ->pluck('name')
-                    ->map(fn($n) => strtolower($n))
-                    ->toArray()
-            ),
-            'BUSYSINCE' => now()->format('Y-m-d H:i:s') ?? '',
+            'AGENT_ID'                  => $user->id,
+            'AGENT_TYPE'                => 'NORMAL',
+            'STATUS'                    => $user->current_status,
+            'MAX_SCOPE'                 => $user->max_limit,
+            'AVAILABLE_SCOPE'           => $user->available_scope,
+            "NAME"                      => $user->name . '-' . $user->employee_id,
+            'CONTACT_TYPE'              => json_encode($contactTypes),
+            'SKILL'                     => json_encode($user->platforms()->pluck('name')->map(fn($n) => strtolower($n))->toArray()),
+            'BUSYSINCE'                 => now()->format('Y-m-d H:i:s') ?? '',
         ];
 
         info('Updating agent in Redis', ['agent_id' => $user->id, 'data' => $agentData]);
@@ -305,7 +301,6 @@ if (! function_exists('sendToDispatcher')) {
         }
     }
 }
-
 
 if (! function_exists('getRandomSocialPageConversation')) {
     /**
@@ -450,6 +445,16 @@ if (! function_exists('updateAgentInRedis')) {
         $conversationKey = "conversation:{$conversation->id}";
 
         // -------------------------------------------------
+        // Update agent's available scope
+        // -------------------------------------------------
+        $weight                = getPlatformWeight($endedPlatform);
+        $user->available_scope = min($user->max_limit, $user->available_scope + $weight);
+        $user->save();
+
+        info('Updating agent in Redis', ['user' => $user]);
+
+
+        // -------------------------------------------------
         // Fetch existing CONTACT_TYPE list from Redis
         // -------------------------------------------------
         // Stored as JSON array: ["facebook", "whatsapp"]
@@ -475,7 +480,7 @@ if (! function_exists('updateAgentInRedis')) {
             in_array($endedPlatform, $contactTypes, true)
         ) {
             $contactTypes = array_values(
-                array_filter($contactTypes, fn ($p) => $p !== $endedPlatform)
+                array_filter($contactTypes, fn($p) => $p !== $endedPlatform)
             );
         }
 
@@ -487,14 +492,15 @@ if (! function_exists('updateAgentInRedis')) {
             'AGENT_TYPE'      => 'NORMAL',
             'STATUS'          => $user->current_status,
             'MAX_SCOPE'       => $user->max_limit,
-            'AVAILABLE_SCOPE' => $user->current_limit,
+            'AVAILABLE_SCOPE' => $user->available_scope,
+            "NAME"             => $user->name . '-' . $user->employee_id,
             'CONTACT_TYPE'    => json_encode($contactTypes),
 
             // Agent skills derived from supported platforms
             'SKILL' => json_encode(
                 $user->platforms()
                     ->pluck('name')
-                    ->map(fn ($n) => strtolower($n))
+                    ->map(fn($n) => strtolower($n))
                     ->toArray()
             ),
 

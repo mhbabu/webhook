@@ -169,7 +169,7 @@ class MessageController extends Controller
 
             // Update Agent Availability
             $user = User::findOrFail($agentId);
-            $user->current_limit = $availableScope;
+            $user->available_scope = $availableScope;
             $user->save();
 
             // Load Conversation & Message
@@ -272,19 +272,20 @@ class MessageController extends Controller
         $conversation->ended_by = $user->id;
         $conversation->save();
 
-        // ✅ Update agent current_limit based on platform weight
-        // if ($conversation->platform === 'whatsapp') {
-        $weight = getPlatformWeight($conversation->platform);
-        $user->increment('current_limit', $weight);
+        // // ✅ Update agent current_limit based on platform weight
+        // // if ($conversation->platform === 'whatsapp') {
+        // $weight = getPlatformWeight($conversation->platform);
+        // $user->available_scope = min($user->max_limit, $user->available_scope + $weight);
+        // $user->save();
         // event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
         // }
 
         // ✅ Update Redis: hash + omnitrix list + conditional CONTACT_TYPE removal
+        updateAgentInRedis($user, $conversation);
 
         if ($conversation->platform === 'whatsapp') {
             event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
         }
-        updateUserInRedis($user, $conversation);
 
         return jsonResponse('Conversation ended successfully.', true);
     }

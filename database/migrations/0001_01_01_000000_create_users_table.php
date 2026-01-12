@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('password')->nullable();
             $table->string('current_status')->default(UserStatus::OFFLINE); 
             $table->integer('max_limit')->default(1); // total customer response
+             $table->integer('available_scope')->default(0); 
             $table->integer('current_limit')->default(0); // current customer response
             $table->string('account_status')->default('active');
             $table->tinyInteger('is_request')->default(0);
