@@ -27,4 +27,4 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route::post('conversations/{conversation}/messages/mark-read', [MessageController::class, 'markAsRead']);
 });
 
-  Route::post('incoming/messages', [MessageController::class, 'incomingMsg'])->withoutMiddleware('auth:sanctum');
+Route::post('incoming/messages', [MessageController::class, 'incomingMsg'])->withoutMiddleware('auth:sanctum');
