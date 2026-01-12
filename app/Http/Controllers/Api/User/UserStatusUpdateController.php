@@ -167,7 +167,7 @@ class UserStatusUpdateController extends Controller
             "AGENT_TYPE"       => $user->agent_type ?? 'NORMAL', // Default to NORMAL if not set
             "STATUS"           => $user->current_status,
             "MAX_SCOPE"        => $user->max_limit,
-            "AVAILABLE_SCOPE"  => $user->current_limit,
+            "AVAILABLE_SCOPE"  => $user->max_limit,
             "CONTACT_TYPE"     => json_encode($user->contact_type ?? []),
             "SKILL"            => json_encode($user->platforms()->pluck('name')->map(fn($name) => strtolower($name))->toArray()),
             "BUSYSINCE"        => optional($user->changed_at)->format('Y-m-d H:i:s') ?? '',

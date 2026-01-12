@@ -217,7 +217,7 @@ if (! function_exists('updateUserInRedis')) {
             'AGENT_TYPE' => 'NORMAL',
             'STATUS' => $user->current_status,
             'MAX_SCOPE' => $user->max_limit,
-            'AVAILABLE_SCOPE' => $user->max_limit,
+            'AVAILABLE_SCOPE' => $user->current_limit,
             'CONTACT_TYPE' => json_encode($contactTypes),
             'SKILL' => json_encode(
                 $user->platforms()
@@ -487,7 +487,7 @@ if (! function_exists('updateAgentInRedis')) {
             'AGENT_TYPE'      => 'NORMAL',
             'STATUS'          => $user->current_status,
             'MAX_SCOPE'       => $user->max_limit,
-            'AVAILABLE_SCOPE' => $user->max_limit,
+            'AVAILABLE_SCOPE' => $user->current_limit,
             'CONTACT_TYPE'    => json_encode($contactTypes),
 
             // Agent skills derived from supported platforms
