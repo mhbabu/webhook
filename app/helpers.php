@@ -451,6 +451,8 @@ if (! function_exists('updateAgentInRedis')) {
         $user->available_scope = min($user->max_limit, $user->available_scope + $weight);
         $user->save();
 
+        info('Updating agent in Redis', ['user' => $user]);
+
 
         // -------------------------------------------------
         // Fetch existing CONTACT_TYPE list from Redis

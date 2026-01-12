@@ -283,11 +283,12 @@ class MessageController extends Controller
         // }
 
         // ✅ Update Redis: hash + omnitrix list + conditional CONTACT_TYPE removal
+        updateAgentInRedis($user, $conversation);
 
         if ($conversation->platform === 'whatsapp') {
             event(new SendSystemConfigureMessageEvent($conversation, $user, $conversation->last_message_id, 'cchat'));
         }
-        updateAgentInRedis($user, $conversation);
+
         return jsonResponse('Conversation ended successfully.', true);
     }
 
