@@ -97,6 +97,7 @@ class UserService
                 'email'             => strtolower($data['email']),
                 'employee_id'       => $data['employee_id'],
                 'max_limit'         => $data['max_limit'],
+                'available_scope'   => $data['max_limit'],
                 'role_id'           => $data['role_id'],
                 'email_verified_at' => now(),
                 'mobile'            => $data['mobile'] ?? null,
@@ -309,7 +310,7 @@ class UserService
 
             if (isset($data['max_limit'])) {
                 $user->max_limit = $data['max_limit'];
-                $user->current_limit = $data['max_limit']; // sync current_limit
+                $user->available_scope = $data['max_limit']; // sync available_scope
             }
 
             if (isset($data['role_id'])) {
@@ -339,9 +340,6 @@ class UserService
         }
     }
 
-
-
-
     /**
      * Delete User
      */
@@ -358,10 +356,7 @@ class UserService
 
         // 2️⃣ Prevent self-deletion
         if ($user->id === auth()->id()) {
-            return [
-                'message' => 'You cannot delete your own account',
-                'status'  => false,
-            ];
+            return ['message' => 'You cannot delete your own account', 'status'  => false];
         }
 
         // 3️⃣ Check authenticated user role

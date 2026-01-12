@@ -83,8 +83,8 @@ class FacebookPageController extends Controller
             $conversation->wrap_up_id = 30; //'Agent replied and the conversation was ended', from WrapUpConversationFactory
             $conversation->ended_by   = $conversation->agent_id;
             $conversation->save();
-
-            updateUserInRedis($conversation->agent, $conversation);
+            
+            updateAgentInRedis($conversation->agent, $conversation);
 
             return jsonResponse('Reply sent successfully', true, new PostCommentReplyResource($postCommentReply));
         } catch (\Exception $e) {

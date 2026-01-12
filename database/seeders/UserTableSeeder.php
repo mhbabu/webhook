@@ -27,6 +27,7 @@ class UserTableSeeder extends Seeder
                 'is_verified'         => 1,
                 'is_password_updated' => 1,
                 'max_limit'           => 5,
+                'available_scope'     => 5,
                 'current_limit'       => 0,
                 'platforms'           => [1, 2, 3, 4],
             ],
@@ -43,6 +44,7 @@ class UserTableSeeder extends Seeder
                 'is_verified'         => 1,
                 'is_password_updated' => 1,
                 'max_limit'           => 5,
+                'available_scope'     => 5,
                 'current_limit'       => 0,
                 'platforms'           => [1, 2, 3, 4, 5, 6, 7],
             ],
@@ -59,6 +61,7 @@ class UserTableSeeder extends Seeder
                 'is_verified'         => 1,
                 'is_password_updated' => 1,
                 'max_limit'           => 5,
+                'available_scope'     => 5,
                 'current_limit'       => 0,
                 'platforms'           => [1, 2, 3, 4],
             ],
@@ -74,6 +77,7 @@ class UserTableSeeder extends Seeder
         ];
 
         foreach ($agentNames as $index => $name) {
+            $value = rand(2, 5);
             $users[] = [
                 'name'                => $name,
                 'email'               => 'agent' . ($index + 1) . '@gmail.com',
@@ -84,9 +88,10 @@ class UserTableSeeder extends Seeder
                 'email_verified_at'   => $now,
                 'is_verified'         => 1,
                 'is_password_updated' => 1,
-                'max_limit'           => rand(2, 5),
+                'max_limit'           => $value,
+                'available_scope'     => $value,
                 'current_limit'       => 0,
-                'platforms'           => [1, 2, 3], // customize if needed
+                'platforms'           => [1, 2, 3, 5], // customize if needed
                 'mobile'              => $this->generateBangladeshiPhone(),
             ];
         }
