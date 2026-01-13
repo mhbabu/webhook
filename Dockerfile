@@ -33,6 +33,11 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # ✅ COPY CUSTOM PHP CONFIG (THIS IS THE FIX)
 COPY docker/php/custom.ini /usr/local/etc/php/conf.d/custom.ini
 
+# Use production php.ini as the main php.ini
+RUN mv /usr/local/etc/php/php.ini-production /usr/local/etc/php/php.ini
+
+# Verify the change (optional)
+RUN php -i | grep "Loaded Configuration File"
 
 # Ensure FPM includes conf.d/*.ini
 RUN echo "include=/usr/local/etc/php/conf.d/*.ini" >> /usr/local/etc/php-fpm.conf
