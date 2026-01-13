@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api\conversation;
 
 use App\Http\Controllers\Controller;
-use App\Models\ConversationSubCategory;
+use App\Models\SubDisposition;
 use Illuminate\Http\Request;
 
-class ConversationSubCategoryController extends Controller
+class SubDispositionController extends Controller
 {
     public function subCategoryIndex(Request $request)
     {
@@ -17,7 +17,7 @@ class ConversationSubCategoryController extends Controller
         return jsonResponse(
             'Sub-categories fetched',
             true,
-            ConversationSubCategory::where(
+            SubDisposition::where(
                 'conversation_category_id',
                 $request->category_id
             )->get()
@@ -31,7 +31,7 @@ class ConversationSubCategoryController extends Controller
             'name' => 'required',
         ]);
 
-        ConversationSubCategory::create(
+        SubDisposition::create(
             $request->only('conversation_category_id', 'name')
         );
 
@@ -40,7 +40,7 @@ class ConversationSubCategoryController extends Controller
 
     public function subCategoryDestroy($id)
     {
-        ConversationSubCategory::findOrFail($id)->delete();
+        SubDisposition::findOrFail($id)->delete();
 
         return jsonResponse('Sub-category deleted', true);
     }

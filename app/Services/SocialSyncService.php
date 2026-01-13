@@ -60,7 +60,7 @@ class SocialSyncService
             'platform' => $platform->name,
             'platform_account_id' => $account->platform_account_id,
             'api_key' => config('dispatcher.facebook_api_key'),
-            'conversationType' => 'new',
+            'InteractionType' => 'new',
             'timestamp' => now()->timestamp,
             'traceId' => uniqid('fb_post_', true),
         ]);

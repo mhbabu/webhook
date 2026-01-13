@@ -3,17 +3,17 @@
 namespace App\Http\Controllers\Api\conversation;
 
 use App\Http\Controllers\Controller;
-use App\Models\ConversationCategory;
+use App\Models\Disposition;
 use Illuminate\Http\Request;
 
-class ConversationCategoryController extends Controller
+class DispositionController extends Controller
 {
     public function index()
     {
         return jsonResponse(
             'Categories fetched',
             true,
-            ConversationCategory::withCount('subCategories')->get()
+            Disposition::withCount('subCategories')->get()
         );
     }
 
@@ -23,7 +23,7 @@ class ConversationCategoryController extends Controller
             'name' => 'required|unique:conversation_categories,name',
         ]);
 
-        ConversationCategory::create($request->only('name'));
+        Disposition::create($request->only('name'));
 
         return jsonResponse('Category created', true);
     }

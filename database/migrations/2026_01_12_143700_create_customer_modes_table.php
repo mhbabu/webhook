@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('interaction_types', function (Blueprint $table) {
+        Schema::create('customer_modes', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
             $table->boolean('is_active')->default(true);
@@ -25,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('interaction_types');
+        Schema::dropIfExists('customer_modes');
     }
 };

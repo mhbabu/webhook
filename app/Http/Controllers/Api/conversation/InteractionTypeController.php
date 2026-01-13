@@ -1,19 +1,22 @@
 <?php
 
-namespace App\Http\Controllers\Api\conversation;
+namespace App\Http\Controllers\Api\Conversation;
 
 use App\Http\Controllers\Controller;
-use App\Models\ConversationType;
+use App\Models\InteractionType;
 use Illuminate\Http\Request;
 
-class ConversationTypeController extends Controller
+class InteractionTypeController extends Controller
 {
     public function index()
     {
+        $types = InteractionType::orderBy('name')->get();
+
         return jsonResponse(
-            'Conversation types fetched',
+            'Interaction types fetched successfully',
             true,
-            ConversationType::orderBy('name')->get()
+            InteractionTypeResource::collection($types)
+            // $types
         );
     }
 
@@ -23,14 +26,14 @@ class ConversationTypeController extends Controller
             'name' => 'required|unique:conversation_types,name',
         ]);
 
-        ConversationType::create($request->only('name'));
+        InteractionType::create($request->only('name'));
 
         return jsonResponse('Conversation type created', true);
     }
 
     public function update(Request $request, $id)
     {
-        $type = ConversationType::findOrFail($id);
+        $type = InteractionType::findOrFail($id);
 
         $request->validate([
             'name' => "required|unique:conversation_types,name,$id",
@@ -43,7 +46,7 @@ class ConversationTypeController extends Controller
 
     public function destroy($id)
     {
-        ConversationType::findOrFail($id)->delete();
+        InteractionType::findOrFail($id)->delete();
 
         return jsonResponse('Conversation type deleted', true);
     }

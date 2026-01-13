@@ -1,17 +1,22 @@
 <?php
 
-namespace Database\Seeders\Conversation;
+namespace Database\Seeders;
 
-use App\Models\ConversationCategory;
+use App\Models\Disposition;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 
-class ConversationCategorySeeder extends Seeder
+class DispositionSeeder extends Seeder
 {
     public function run(): void
     {
-        ConversationCategory::truncate();
+        if (! Schema::hasTable('dispositions')) {
+            return;
+        }
 
-        ConversationCategory::insert([
+        Disposition::truncate();
+
+        Disposition::insert([
             ['name' => 'Service Issue', 'is_active' => true],
             ['name' => 'Product Issue', 'is_active' => true],
             ['name' => 'General Inquiry', 'is_active' => true],
