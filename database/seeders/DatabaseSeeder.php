@@ -25,8 +25,8 @@ class DatabaseSeeder extends Seeder
             // ChatSeeder::class,
             SystemSettingsTableSeeder::class,
             ConversationTypeSeeder::class,
-            ConversationCategorySeeder::class,
-            ConversationSubCategorySeeder::class,
+            // ConversationCategorySeeder::class,
+            // ConversationSubCategorySeeder::class,
         ]);
     }
 }
