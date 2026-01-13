@@ -79,16 +79,39 @@ class WhatsAppService
     private function getExtensionFromMime(string $mime): string
     {
         $map = [
-            'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp',
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
             'video/mp4' => 'mp4',
-            'application/pdf' => 'pdf', 'application/msword' => 'doc', 'application/vnd.ms-excel' => 'xls',
-            'audio/ogg' => 'ogg', 'audio/opus' => 'ogg', 'audio/mpeg' => 'mp3', 'audio/mp3' => 'mp3',
-            'audio/mp4' => 'm4a', 'audio/x-m4a' => 'm4a', 'audio/aac' => 'aac', 'audio/wav' => 'wav',
-            'audio/x-wav' => 'wav', 'audio/amr' => 'amr'
+            'application/pdf' => 'pdf',
+            'application/msword' => 'doc',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+            'application/vnd.ms-excel' => 'xls',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+            'application/vnd.ms-powerpoint' => 'ppt',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation' => 'pptx',
+            'application/zip' => 'zip',
+            'text/html' => 'html',
+            'text/css' => 'css',
+            'application/javascript' => 'js',
+            'text/javascript' => 'js',
+            'text/x-php' => 'php',               // ← PHP
+            'application/x-httpd-php' => 'php', // ← Some servers use this MIME
+            'audio/ogg' => 'ogg',
+            'audio/opus' => 'ogg',
+            'audio/mpeg' => 'mp3',
+            'audio/mp3' => 'mp3',
+            'audio/mp4' => 'm4a',
+            'audio/x-m4a' => 'm4a',
+            'audio/aac' => 'aac',
+            'audio/wav' => 'wav',
+            'audio/x-wav' => 'wav',
+            'audio/amr' => 'amr'
         ];
 
         return $map[$mime] ?? 'bin';
     }
+
 
     public function getMediaUrlAndDownload(string $mediaId): ?array
     {
