@@ -30,6 +30,9 @@ RUN pecl install redis \
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+# ✅ COPY CUSTOM PHP CONFIG (THIS IS THE FIX)
+COPY docker/php/custom.ini /usr/local/etc/php/conf.d/custom.ini
+
 # Set working directory
 WORKDIR /var/www/html/webhook
 
