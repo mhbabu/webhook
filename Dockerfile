@@ -33,6 +33,10 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # ✅ COPY CUSTOM PHP CONFIG (THIS IS THE FIX)
 COPY docker/php/custom.ini /usr/local/etc/php/conf.d/custom.ini
 
+
+# Ensure FPM includes conf.d/*.ini
+RUN echo "include=/usr/local/etc/php/conf.d/*.ini" >> /usr/local/etc/php-fpm.conf
+
 # Set working directory
 WORKDIR /var/www/html/webhook
 
