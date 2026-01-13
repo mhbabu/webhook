@@ -49,7 +49,7 @@ RUN sed -i \
 
 
 # Ensure FPM includes conf.d/*.ini
-RUN echo "include=/usr/local/etc/php/conf.d/*.ini" >> /usr/local/etc/php-fpm.conf
+# RUN echo "include=/usr/local/etc/php/conf.d/*.ini" >> /usr/local/etc/php-fpm.conf
 
 # Set working directory
 WORKDIR /var/www/html/webhook
