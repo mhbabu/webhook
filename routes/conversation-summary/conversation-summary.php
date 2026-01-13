@@ -5,23 +5,31 @@ use App\Http\Controllers\Api\Conversation\ConversationSubCategoryController;
 use App\Http\Controllers\Api\Conversation\ConversationTypeController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('/conversations')->group(function () {
+// Disposition System APIs - Full CRUD Operations
 
-    // conversation types
-    Route::get('/types', [ConversationTypeController::class, 'index']);
-    Route::post('/types', [ConversationTypeController::class, 'store']);
-    Route::put('/types/{id}', [ConversationTypeController::class, 'update']);
-    Route::delete('/types/{id}', [ConversationTypeController::class, 'destroy']);
+// Interaction Types (Conversation Types)
+Route::prefix('/interaction-types')->group(function () {
+    Route::get('/', [ConversationTypeController::class, 'index']);
+    Route::post('/', [ConversationTypeController::class, 'store']);
+    Route::get('/{id}', [ConversationTypeController::class, 'show']);
+    Route::put('/{id}', [ConversationTypeController::class, 'update']);
+    Route::delete('/{id}', [ConversationTypeController::class, 'destroy']);
+});
 
-    // categories
-    Route::get('/categories', [ConversationCategoryController::class, 'index']);
-    Route::post('/categories', [ConversationCategoryController::class, 'store']);
-    Route::put('/categories/{id}', [ConversationCategoryController::class, 'update']);
-    Route::delete('/categories/{id}', [ConversationCategoryController::class, 'destroy']);
+// Disposition Categories
+Route::prefix('/disposition-categories')->group(function () {
+    Route::get('/', [ConversationCategoryController::class, 'index']);
+    Route::post('/', [ConversationCategoryController::class, 'store']);
+    Route::get('/{id}', [ConversationCategoryController::class, 'show']);
+    Route::put('/{id}', [ConversationCategoryController::class, 'update']);
+    Route::delete('/{id}', [ConversationCategoryController::class, 'destroy']);
+});
 
-    // sub-categories
-    Route::get('/category/sub-categories', [ConversationSubCategoryController::class, 'subCategoryIndex']);
-    Route::post('/category/sub-categories', [ConversationSubCategoryController::class, 'subCategoryStore']);
-    Route::put('/category/sub-categories/{id}', [ConversationSubCategoryController::class, 'subCategoryUpdate']);
-    Route::delete('/category/sub-categories/{id}', [ConversationSubCategoryController::class, 'subCategoryDestroy']);
+// Disposition Subcategories
+Route::prefix('/disposition-subcategories')->group(function () {
+    Route::get('/', [ConversationSubCategoryController::class, 'index']);
+    Route::post('/', [ConversationSubCategoryController::class, 'store']);
+    Route::get('/{id}', [ConversationSubCategoryController::class, 'show']);
+    Route::put('/{id}', [ConversationSubCategoryController::class, 'update']);
+    Route::delete('/{id}', [ConversationSubCategoryController::class, 'destroy']);
 });

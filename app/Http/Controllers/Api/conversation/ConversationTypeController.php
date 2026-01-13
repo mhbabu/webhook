@@ -3,48 +3,106 @@
 namespace App\Http\Controllers\Api\conversation;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Conversation\StoreConversationTypeRequest;
+use App\Http\Requests\Conversation\UpdateConversationTypeRequest;
 use App\Models\ConversationType;
-use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 
 class ConversationTypeController extends Controller
 {
-    public function index()
+    /**
+     * Display a listing of interaction types.
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function index(): JsonResponse
     {
-        return jsonResponse(
-            'Conversation types fetched',
-            true,
-            ConversationType::orderBy('name')->get()
-        );
-    }
+        $types = ConversationType::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
-    public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|unique:conversation_types,name',
+        return response()->json([
+            'success' => true,
+            'data' => $types
         ]);
-
-        ConversationType::create($request->only('name'));
-
-        return jsonResponse('Conversation type created', true);
     }
 
-    public function update(Request $request, $id)
+    /**
+     * Store a newly created interaction type.
+     * 
+     * @param  \App\Http\Requests\Conversation\StoreConversationTypeRequest  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function store(StoreConversationTypeRequest $request): JsonResponse
+    {
+        $type = ConversationType::create($request->validated());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Interaction type created successfully',
+            'data' => [
+                'id' => $type->id,
+                'name' => $type->name
+            ]
+        ], 201);
+    }
+
+    /**
+     * Display the specified interaction type.
+     * 
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function show($id): JsonResponse
     {
         $type = ConversationType::findOrFail($id);
 
-        $request->validate([
-            'name' => "required|unique:conversation_types,name,$id",
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $type->id,
+                'name' => $type->name,
+                'is_active' => $type->is_active
+            ]
         ]);
-
-        $type->update($request->only('name'));
-
-        return jsonResponse('Conversation type updated', true);
     }
 
-    public function destroy($id)
+    /**
+     * Update the specified interaction type.
+     * 
+     * @param  \App\Http\Requests\Conversation\UpdateConversationTypeRequest  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function update(UpdateConversationTypeRequest $request, $id): JsonResponse
     {
-        ConversationType::findOrFail($id)->delete();
+        $type = ConversationType::findOrFail($id);
+        $type->update($request->validated());
 
-        return jsonResponse('Conversation type deleted', true);
+        return response()->json([
+            'success' => true,
+            'message' => 'Interaction type updated successfully',
+            'data' => [
+                'id' => $type->id,
+                'name' => $type->name
+            ]
+        ]);
+    }
+
+    /**
+     * Remove the specified interaction type.
+     * 
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function destroy($id): JsonResponse
+    {
+        $type = ConversationType::findOrFail($id);
+        $type->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Interaction type deleted successfully'
+        ]);
     }
 }

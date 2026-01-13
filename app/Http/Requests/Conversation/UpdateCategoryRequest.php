@@ -6,7 +6,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class StoreConversationTypeRequest extends FormRequest
+class UpdateCategoryRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -25,8 +25,10 @@ class StoreConversationTypeRequest extends FormRequest
      */
     public function rules()
     {
+        $id = $this->route('id');
+
         return [
-            'name' => 'required|string|max:255|unique:conversation_types,name',
+            'name' => "required|string|max:255|unique:conversation_categories,name,$id",
         ];
     }
 
@@ -38,10 +40,10 @@ class StoreConversationTypeRequest extends FormRequest
     public function messages()
     {
         return [
-            'name.required' => 'The interaction type name is required.',
-            'name.unique' => 'This interaction type name already exists.',
-            'name.string' => 'The interaction type name must be a string.',
-            'name.max' => 'The interaction type name must not exceed 255 characters.',
+            'name.required' => 'The category name is required.',
+            'name.unique' => 'This category name already exists.',
+            'name.string' => 'The category name must be a string.',
+            'name.max' => 'The category name must not exceed 255 characters.',
         ];
     }
 

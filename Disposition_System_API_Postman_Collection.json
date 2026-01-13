@@ -1,0 +1,406 @@
+
+{
+  "info": {
+    "name": "Disposition System APIs",
+    "description": "Complete CRUD operations for Disposition System - Interaction Types, Categories, and Subcategories",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "Interaction Types",
+      "item": [
+        {
+          "name": "Get All Interaction Types",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/interaction-types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "interaction-types"]
+            },
+            "description": "Retrieve all active interaction types"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Interaction Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lead\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/interaction-types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "interaction-types"]
+            },
+            "description": "Create a new interaction type"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Interaction Type",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/interaction-types/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "interaction-types", "1"]
+            },
+            "description": "Get a specific interaction type by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Interaction Type",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Lead\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/interaction-types/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "interaction-types", "1"]
+            },
+            "description": "Update an existing interaction type"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Interaction Type",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/interaction-types/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "interaction-types", "1"]
+            },
+            "description": "Delete an interaction type"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Disposition Categories",
+      "item": [
+        {
+          "name": "Get All Categories (with Subcategories)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/disposition-categories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "disposition-categories"]
+            },
+            "description": "Retrieve all active categories with their subcategories"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sales\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/disposition-categories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "disposition-categories"]
+            },
+            "description": "Create a new disposition category"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/disposition-categories/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "disposition-categories", "1"]
+            },
+            "description": "Get a specific category with its subcategories"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Sales\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/disposition-categories/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "disposition-categories", "1"]
+            },
+            "description": "Update an existing category"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/disposition-categories/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "disposition-categories", "1"]
+            },
+            "description": "Delete a category"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Disposition Subcategories",
+      "item": [
+        {
+          "name": "Get All Subcategories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/disposition-subcategories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "disposition-subcategories"]
+            },
+            "description": "Retrieve all active subcategories"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Subcategories by Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/disposition-subcategories?categoryId=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "disposition-subcategories"],
+              "query": [
+                {
+                  "key": "categoryId",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Get subcategories filtered by category ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Subcategory",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"conversation_category_id\": 1,\n  \"name\": \"Pricing Inquiry\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/disposition-subcategories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "disposition-subcategories"]
+            },
+            "description": "Create a new subcategory"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Subcategory",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/disposition-subcategories/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "disposition-subcategories", "1"]
+            },
+            "description": "Get a specific subcategory"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Subcategory",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"conversation_category_id\": 1,\n  \"name\": \"Updated Pricing Inquiry\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/disposition-subcategories/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "disposition-subcategories", "1"]
+            },
+            "description": "Update an existing subcategory"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Subcategory",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/disposition-subcategories/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "disposition-subcategories", "1"]
+            },
+            "description": "Delete a subcategory"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Add any pre-request scripts here if needed"
+        ]
+      }
+    }
+  ]
+}

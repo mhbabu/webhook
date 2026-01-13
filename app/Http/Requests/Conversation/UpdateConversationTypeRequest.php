@@ -6,7 +6,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class StoreConversationTypeRequest extends FormRequest
+class UpdateConversationTypeRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -25,8 +25,10 @@ class StoreConversationTypeRequest extends FormRequest
      */
     public function rules()
     {
+        $id = $this->route('id');
+
         return [
-            'name' => 'required|string|max:255|unique:conversation_types,name',
+            'name' => "required|string|max:255|unique:conversation_types,name,$id",
         ];
     }
 

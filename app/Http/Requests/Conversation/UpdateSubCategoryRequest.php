@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests\Conversation;
 
-use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class StoreConversationTypeRequest extends FormRequest
+class UpdateSubCategoryRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -26,7 +26,8 @@ class StoreConversationTypeRequest extends FormRequest
     public function rules()
     {
         return [
-            'name' => 'required|string|max:255|unique:conversation_types,name',
+            'conversation_category_id' => 'sometimes|required|exists:conversation_categories,id',
+            'name' => 'sometimes|required|string|max:255',
         ];
     }
 
@@ -38,16 +39,18 @@ class StoreConversationTypeRequest extends FormRequest
     public function messages()
     {
         return [
-            'name.required' => 'The interaction type name is required.',
-            'name.unique' => 'This interaction type name already exists.',
-            'name.string' => 'The interaction type name must be a string.',
-            'name.max' => 'The interaction type name must not exceed 255 characters.',
+            'conversation_category_id.required' => 'The category ID is required.',
+            'conversation_category_id.exists' => 'The selected category does not exist.',
+            'name.required' => 'The subcategory name is required.',
+            'name.string' => 'The subcategory name must be a string.',
+            'name.max' => 'The subcategory name must not exceed 255 characters.',
         ];
     }
 
     /**
      * Handle a failed validation attempt.
      *
+     * @param  \Illuminate\Contracts\Validation\Validator  $validator
      * @return void
      *
      * @throws \Illuminate\Http\Exceptions\HttpResponseException
@@ -58,7 +61,7 @@ class StoreConversationTypeRequest extends FormRequest
         $response = response()->json([
             'success' => false,
             'message' => $errors->first(),
-            'errors' => $errors,
+            'errors' => $errors
         ], 422);
 
         throw new HttpResponseException($response);
