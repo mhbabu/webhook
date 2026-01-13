@@ -30,27 +30,6 @@ RUN pecl install redis \
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# ✅ COPY CUSTOM PHP CONFIG (THIS IS THE FIX)
-#COPY docker/php/custom.ini /usr/local/etc/php/conf.d/custom.ini
-
-# Use production php.ini as the main php.ini
-RUN mv /usr/local/etc/php/php.ini-production /usr/local/etc/php/php.ini
-
-# Verify the change (optional)
-RUN php -i | grep "Loaded Configuration File"
-
-# Update PHP settings directly
-RUN sed -i \
-    -e 's/memory_limit = .*/memory_limit = 1024M/' \
-    -e 's/upload_max_filesize = .*/upload_max_filesize = 64M/' \
-    -e 's/post_max_size = .*/post_max_size = 64M/' \
-    -e 's/max_execution_time = .*/max_execution_time = 120/' \
-    /usr/local/etc/php/php.ini
-
-
-# Ensure FPM includes conf.d/*.ini
-# RUN echo "include=/usr/local/etc/php/conf.d/*.ini" >> /usr/local/etc/php-fpm.conf
-
 # Set working directory
 WORKDIR /var/www/html/webhook
 
