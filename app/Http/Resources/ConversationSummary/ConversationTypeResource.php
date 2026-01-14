@@ -12,7 +12,7 @@ class ConversationTypeResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            // 'is_active' => (bool) ($this->is_active ?? true),
+            'is_active' => (bool) ($this->is_active ?? true),
             // 'created_at' => $this->created_at?->toDateTimeString(),
         ];
     }

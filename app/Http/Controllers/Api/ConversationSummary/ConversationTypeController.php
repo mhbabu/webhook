@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\ConversationSummary;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ConversationSummary\ConversationTypeRequest;
-use App\Http\Resources\Conversation\ConversationTypeResource;
+use App\Http\Resources\ConversationSummary\ConversationTypeResource;
 use App\Models\ConversationType;
 use Illuminate\Http\Request;
 
@@ -97,5 +97,6 @@ class ConversationTypeController extends Controller
         $type->delete();
 
         return jsonResponse('Conversation type deleted successfully', true);
+        // return jsonResponse('Conversation type deleted successfully', true, new ConversationTypeResource($type->name));
     }
 }

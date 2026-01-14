@@ -11,8 +11,8 @@ class CustomerModeRequest extends FormRequest
         $id = $this->route('id');
 
         return [
-            'name' => 'required|string|max:100|unique:customer_modes,name,'.$id,
-            'is_active' => 'sometimes|boolean',
+            'name' => 'required|string|max:100,name,'.$id,
+            'is_active' => 'boolean',
         ];
     }
 }

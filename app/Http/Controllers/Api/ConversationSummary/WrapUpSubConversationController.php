@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\ConversationSummary;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ConversationSummary\WrapUpSubConversationRequest;
-use App\Http\Resources\Conversation\WrapUpSubConversationResource;
+use App\Http\Resources\ConversationSummary\WrapUpSubConversationResource;
 use App\Models\WrapUpSubConversation;
 use Illuminate\Http\Request;
 
@@ -21,7 +21,7 @@ class WrapUpSubConversationController extends Controller
         $sortBy = $data['sort_by'] ?? 'id';
         $sortOrder = $data['sort_order'] ?? 'asc';
 
-        $query = WrapUpSubConversation::query();
+        $query = WrapUpSubConversation::with('wrapUpConversation');
 
         if ($request->filled('wrap_up_conversation_id')) {
             $query->where('wrap_up_conversation_id', $request->wrap_up_conversation_id);
@@ -57,13 +57,13 @@ class WrapUpSubConversationController extends Controller
         return jsonResponse(
             'Wrap-up sub conversation created successfully',
             true,
-            new WrapUpSubConversationResource($sub)
+            new WrapUpSubConversationResource($sub->load('wrapUpConversation'))
         );
     }
 
     public function show($id)
     {
-        $sub = WrapUpSubConversation::find($id);
+        $sub = WrapUpSubConversation::with('wrapUpConversation')->find($id);
         if (! $sub) {
             return jsonResponse('Wrap-up sub conversation not found', false);
         }
@@ -87,7 +87,7 @@ class WrapUpSubConversationController extends Controller
         return jsonResponse(
             'Wrap-up sub conversation updated successfully',
             true,
-            new WrapUpSubConversationResource($sub)
+            new WrapUpSubConversationResource($sub->load('wrapUpConversation'))
         );
     }
 

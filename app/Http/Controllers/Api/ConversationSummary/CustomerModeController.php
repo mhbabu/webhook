@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\ConversationSummary;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ConversationSummary\CustomerModeRequest;
-use App\Http\Resources\Conversation\CustomerModeResource;
+use App\Http\Resources\ConversationSummary\CustomerModeResource;
 use App\Models\CustomerMode;
 use Illuminate\Http\Request;
 

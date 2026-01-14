@@ -11,18 +11,22 @@ use Illuminate\Http\Request;
 
 class WrapUpConversationController extends Controller
 {
-     public function index(Request $request)
+    public function index(Request $request)
     {
-        $data       = $request->all();
-        $pagination = !isset($data['pagination']) || $data['pagination'] === 'true' ? true : false;
-        $page       = $data['page'] ?? 1;
-        $perPage    = $data['per_page'] ?? 10;
+        $data = $request->all();
+        $pagination = ! isset($data['pagination']) || $data['pagination'] === 'true';
+        $page = $data['page'] ?? 1;
+        $perPage = $data['per_page'] ?? 10;
         $searchText = $data['search'] ?? null;
-        $searchBy   = $data['search_by'] ?? 'name';
-        $sortBy     = $data['sort_by'] ?? 'id';
-        $sortOrder  = $data['sort_order'] ?? 'asc';
+        $searchBy = $data['search_by'] ?? 'name';
+        $sortBy = $data['sort_by'] ?? 'id';
+        $sortOrder = $data['sort_order'] ?? 'asc';
 
-        $query = WrapUpConversation::query();
+        $query = WrapUpConversation::with([
+            'subConversations' => function ($q) {
+                $q->orderBy('name');
+            },
+        ]);
 
         if ($searchText && $searchBy) {
             $query->where($searchBy, 'like', "%{$searchText}%");
@@ -31,17 +35,26 @@ class WrapUpConversationController extends Controller
         $query->orderBy($sortBy, $sortOrder);
 
         if ($pagination) {
-            $platforms = $query->paginate($perPage, ['*'], 'page', $page);
-            return jsonResponseWithPagination('Wrap-up conversation list retrieved successfully', true, WrapUpConversationResource::collection($platforms)->response()->getData(true));
+            $items = $query->paginate($perPage, ['*'], 'page', $page);
+
+            return jsonResponseWithPagination(
+                'Wrap-up conversation list retrieved successfully',
+                true,
+                WrapUpConversationResource::collection($items)->response()->getData(true)
+            );
         }
 
-        return jsonResponse('Wrap-up conversation list retrieved successfully', true, WrapUpConversationResource::collection($query->get()));
+        return jsonResponse(
+            'Wrap-up conversation list retrieved successfully',
+            true,
+            WrapUpConversationResource::collection($query->get())
+        );
     }
-
 
     public function store(StoreWrapUpConversation $request)
     {
         $conversation = WrapUpConversation::create($request->validated());
+
         return jsonResponse('Wrap-up conversation created successfully', true, new WrapUpConversationResource($conversation), 201);
     }
 
@@ -49,7 +62,7 @@ class WrapUpConversationController extends Controller
     {
         $conversation = WrapUpConversation::find($id);
 
-        if (!$conversation) {
+        if (! $conversation) {
             return jsonResponse('Wrap-up conversation not found', false, null, 404);
         }
 
@@ -60,7 +73,7 @@ class WrapUpConversationController extends Controller
     {
         $conversation = WrapUpConversation::find($id);
 
-        if (!$conversation) {
+        if (! $conversation) {
             return jsonResponse('Wrap-up conversation not found', false, null, 404);
         }
 
@@ -73,7 +86,7 @@ class WrapUpConversationController extends Controller
     {
         $conversation = WrapUpConversation::find($id);
 
-        if (!$conversation) {
+        if (! $conversation) {
             return jsonResponse('Wrap-up conversation not found', false, null, 404);
         }
 

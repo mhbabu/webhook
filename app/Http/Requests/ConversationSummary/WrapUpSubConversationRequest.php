@@ -11,7 +11,7 @@ class WrapUpSubConversationRequest extends FormRequest
         return [
             'wrap_up_conversation_id' => 'required|exists:wrap_up_conversations,id',
             'name' => 'required|string|max:100',
-            'is_active' => 'sometimes|boolean',
+            'is_active' => 'boolean',
         ];
     }
 }
