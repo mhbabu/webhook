@@ -79,7 +79,7 @@ class ConversationDetailReportExport implements FromCollection, WithHeadings, Wi
             'Receiver',
             'UserName',
             'Channel',
-            'InteractionType',
+            'ConversationType',
             'Status',
             'AgentName',
             "Customer's Name",

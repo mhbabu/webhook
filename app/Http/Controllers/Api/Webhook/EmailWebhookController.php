@@ -172,7 +172,7 @@ class EmailWebhookController extends Controller
                 'source' => 'email',
                 'traceId' => $conversation->trace_id,
                 'conversationId' => $conversation->id,
-                'InteractionType' => 'new',
+                'ConversationType' => 'new',
                 'api_key' => config('dispatcher.email_api_key'),
                 // 'timestamp' => $timestamp,
                 'timestamp' => now()->timestamp,

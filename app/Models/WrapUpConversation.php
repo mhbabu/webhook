@@ -7,7 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class WrapUpConversation extends Model
 {
-   use HasFactory;
+    use HasFactory;
 
     protected $fillable = ['name'];
+
+    public function subConversations()
+    {
+        return $this->hasMany(WrapUpSubConversation::class);
+    }
 }

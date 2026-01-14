@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class InteractionType extends Model
+class ConversationType extends Model
 {
     protected $fillable = ['name', 'is_active'];
 }

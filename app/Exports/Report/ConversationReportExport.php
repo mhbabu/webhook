@@ -50,7 +50,7 @@ class ConversationReportExport implements FromQuery, WithHeadings, WithMapping, 
 
     public function headings(): array
     {
-        // SrNo SessionID ChannelSource InteractionType AgentName 
+        // SrNo SessionID ChannelSource ConversationType AgentName 
         //LoginId CustomerName Number CustomerEmail DisconnectionStatus
         //SessionStartTime AgentRouteTime FirstResponseTime SessionEndTime ChatEndTime
         // InteractionDuration QueueTime AvgResponseTime Remarks CustomerRating(Disposition SubDisposition)
@@ -60,7 +60,7 @@ class ConversationReportExport implements FromQuery, WithHeadings, WithMapping, 
             'SrNo', //1
             'SessionID', //2
             'ChannelSource', //3
-            'InteractionType', //4
+            'ConversationType', //4
             'AgentName', //5
             'LoginId', //6
             'CustomerName', //7
@@ -94,7 +94,7 @@ class ConversationReportExport implements FromQuery, WithHeadings, WithMapping, 
             $counter, //1SrNo
             $conversation->trace_id, //2 SessionID
             'SAMSUNG', //3 ChannelSource
-            $conversation->platform, //4 InteractionType
+            $conversation->platform, //4 ConversationType
             $conversation->agent->name ?? null, //5 AgentName
             $conversation->agent->name ?? null, //6 LoginId
             $conversation->customer->name ?? null, //7 CustomerName

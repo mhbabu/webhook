@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Http\Resources\Conversation;
+namespace App\Http\Resources\ConversationSummary;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class InteractionTypeResource extends JsonResource
+class CustomerModeResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            // 'id' => $this->id,
             'name' => $this->name,
-            'is_active' => (bool) ($this->is_active ?? true),
+            'is_active' => (bool) $this->is_active,
             // 'created_at' => $this->created_at?->toDateTimeString(),
         ];
     }

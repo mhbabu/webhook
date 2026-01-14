@@ -21,10 +21,8 @@ class DatabaseSeeder extends Seeder
             MessageTemplateTableSeeder::class,
             // ChatSeeder::class,
             SystemSettingsTableSeeder::class,
-            InteractionTypeSeeder::class,
+            ConversationTypeSeeder::class,
             CustomerModeSeeder::class,
-            DispositionSeeder::class,
-            SubDispositionSeeder::class,
         ]);
     }
 }

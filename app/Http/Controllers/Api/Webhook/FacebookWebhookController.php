@@ -239,7 +239,7 @@ class FacebookWebhookController extends Controller
                         'source' => 'facebook_messenger',
                         'traceId' => $conversation->trace_id,
                         'conversationId' => $conversation->id,
-                        'InteractionType' => $isNewConversation ? 'new' : 'old',
+                        'ConversationType' => $isNewConversation ? 'new' : 'old',
                         'sender' => $senderId,
                         'api_key' => config('dispatcher.messenger_api_key'),
                         'timestamp' => $timestamp,

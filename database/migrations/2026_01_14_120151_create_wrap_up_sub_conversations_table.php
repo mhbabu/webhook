@@ -11,17 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('conversation_sub_categories', function (Blueprint $table) {
+        Schema::create('wrap_up_sub_conversations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('conversation_category_id')
-                ->constrained('conversation_categories')
+            $table->foreignId('wrap_up_conversation_id')
+                ->constrained()
                 ->cascadeOnDelete();
-
             $table->string('name');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
-            $table->unique(['conversation_category_id', 'name']);
+            $table->unique(['wrap_up_conversation_id', 'name']);
         });
 
     }
@@ -31,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('conversation_sub_categories');
+        Schema::dropIfExists('wrap_up_sub_conversations');
     }
 };

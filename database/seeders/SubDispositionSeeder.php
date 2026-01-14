@@ -12,58 +12,47 @@ class SubDispositionSeeder extends Seeder
     public function run(): void
     {
         if (
-            ! Schema::hasTable('sub_dispositions') ||
-            ! Schema::hasTable('dispositions')
+            ! Schema::hasTable('dispositions') ||
+            ! Schema::hasTable('sub_dispositions')
         ) {
             return;
         }
 
         SubDisposition::truncate();
 
-        $serviceIssue = Disposition::where('name', 'Service Issue')->first();
-        $productIssue = Disposition::where('name', 'Product Issue')->first();
-        $sales = Disposition::where('name', 'Sales')->first();
+        $map = [
+            'Service Issue' => [
+                'Delay',
+                'Rude Behavior',
+            ],
+            'Product Issue' => [
+                'Damaged Product',
+                'Wrong Item',
+            ],
+            'Sales' => [
+                'Interested',
+                'Follow Up Required',
+            ],
+            'General Inquiry' => [
+                'Information Request',
+                'Other',
+            ],
+        ];
 
-        if (! $serviceIssue || ! $productIssue || ! $sales) {
-            return;
+        foreach ($map as $dispositionName => $subs) {
+            $disposition = Disposition::where('name', $dispositionName)->first();
+
+            if (! $disposition) {
+                continue;
+            }
+
+            foreach ($subs as $subName) {
+                SubDisposition::create([
+                    'disposition_id' => $disposition->id,
+                    'name' => $subName,
+                    'is_active' => true,
+                ]);
+            }
         }
-
-        SubDisposition::insert([
-            // Service Issue
-            [
-                'disposition_id' => $serviceIssue->id,
-                'name' => 'Delay',
-                'is_active' => true,
-            ],
-            [
-                'disposition_id' => $serviceIssue->id,
-                'name' => 'Rude Behavior',
-                'is_active' => true,
-            ],
-
-            // Product Issue
-            [
-                'disposition_id' => $productIssue->id,
-                'name' => 'Damaged Product',
-                'is_active' => true,
-            ],
-            [
-                'disposition_id' => $productIssue->id,
-                'name' => 'Wrong Item',
-                'is_active' => true,
-            ],
-
-            // Sales
-            [
-                'disposition_id' => $sales->id,
-                'name' => 'Interested',
-                'is_active' => true,
-            ],
-            [
-                'disposition_id' => $sales->id,
-                'name' => 'Follow Up Required',
-                'is_active' => true,
-            ],
-        ]);
     }
 }
