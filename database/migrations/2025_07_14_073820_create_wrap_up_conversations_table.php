@@ -10,11 +10,9 @@ return new class extends Migration
     {
         Schema::create('wrap_up_conversations', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 150);
+            $table->string('name')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
-
-            $table->unique('name'); // optional but recommended
         });
     }
 

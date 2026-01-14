@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('platforms', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique(); // WhatsApp, Messenger, Instagram etc.
+            $table->string('name')->nullable(); // WhatsApp, Messenger, Instagram etc.
             $table->tinyInteger('status')->default(1); // 1: active, 0: inactive
             $table->timestamps();
         });

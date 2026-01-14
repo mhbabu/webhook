@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-class CustomerModeSeeder extends Seeder
+class CustomerModeTableSeeder extends Seeder
 {
     /**
      * Run the database seeds.
@@ -13,9 +13,12 @@ class CustomerModeSeeder extends Seeder
     public function run(): void
     {
         DB::table('customer_modes')->insert([
-            ['name' => 'Positive'],
-            ['name' => 'Negative'],
-            ['name' => 'Neutral'],
+            [
+                'name' => 'regular',
+            ],
+            [
+                'name' => 'vip',
+            ],
         ]);
     }
 }

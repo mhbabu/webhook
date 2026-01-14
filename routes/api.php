@@ -19,5 +19,4 @@ Route::prefix('v1')->group(function () {
     require base_path('routes/report/report.php');
     require base_path('routes/system-setting/system-setting.php');
     require base_path('routes/social-page/social-page.php');
-    require base_path('routes/conversation-summary/conversation-summary.php');
 });

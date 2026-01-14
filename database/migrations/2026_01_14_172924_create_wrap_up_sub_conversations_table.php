@@ -11,9 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('customer_modes', function (Blueprint $table) {
+        Schema::create('wrap_up_sub_conversations', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();
+            $table->foreignId('wrap_up_conversation_id')->constrained()->cascadeOnDelete();
+            $table->string('name')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
@@ -25,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('customer_modes');
+        Schema::dropIfExists('wrap_up_sub_conversations');
     }
 };

@@ -43,8 +43,8 @@ class FacebookPageService
                 'message_tags',
                 // Full attachments
                 'attachments{media_type,url,media{image,source},subattachments{media_type,url,media{image,source}}}',
-                // 'attachments{subattachments{media,type,url}}',
-                'comments.limit(100){id,message,from,created_time,attachment,message_tags,comments.limit(50){id,message,from,created_time,attachment,message_tags}}',
+                // Comments with parent_id
+                'comments.limit(100){id,message,from,created_time,attachment,message_tags,parent{id},comments.limit(50){id,message,from,created_time,attachment,message_tags,parent{id}}}',
                 'reactions.summary(true)',
             ]),
             'access_token' => $this->token,
@@ -52,6 +52,8 @@ class FacebookPageService
 
         return $response->json('data', []);
     }
+
+
 
     /** 🔹 Fetch full user info by Facebook ID */
     public function fetchUser(string $facebookUserId): array
