@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Api\SocialPage\FacebookPageController;
 use App\Http\Controllers\Api\SocialPage\FacebookPagePostSyncController;
-use App\Http\Controllers\Api\Threads\ThreadController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
