@@ -12,7 +12,7 @@ Route::post('webhook/whatsapp', [PlatformWebhookController::class, 'incomingWhat
 Route::get('webhook/facebook', [FacebookWebhookController::class, 'verifyFacebookToken']); //  messenger token verification
 Route::post('webhook/facebook', [FacebookWebhookController::class, 'incomingFacebookEvent']); // receive messenger webhook response
 // Route::post('webhook/facebook', [FacebookWebhookController::class, 'handle']);
-Route::post('webhook/facebookPage', [FacebookWebhookController::class, 'webhook']); // receive facebook page event data new and improved
+// Route::post('webhook/facebookPage', [FacebookWebhookController::class, 'webhook']); // receive facebook page event data new and improved
 
 Route::get('webhook/instagram', [InstagramWebhookController::class, 'verifyInstagram']); // For for webhook verification
 Route::post('webhook/instagram', [InstagramWebhookController::class, 'receiveInstagramMessage']); // POST for message reception
