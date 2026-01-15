@@ -106,7 +106,7 @@ class MessageController extends Controller
         $source = strtolower($data['source'] ?? '');
         $conversationId = $data['messageData']['conversationId'] ?? null;
         $messageId = $data['messageData']['messageId'] ?? null;
-        $ConversationType = $data['messageData']['ConversationType'] ?? null;
+        $conversationType = $data['messageData']['conversationType'] ?? null;
 
         // ----------------------------
         // 1. Basic Validation

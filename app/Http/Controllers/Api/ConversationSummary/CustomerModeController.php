@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\ConversationSummary;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ConversationSummary\ConversationType\UpdateConversationTypeRequest;
 use App\Http\Requests\ConversationSummary\CustomerMode\StoreCustomerModeRequest;
+use App\Http\Requests\ConversationSummary\CustomerMode\UpdateCustomerModeRequest;
 use App\Http\Requests\ConversationSummary\CustomerModeRequest;
 use App\Http\Resources\ConversationSummary\CustomerModeResource;
 use App\Models\CustomerMode;
@@ -55,7 +56,7 @@ class CustomerModeController extends Controller
         return jsonResponse('Customer mode retrieved successfully', true, new CustomerModeResource($mode));
     }
 
-    public function update(UpdateConversationTypeRequest $request, $id)
+    public function update(UpdateCustomerModeRequest $request, $id)
     {
         $mode = CustomerMode::find($id);
         if (! $mode) {

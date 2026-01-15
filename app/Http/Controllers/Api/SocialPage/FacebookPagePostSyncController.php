@@ -171,7 +171,7 @@ class FacebookPagePostSyncController extends Controller
             'source'             => 'facebook',
             'traceId'            => $conversation->trace_id,
             'conversationId'     => $conversation->id,
-            'ConversationType'   => 'new',
+            'conversationType'   => 'new',
             'api_key'            => config('dispatcher.facebook_api_key'),
             'sender'             => (string)$conversation->customer_id,
             'timestamp'          => now()->timestamp,
