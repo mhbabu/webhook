@@ -75,6 +75,7 @@ class EmailWebhookController extends Controller
                     Log::error('⚠️ Error processing email: '.$e->getMessage(), [
                         'subject' => (string) $imapMsg->getSubject(),
                         'from' => (string) optional($imapMsg->getFrom()->first())->mail,
+                        'date' => (string) $imapMsg->getDate(),
                     ]);
                 }
             }
@@ -120,6 +121,7 @@ class EmailWebhookController extends Controller
             $ccMails,
             $subject,
             $htmlBody,
+            $emailDate,
             $messageId,
             $imapMsg,
             &$conversation,
@@ -154,6 +156,7 @@ class EmailWebhookController extends Controller
                 'platform_message_id' => $messageId,
                 'subject' => $subject,
                 'content' => $htmlBody,
+                'received_at' => $emailDate,
                 'direction' => 'incoming',
             ]);
 
@@ -181,7 +184,7 @@ class EmailWebhookController extends Controller
                 'cc' => $ccMails,
                 'subject' => $subject,
                 'html_body' => $htmlBody,
-                // 'emailDate' => $emailDate->toDateTimeString(),
+                'emailDate' => $emailDate->toDateTimeString(),
                 'attachments' => $attachmentsArr,
                 'messageId' => $message->id,
             ];
@@ -230,6 +233,8 @@ class EmailWebhookController extends Controller
                 'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 'xls' => 'application/vnd.ms-excel',
                 'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'ppt' => 'application/vnd.ms-powerpoint',
+                'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
                 default => 'application/octet-stream',
             };
 
