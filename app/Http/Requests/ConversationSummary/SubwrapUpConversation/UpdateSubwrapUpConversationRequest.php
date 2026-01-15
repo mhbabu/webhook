@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Requests\ConversationSummary\ConversationSubWrapUp;
+namespace App\Http\Requests\ConversationSummary\SubwrapUpConversation;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
-class StoreSubWrapUpConversationRequest extends FormRequest
+class UpdateSubwrapUpConversationRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -16,10 +16,13 @@ class StoreSubWrapUpConversationRequest extends FormRequest
 
     public function rules(): array
     {
+        // Use route parameter $id from controller
+        $id = $this->route('sub_wrap_up');
+
         return [
-            'name'                    => ['required', 'string', 'max:255', Rule::unique('wrap_up_sub_conversations')->where('wrap_up_conversation_id', $this->wrap_up_conversation_id)],
-            'wrap_up_conversation_id' => ['required', 'integer', 'exists:wrap_up_conversations,id'],
-            'is_active'               => ['required', 'boolean'],
+            'name'                    => ['required', 'string', 'max:255', Rule::unique('subwrap_up_conversations')->where('wrap_up_conversation_id', $this->wrap_up_conversation_id)->ignore($id)],
+            'wrap_up_conversation_id' => [ 'required', 'integer', 'exists:wrap_up_conversations,id'],
+            'is_active'               => [ 'required', 'boolean'],
         ];
     }
 

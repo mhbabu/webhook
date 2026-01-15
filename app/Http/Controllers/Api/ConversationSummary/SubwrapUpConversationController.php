@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\ConversationSummary;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ConversationSummary\ConversationSubWrapUp\StoreSubWrapUpConversationRequest;
-use App\Http\Requests\ConversationSummary\ConversationSubWrapUp\UpdateSubWrapUpConversationRequest;
+use App\Http\Requests\ConversationSummary\SubwrapUpConversation\StoreSubwrapUpConversationRequest;
+use App\Http\Requests\ConversationSummary\SubwrapUpConversation\UpdateSubwrapUpConversationRequest;
 use App\Http\Resources\ConversationSummary\SubwrapUpConversationResource;
 use App\Models\SubwrapUpConversation;
 use Illuminate\Http\Request;
@@ -40,7 +40,7 @@ class SubwrapUpConversationController extends Controller
         return jsonResponse('Sub-wrap-up conversations retrieved successfully', true, SubwrapUpConversationResource::collection($query->get()));
     }
 
-    public function store(StoreSubWrapUpConversationRequest $request)
+    public function store(StoreSubwrapUpConversationRequest $request)
     {
         $sub = SubwrapUpConversation::create($request->validated());
         return jsonResponse('Sub-wrap-up conversation created successfully', true, new SubwrapUpConversationResource($sub));
@@ -48,19 +48,19 @@ class SubwrapUpConversationController extends Controller
 
     public function show($id)
     {
-        $sub = WrapUpSubConversation::with('wrapUpConversation')->find($id);
+        $sub = SubwrapUpConversation::with('wrapUpConversation')->find($id);
         if (! $sub) {
             return jsonResponse('Wrap-up sub conversation not found', false);
         }
 
-        return jsonResponse('Sub-wrap-up conversation retrieved successfully', true, new WrapUpSubConversationResource($sub));
+        return jsonResponse('Sub-wrap-up conversation retrieved successfully', true, new SubwrapUpConversationResource($sub));
     }
 
-    public function update(UpdateSubWrapUpConversationRequest $request, $wrap_up_conversation)
+    public function update(UpdateSubwrapUpConversationRequest $request, $subwrap_up_conversations)
     {
-        $sub = SubwrapUpConversation::find($wrap_up_conversation);
+        $sub = SubwrapUpConversation::find($subwrap_up_conversations);
         if (! $sub) {
-            return jsonResponse('Wrap-up sub conversation not found', false);
+            return jsonResponse('Sub-wrap-up sub conversation not found', false);
         }
 
         $sub->update($request->validated());
@@ -71,7 +71,7 @@ class SubwrapUpConversationController extends Controller
     {
         $sub = SubwrapUpConversation::find($id);
         if (! $sub) {
-            return jsonResponse('Wrap-up sub conversation not found', false);
+            return jsonResponse('Sub-wrap-up sub conversation not found', false);
         }
 
         $sub->delete();

@@ -12,7 +12,7 @@ class SubwrapUpConversationTableSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::table('wrap_up_sub_conversations')->insert([
+        DB::table('subwrap_up_conversations')->insert([
             [
                 'wrap_up_conversation_id' => 1,
                 'name' => 'Customer disconnected abruptly',
