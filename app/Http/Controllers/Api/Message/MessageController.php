@@ -106,7 +106,7 @@ class MessageController extends Controller
         $source = strtolower($data['source'] ?? '');
         $conversationId = $data['messageData']['conversationId'] ?? null;
         $messageId = $data['messageData']['messageId'] ?? null;
-        $conversationType = $data['messageData']['conversationType'] ?? null;
+        $ConversationType = $data['messageData']['ConversationType'] ?? null;
 
         // ----------------------------
         // 1. Basic Validation
@@ -120,7 +120,7 @@ class MessageController extends Controller
         // ----------------------------
         if (in_array($source, ['facebook', 'instagram'])) {
 
-            DB::transaction(function () use ($agentId, $availableScope, $conversationId, $conversationType, $source) {
+            DB::transaction(function () use ($agentId, $availableScope, $conversationId, $ConversationType, $source) {
 
                 // Update Agent Availability
                 $user = User::findOrFail($agentId);
@@ -131,7 +131,7 @@ class MessageController extends Controller
                 $conversation = Conversation::findOrFail($conversationId);
 
                 // Assign Agent Only First Time
-                if ($conversationType === 'new' && empty($conversation->agent_id)) {
+                if ($ConversationType === 'new' && empty($conversation->agent_id)) {
                     $conversation->agent_id = $user->id;
                     $conversation->agent_assigned_at = now();
                     $conversation->save();
@@ -163,7 +163,7 @@ class MessageController extends Controller
             $availableScope,
             $conversationId,
             $messageId,
-            $conversationType,
+            $ConversationType,
             $source
         ) {
 
@@ -179,7 +179,7 @@ class MessageController extends Controller
             $isFirstAssignment = false;
 
             // Assign Agent Only First Time
-            if ($conversationType === 'new' && empty($conversation->agent_id)) {
+            if ($ConversationType === 'new' && empty($conversation->agent_id)) {
 
                 $conversation->agent_id = $user->id;
                 $conversation->first_message_at ??= now();
@@ -190,7 +190,7 @@ class MessageController extends Controller
             }
 
             // Assign Message Receiver
-            if ($conversationType === 'new' || empty($message->receiver_id)) {
+            if ($ConversationType === 'new' || empty($message->receiver_id)) {
                 $message->receiver_id = $conversation->agent_id ?? $user->id;
                 $message->receiver_type = User::class;
             }

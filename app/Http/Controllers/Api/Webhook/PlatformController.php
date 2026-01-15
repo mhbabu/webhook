@@ -13,14 +13,14 @@ class PlatformController extends Controller
 {
     public function index(Request $request)
     {
-        $data       = $request->all();
-        $pagination = !isset($data['pagination']) || $data['pagination'] === 'true' ? true : false;
-        $page       = $data['page'] ?? 1;
-        $perPage    = $data['per_page'] ?? 10;
+        $data = $request->all();
+        $pagination = ! isset($data['pagination']) || $data['pagination'] === 'true' ? true : false;
+        $page = $data['page'] ?? 1;
+        $perPage = $data['per_page'] ?? 10;
         $searchText = $data['search'] ?? null;
-        $searchBy   = $data['search_by'] ?? 'name';
-        $sortBy     = $data['sort_by'] ?? 'id';
-        $sortOrder  = $data['sort_order'] ?? 'asc';
+        $searchBy = $data['search_by'] ?? 'name';
+        $sortBy = $data['sort_by'] ?? 'id';
+        $sortOrder = $data['sort_order'] ?? 'asc';
 
         $query = Platform::query();
 
@@ -32,6 +32,7 @@ class PlatformController extends Controller
 
         if ($pagination) {
             $platforms = $query->paginate($perPage, ['*'], 'page', $page);
+
             return jsonResponseWithPagination('Platform list retrieved successfully', true, PlatformResource::collection($platforms)->response()->getData(true));
         }
 
@@ -41,13 +42,14 @@ class PlatformController extends Controller
     public function store(StorePlatformRequest $request)
     {
         $platform = Platform::create($request->validated());
+
         return jsonResponse('Platform created successfully', true, new PlatformResource($platform));
     }
 
     public function show($platformId)
     {
         $platform = Platform::find($platformId);
-        if (!$platform) {
+        if (! $platform) {
             return jsonResponse('Platform not found', false);
         }
 
@@ -57,21 +59,23 @@ class PlatformController extends Controller
     public function update(UpdatePlatformRequest $request, $platformId)
     {
         $platform = Platform::find($platformId);
-        if (!$platform) {
+        if (! $platform) {
             return jsonResponse('Platform not found', false);
         }
 
         $platform->update($request->validated());
+
         return jsonResponse('Platform updated successfully', true, new PlatformResource($platform));
     }
 
     public function destroy($platformId)
     {
         $platform = Platform::find($platformId);
-        if (!$platform) {
+        if (! $platform) {
             return jsonResponse('Platform not found', false);
         }
         $platform->delete();
+
         return jsonResponse('Platform deleted successfully', true);
     }
 }

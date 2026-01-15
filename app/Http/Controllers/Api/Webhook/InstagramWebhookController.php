@@ -292,7 +292,7 @@ class InstagramWebhookController extends Controller
                         'source' => 'instagram_message',
                         'traceId' => $conversation->trace_id,
                         'conversationId' => $conversation->id,
-                        'conversationType' => $isNewConversation ? 'new' : 'old',
+                        'ConversationType' => $isNewConversation ? 'new' : 'old',
                         'sender' => $senderId,
                         'api_key' => config('dispatcher.instagram_api_key'),
                         'timestamp' => $timestamp,
