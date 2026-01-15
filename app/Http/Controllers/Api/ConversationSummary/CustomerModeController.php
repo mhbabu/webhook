@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\ConversationSummary;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ConversationSummary\ConversationType\UpdateConversationTypeRequest;
+use App\Http\Requests\ConversationSummary\CustomerMode\StoreCustomerModeRequest;
 use App\Http\Requests\ConversationSummary\CustomerModeRequest;
 use App\Http\Resources\ConversationSummary\CustomerModeResource;
 use App\Models\CustomerMode;
@@ -12,16 +14,15 @@ class CustomerModeController extends Controller
 {
     public function index(Request $request)
     {
-        $data = $request->all();
-        $pagination = ! isset($data['pagination']) || $data['pagination'] === 'true';
-        $page = $data['page'] ?? 1;
-        $perPage = $data['per_page'] ?? 10;
-        $searchText = $data['search'] ?? null;
-        $searchBy = $data['search_by'] ?? 'name';
-        $sortBy = $data['sort_by'] ?? 'id';
-        $sortOrder = $data['sort_order'] ?? 'asc';
-
-        $query = CustomerMode::query();
+        $data        = $request->all();
+        $pagination  = ! isset($data['pagination']) || $data['pagination'] === 'true';
+        $page        = $data['page'] ?? 1;
+        $perPage     = $data['per_page'] ?? 10;
+        $searchText  = $data['search'] ?? null;
+        $searchBy    = $data['search_by'] ?? 'name';
+        $sortBy      = $data['sort_by'] ?? 'id';
+        $sortOrder   = $data['sort_order'] ?? 'asc';
+        $query       = CustomerMode::query();
 
         if ($searchText && $searchBy) {
             $query->where($searchBy, 'like', "%{$searchText}%");
@@ -32,29 +33,16 @@ class CustomerModeController extends Controller
         if ($pagination) {
             $items = $query->paginate($perPage, ['*'], 'page', $page);
 
-            return jsonResponseWithPagination(
-                'Customer modes retrieved successfully',
-                true,
-                CustomerModeResource::collection($items)->response()->getData(true)
-            );
+            return jsonResponseWithPagination('Customer modes retrieved successfully', true, CustomerModeResource::collection($items)->response()->getData(true));
         }
 
-        return jsonResponse(
-            'Customer modes retrieved successfully',
-            true,
-            CustomerModeResource::collection($query->get())
-        );
+        return jsonResponse('Customer modes retrieved successfully', true, CustomerModeResource::collection($query->get()));
     }
 
-    public function store(CustomerModeRequest $request)
+    public function store(StoreCustomerModeRequest $request)
     {
         $mode = CustomerMode::create($request->validated());
-
-        return jsonResponse(
-            'Customer mode created successfully',
-            true,
-            new CustomerModeResource($mode)
-        );
+        return jsonResponse('Customer mode created successfully', true, new CustomerModeResource($mode));
     }
 
     public function show($id)
@@ -64,14 +52,10 @@ class CustomerModeController extends Controller
             return jsonResponse('Customer mode not found', false);
         }
 
-        return jsonResponse(
-            'Customer mode retrieved successfully',
-            true,
-            new CustomerModeResource($mode)
-        );
+        return jsonResponse('Customer mode retrieved successfully', true, new CustomerModeResource($mode));
     }
 
-    public function update(CustomerModeRequest $request, $id)
+    public function update(UpdateConversationTypeRequest $request, $id)
     {
         $mode = CustomerMode::find($id);
         if (! $mode) {
@@ -80,11 +64,7 @@ class CustomerModeController extends Controller
 
         $mode->update($request->validated());
 
-        return jsonResponse(
-            'Customer mode updated successfully',
-            true,
-            new CustomerModeResource($mode)
-        );
+        return jsonResponse('Customer mode updated successfully', true, new CustomerModeResource($mode));
     }
 
     public function destroy($id)

@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
             SystemSettingsTableSeeder::class,
             ConversationTypeTableSeeder::class,
             CustomerModeTableSeeder::class,
-            WrapUpSubConversationSeeder::class,
+            SubwrapUpConversationTableSeeder::class,
         ]);
     }
 }

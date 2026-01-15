@@ -17,6 +17,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::delete('wrap-up-conversations/{id}', [WrapUpConversationController::class, 'destroy']);
     Route::apiResource('wrap-up-conversations', WrapUpConversationController::class);
+    Route::get('conversation/wrap-up/sub-items/{wrap_up_conversation_id}', [WrapUpConversationController::class, 'getSubwrapsByWrapUpId']);
 
     Route::get('conversations', [MessageController::class, 'agentConversationList']);
     Route::get('conversation/{conversation}/messages', [MessageController::class, 'getConversationWiseMessages']);

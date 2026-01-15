@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Message;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Message\StoreWrapUpConversation;
 use App\Http\Requests\Message\UpdateWrapUpConversation;
+use App\Http\Resources\ConversationSummary\SubwrapUpConversationResource;
 use App\Http\Resources\Message\WrapUpConversationResource;
 use App\Models\WrapUpConversation;
 use Illuminate\Http\Request;
@@ -13,20 +14,16 @@ class WrapUpConversationController extends Controller
 {
     public function index(Request $request)
     {
-        $data = $request->all();
-        $pagination = ! isset($data['pagination']) || $data['pagination'] === 'true';
-        $page = $data['page'] ?? 1;
-        $perPage = $data['per_page'] ?? 10;
-        $searchText = $data['search'] ?? null;
-        $searchBy = $data['search_by'] ?? 'name';
-        $sortBy = $data['sort_by'] ?? 'id';
-        $sortOrder = $data['sort_order'] ?? 'asc';
+        $data          = $request->all();
+        $pagination    = ! isset($data['pagination']) || $data['pagination'] === 'true';
+        $page          = $data['page'] ?? 1;
+        $perPage       = $data['per_page'] ?? 10;
+        $searchText    = $data['search'] ?? null;
+        $searchBy      = $data['search_by'] ?? 'name';
+        $sortBy        = $data['sort_by'] ?? 'id';
+        $sortOrder     = $data['sort_order'] ?? 'asc';
 
-        $query = WrapUpConversation::with([
-            'subConversations' => function ($q) {
-                $q->orderBy('name');
-            },
-        ]);
+        $query = WrapUpConversation::query();
 
         if ($searchText && $searchBy) {
             $query->where($searchBy, 'like', "%{$searchText}%");
@@ -37,18 +34,10 @@ class WrapUpConversationController extends Controller
         if ($pagination) {
             $items = $query->paginate($perPage, ['*'], 'page', $page);
 
-            return jsonResponseWithPagination(
-                'Wrap-up conversation list retrieved successfully',
-                true,
-                WrapUpConversationResource::collection($items)->response()->getData(true)
-            );
+            return jsonResponseWithPagination('Wrap-up conversation list retrieved successfully', true, WrapUpConversationResource::collection($items)->response()->getData(true));
         }
 
-        return jsonResponse(
-            'Wrap-up conversation list retrieved successfully',
-            true,
-            WrapUpConversationResource::collection($query->get())
-        );
+        return jsonResponse('Wrap-up conversation list retrieved successfully', true, WrapUpConversationResource::collection($query->get()));
     }
 
     public function store(StoreWrapUpConversation $request)
@@ -97,5 +86,18 @@ class WrapUpConversationController extends Controller
         $conversation->delete();
 
         return jsonResponse('Wrap-up conversation deleted successfully', true, null, 200);
+    }
+
+    public function getSubwrapsByWrapUpId($wrap_up_conversation_id)
+    {
+        $conversation = WrapUpConversation::with(['subwrapUpConversations' => function ($query) {
+            $query->where('is_active', true); // only active sub-wrap-ups
+        }])->find($wrap_up_conversation_id);
+
+        if (! $conversation) {
+            return jsonResponse('Wrap-up conversation not found', false, null, 404);
+        }
+
+        return jsonResponse('Active sub-wrap-up conversations retrieved successfully', true, SubwrapUpConversationResource::collection($conversation->subwrapUpConversations));
     }
 }
