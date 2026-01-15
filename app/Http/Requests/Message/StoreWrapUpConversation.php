@@ -26,6 +26,7 @@ class StoreWrapUpConversation extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255', 'unique:wrap_up_conversations,name'],
+            'is_active' => ['required', 'boolean'],
         ];
     }
 

@@ -15,8 +15,8 @@ class WrapUpConversation extends Model
         'is_active' => 'boolean',
     ];
 
-    public function subConversations()
+    public function subwrapUpConversations()
     {
-        return $this->hasMany(WrapUpSubConversation::class);
+        return $this->hasMany(SubwrapUpConversation::class);
     }
 }

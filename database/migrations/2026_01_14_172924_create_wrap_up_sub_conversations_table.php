@@ -11,14 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('wrap_up_sub_conversations', function (Blueprint $table) {
+        Schema::create('subwrap_up_conversations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('wrap_up_conversation_id')->constrained()->cascadeOnDelete();
-            $table->string('name')->nullable();
+            $table->foreignId('wrap_up_conversation_id')->constrained('wrap_up_conversations')->cascadeOnDelete();
+            $table->string('name', 255);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
-
     }
 
     /**
@@ -26,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('wrap_up_sub_conversations');
+        Schema::dropIfExists('subwrap_up_conversations');
     }
 };
