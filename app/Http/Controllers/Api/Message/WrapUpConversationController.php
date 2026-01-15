@@ -60,13 +60,17 @@ class WrapUpConversationController extends Controller
 
     public function show($id)
     {
-        $conversation = WrapUpConversation::find($id);
+        $conversation = WrapUpConversation::with('subConversations')->find($id);
 
         if (! $conversation) {
             return jsonResponse('Wrap-up conversation not found', false, null, 404);
         }
 
-        return jsonResponse('Wrap-up conversation retrieved successfully', true, new WrapUpConversationResource($conversation));
+        return jsonResponse(
+            'Wrap-up conversation retrieved successfully',
+            true,
+            new WrapUpConversationResource($conversation)
+        );
     }
 
     public function update(UpdateWrapUpConversation $request, $id)

@@ -14,10 +14,13 @@ class CustomerModeTableSeeder extends Seeder
     {
         DB::table('customer_modes')->insert([
             [
-                'name' => 'regular',
+                'name' => 'Positive',
             ],
             [
-                'name' => 'vip',
+                'name' => 'Negative',
+            ],
+            [
+                'name' => 'Neutral',
             ],
         ]);
     }
