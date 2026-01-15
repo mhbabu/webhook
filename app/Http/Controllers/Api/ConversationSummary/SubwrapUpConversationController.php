@@ -50,7 +50,7 @@ class SubwrapUpConversationController extends Controller
     {
         $sub = SubwrapUpConversation::with('wrapUpConversation')->find($id);
         if (! $sub) {
-            return jsonResponse('Wrap-up sub conversation not found', false);
+            return jsonResponse('Sub-wrap-up conversation not found', false);
         }
 
         return jsonResponse('Sub-wrap-up conversation retrieved successfully', true, new SubwrapUpConversationResource($sub));
@@ -60,7 +60,7 @@ class SubwrapUpConversationController extends Controller
     {
         $sub = SubwrapUpConversation::find($subwrap_up_conversations);
         if (! $sub) {
-            return jsonResponse('Sub-wrap-up sub conversation not found', false);
+            return jsonResponse('Sub-wrap-up conversation not found', false);
         }
 
         $sub->update($request->validated());
@@ -71,7 +71,7 @@ class SubwrapUpConversationController extends Controller
     {
         $sub = SubwrapUpConversation::find($id);
         if (! $sub) {
-            return jsonResponse('Sub-wrap-up sub conversation not found', false);
+            return jsonResponse('Sub-wrap-up conversation not found', false);
         }
 
         $sub->delete();

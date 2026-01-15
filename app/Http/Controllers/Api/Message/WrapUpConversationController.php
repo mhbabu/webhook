@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Message;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Message\StoreWrapUpConversation;
 use App\Http\Requests\Message\UpdateWrapUpConversation;
+use App\Http\Resources\ConversationSummary\SubwrapUpConversationResource;
 use App\Http\Resources\Message\WrapUpConversationResource;
 use App\Models\WrapUpConversation;
 use Illuminate\Http\Request;
@@ -85,5 +86,18 @@ class WrapUpConversationController extends Controller
         $conversation->delete();
 
         return jsonResponse('Wrap-up conversation deleted successfully', true, null, 200);
+    }
+
+    public function getSubwrapsByWrapUpId($wrap_up_conversation_id)
+    {
+        $conversation = WrapUpConversation::with(['subwrapUpConversations' => function ($query) {
+            $query->where('is_active', true); // only active sub-wrap-ups
+        }])->find($wrap_up_conversation_id);
+
+        if (! $conversation) {
+            return jsonResponse('Wrap-up conversation not found', false, null, 404);
+        }
+
+        return jsonResponse('Active sub-wrap-up conversations retrieved successfully', true, SubwrapUpConversationResource::collection($conversation->subwrapUpConversations));
     }
 }
