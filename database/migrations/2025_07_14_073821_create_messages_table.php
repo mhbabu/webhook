@@ -32,6 +32,7 @@ return new class extends Migration
             $table->string('subject')->nullable();
             $table->longText('content')->nullable();
             $table->enum('direction', ['incoming', 'outgoing']);
+            $table->timestamp('received_at')->nullable();
             $table->timestamp('read_at')->nullable();
             $table->string('read_by')->nullable();
             $table->string('platform_message_id')->unique()->nullable();
@@ -43,9 +44,9 @@ return new class extends Migration
         // Add the actual foreign key separately
         Schema::table('messages', function (Blueprint $table) {
             $table->foreign('conversation_id')
-                  ->references('id')
-                  ->on('conversations')
-                  ->onDelete('cascade');
+                ->references('id')
+                ->on('conversations')
+                ->onDelete('cascade');
         });
     }
 

@@ -7,13 +7,8 @@ use App\Http\Requests\SocialPage\Facebook\PostCommentReplyRequest;
 use App\Http\Resources\SocialPage\ConversationPageDetailResource;
 use App\Http\Resources\SocialPage\ConversationPageResource;
 use App\Http\Resources\SocialPage\PostCommentReplyResource;
-use App\Models\Post;
-use App\Models\PostComment;
-use App\Models\PostCommentReply;
-use App\Models\Customer;
-use App\Models\Platform;
 use App\Models\Conversation;
-use Illuminate\Support\Facades\DB;
+use App\Models\PostCommentReply;
 use App\Services\SocialPage\FacebookPageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -32,9 +27,9 @@ class FacebookPageController extends Controller
         $agentId = auth()->id();
 
         $pagination = filter_var($request->input('pagination', false), FILTER_VALIDATE_BOOLEAN);
-        $page       = (int) $request->input('page', 1);
-        $perPage    = (int) $request->input('per_page', 10);
-        $query      = Conversation::whereIn('platform', ['facebook', 'instagram'])->where('agent_id', $agentId)->latest();
+        $page = (int) $request->input('page', 1);
+        $perPage = (int) $request->input('per_page', 10);
+        $query = Conversation::whereIn('platform', ['facebook', 'instagram'])->where('agent_id', $agentId)->latest();
 
         if ($pagination) {
             $conversations = $query->paginate($perPage, ['*'], 'page', $page);
@@ -43,6 +38,7 @@ class FacebookPageController extends Controller
         }
 
         $conversations = $query->get();
+
         return jsonResponse('Social page conversations retrieved successfully', true, ConversationPageResource::collection($conversations));
     }
 
@@ -50,9 +46,10 @@ class FacebookPageController extends Controller
     {
         $conversation = Conversation::find($conversationId);
 
-        if (!$conversation) {
+        if (! $conversation) {
             return jsonResponse('Conversation not found', false);
         }
+
         return jsonResponse('Social page conversations retrieved successfully', true, new ConversationPageDetailResource($conversation));
     }
 
@@ -60,7 +57,7 @@ class FacebookPageController extends Controller
     {
         $conversation = Conversation::find($conversationId);
 
-        if (!$conversation) {
+        if (! $conversation) {
             return jsonResponse('Conversation not found', false);
         }
 
@@ -71,7 +68,7 @@ class FacebookPageController extends Controller
         try {
             $reply = $this->facebookPageService->replyToComment($conversation->comment->platform_comment_id, $request->input('content'));
 
-            $postCommentReply = new PostCommentReply();
+            $postCommentReply = new PostCommentReply;
             $postCommentReply->post_comment_id = $conversation->comment->id;
             $postCommentReply->platform_reply_id = $reply['data']['id'] ?? null; // <-- fixed here
             $postCommentReply->content = $request->input('content');
@@ -79,16 +76,17 @@ class FacebookPageController extends Controller
             $postCommentReply->save();
 
             // ✅ End the conversation
-            $conversation->end_at     = now();
-            $conversation->wrap_up_id = 30; //'Agent replied and the conversation was ended', from WrapUpConversationFactory
-            $conversation->ended_by   = $conversation->agent_id;
+            $conversation->end_at = now();
+            $conversation->wrap_up_id = 30; // 'Agent replied and the conversation was ended', from WrapUpConversationFactory
+            $conversation->ended_by = $conversation->agent_id;
             $conversation->save();
-            
+
             updateAgentInRedis($conversation->agent, $conversation);
 
             return jsonResponse('Reply sent successfully', true, new PostCommentReplyResource($postCommentReply));
         } catch (\Exception $e) {
-            Log::error('Error replying to comment: ' . $e->getMessage());
+            Log::error('Error replying to comment: '.$e->getMessage());
+
             return jsonResponse('Failed to send reply', false);
         }
     }
