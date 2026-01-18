@@ -271,7 +271,7 @@ class MessageController extends Controller
         $conversation->end_at               = now();
         $conversation->wrap_up_id           = $data['wrap_up_id'];
         $conversation->ended_by             = $user->id;
-        $conversation->sub_wrap_up_id       = $data['sub_wrap_up_id'];
+        $conversation->subwrap_up_id        = $data['subwrap_up_id'];
         $conversation->conversation_type_id = $data['conversation_type_id'];
         $conversation->conversation_type_id = $data['conversation_type_id'];
         $conversation->customer_mode_id     = $data['customer_mode_id'];

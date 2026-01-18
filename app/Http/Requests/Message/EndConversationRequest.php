@@ -24,7 +24,7 @@ class EndConversationRequest extends FormRequest
         return [
             'conversation_id'      => ['required', 'exists:conversations,id'],
             'wrap_up_id'           => ['required', 'exists:wrap_up_conversations,id'],
-            'sub_wrap_up_id'       => ['required', 'exists:subwrap_up_conversations,id'], 
+            'subwrap_up_id'        => ['required', 'exists:subwrap_up_conversations,id'], 
             'conversation_type_id' => ['required', 'exists:conversation_types,id'],
             'customer_mode_id'     => ['required', 'exists:customer_modes,id'],
             'remarks'              => ['nullable', 'string'],
@@ -43,8 +43,8 @@ class EndConversationRequest extends FormRequest
             'wrap_up_id.required'           => 'Wrap-up conversation is required.',
             'wrap_up_id.exists'             => 'The selected wrap-up conversation is invalid.',
 
-            'sub_wrap_up_id.required'       => 'Sub wrap-up conversation is required.',
-            'sub_wrap_up_id.exists'         => 'The selected sub wrap-up conversation is invalid.',
+            'subwrap_up_id.required'       => 'Sub wrap-up conversation is required.',
+            'subwrap_up_id.exists'         => 'The selected sub wrap-up conversation is invalid.',
 
             'conversation_type_id.required' => 'Conversation type is required.',
             'conversation_type_id.exists'   => 'The selected conversation type is invalid.',
