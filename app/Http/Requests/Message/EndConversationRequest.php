@@ -24,7 +24,7 @@ class EndConversationRequest extends FormRequest
         return [
             'conversation_id'      => ['required', 'exists:conversations,id'],
             'wrap_up_id'           => ['required', 'exists:wrap_up_conversations,id'],
-            'sub_wrap_up_id'       => ['required', 'exists:sub_wrap_up_conversations,id'],
+            'sub_wrap_up_id'       => ['required', 'exists:subwrap_up_conversations,id'], 
             'conversation_type_id' => ['required', 'exists:conversation_types,id'],
             'customer_mode_id'     => ['required', 'exists:customer_modes,id'],
             'remarks'              => ['nullable', 'string'],
