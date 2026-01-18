@@ -248,7 +248,8 @@ class MessageController extends Controller
      */
     public function endConversation(EndConversationRequest $request)
     {
-        $user = auth('api')->user();
+        $user = request()->user();
+        info('[EndConversation] Request by Agent ID: ' . $user->id);
         $data = $request->validated();
         $conversation = Conversation::find($data['conversation_id']);
 
