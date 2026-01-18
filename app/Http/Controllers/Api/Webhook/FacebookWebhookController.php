@@ -154,7 +154,7 @@ class FacebookWebhookController extends Controller
                         ->first();
 
                     $isNewConversation = false;
-                    if (! $conversation || $conversation->end_at || $conversation->first_message_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
+                    if (! $conversation || $conversation->end_at || $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))) {
                         if ($conversation && $conversation->agent_id) {
                             updateAgentInRedis($conversation->agent_id ? User::find($conversation->agent_id) : null, $conversation);
                         }
