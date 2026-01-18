@@ -13,10 +13,10 @@ class ConversationTypeTableSeeder extends Seeder
     public function run(): void
     {
         DB::table('conversation_types')->insert([
-            ['name' => 'complain'],
-            ['name' => 'query'],
-            ['name' => 'lead'],
-            ['name' => 'unknown'],
+            ['name' => 'Complain'],
+            ['name' => 'Query'],
+            ['name' => 'Lead'],
+            ['name' => 'Unknown'],
         ]);
     }
 }
