@@ -17,7 +17,7 @@ class Message extends Model
         'delivered_at' => 'datetime',
         'created_at'  => 'datetime',
         'updated_at'  => 'datetime',
-        'receiver_id' => 'datetime',
+        'received_at' => 'datetime',
     ];
 
     public function conversation()

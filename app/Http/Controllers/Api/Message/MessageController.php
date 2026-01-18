@@ -248,7 +248,7 @@ class MessageController extends Controller
      */
     public function endConversation(EndConversationRequest $request)
     {
-        $user = auth()->user();
+        $user = auth('api')->user();
         $data = $request->validated();
         $conversation = Conversation::find($data['conversation_id']);
 
@@ -267,9 +267,14 @@ class MessageController extends Controller
         }
 
         // ✅ End the conversation
-        $conversation->end_at = now();
-        $conversation->wrap_up_id = $data['wrap_up_id'];
-        $conversation->ended_by = $user->id;
+        $conversation->end_at               = now();
+        $conversation->wrap_up_id           = $data['wrap_up_id'];
+        $conversation->ended_by             = $user->id;
+        $conversation->sub_wrap_up_id       = $data['sub_wrap_up_id'];
+        $conversation->conversation_type_id = $data['conversation_type_id'];
+        $conversation->conversation_type_id = $data['conversation_type_id'];
+        $conversation->customer_mode_id     = $data['customer_mode_id'];
+        $conversation->remarks              = $data['remarks'] ?? null;
         $conversation->save();
 
         // // ✅ Update agent current_limit based on platform weight

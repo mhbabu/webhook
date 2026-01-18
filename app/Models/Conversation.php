@@ -27,7 +27,11 @@ class Conversation extends Model
         'first_response_at',
         'post_id',
         'type',
-        'type_id'
+        'type_id',
+        'conversation_type_id',
+        'customer_mode_id',
+        'subwrap_up_id',
+        'remarks'
     ];
 
     protected $casts = [

@@ -14,20 +14,24 @@ return new class extends Migration
             $table->foreignId('agent_id')->nullable()->constrained('users')->onDelete('set null');
             $table->bigInteger('last_message_id')->nullable()->constrained('messages')->onDelete('set null');
             $table->bigInteger('post_id')->nullable()->constrained('posts')->onDelete('set null');
-            $table->string('type')->nullable();
-            $table->bigInteger('type_id')->nullable();
+            $table->bigInteger('conversation_type_id')->nullable()->constrained('conversation_types')->onDelete('set null');
+            $table->bigInteger('customer_mode_id')->nullable()->constrained('customer_modes')->onDelete('set null');
+            $table->string('type')->nullable(); // e.g., 'comment', 'reply', 
+            $table->bigInteger('type_id')->nullable(); // comment or reply ID
             $table->string('platform')->nullable();
             $table->string('trace_id')->nullable();
             $table->timestamp('started_at')->useCurrent();
             $table->timestamp('end_at')->nullable();
             $table->foreignId('ended_by')->nullable()->constrained('users')->onDelete('set null');
             $table->foreignId('wrap_up_id')->nullable()->constrained('wrap_up_conversations')->onDelete('set null');
+            $table->bigInteger('subwrap_up_id')->nullable()->constrained('subwrap_up_conversations')->onDelete('set null');
             $table->timestamp('in_queue_at')->nullable();
             $table->timestamp('first_message_at')->nullable();
             $table->timestamp('first_response_at')->nullable();
             $table->timestamp('last_message_at')->nullable();
             $table->timestamp('agent_assigned_at')->nullable();
             $table->tinyInteger('is_feedback_sent')->default(0);
+            $table->text('remarks')->nullable();
             $table->timestamps();
 
             $table->index(['customer_id', 'platform']);
