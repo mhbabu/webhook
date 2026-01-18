@@ -337,10 +337,10 @@ class InstagramWebhookController extends Controller
                 $parentMessageId = $message['reply_to']['mid'] ?? null;
 
                 /**
-                 * 🚨 CRITICAL FIX — SKIP BUSINESS SENT MESSAGES
+                 * 🚨 Skip messages sent by the business account
                  */
                 if ($isEcho || $senderId === $instagramId) {
-                    Log::info('🌀 Skipping Instagram echo (business message)', [
+                    Log::info('🌀 Skipping Instagram echo/business message', [
                         'senderId' => $senderId,
                         'instagramId' => $instagramId,
                         'mid' => $platformMessageId
@@ -357,6 +357,7 @@ class InstagramWebhookController extends Controller
                     'text' => $text
                 ]);
 
+                // Fetch sender info
                 $existingCustomer = Customer::where('platform_user_id', $senderId)->first();
 
                 if ($existingCustomer) {
@@ -384,6 +385,9 @@ class InstagramWebhookController extends Controller
                     $parentMessageId
                 ) {
 
+                    /**
+                     * 1️⃣ Customer
+                     */
                     $customer = Customer::firstOrCreate(
                         ['platform_user_id' => $senderId],
                         [
@@ -394,23 +398,35 @@ class InstagramWebhookController extends Controller
                     );
 
                     /**
-                     * 🔒 Reuse conversation ALWAYS if exists (no accidental new thread)
+                     * 2️⃣ Conversation (expiry logic restored)
                      */
                     $conversation = Conversation::where('customer_id', $customer->id)
                         ->where('platform', $platformName)
+                        ->where(function ($query) {
+                            $query->whereNull('end_at')
+                                ->orWhere('created_at', '>=', now()->subHours(config('services.conversation.conversation_expire_hours')));
+                        })
                         ->latest()
                         ->first();
 
-                    if (! $conversation) {
+                    $isNewConversation = false;
+
+                    if (
+                        ! $conversation ||
+                        $conversation->end_at ||
+                        $conversation->created_at < now()->subHours(config('services.conversation.conversation_expire_hours'))
+                    ) {
                         $conversation = Conversation::create([
                             'customer_id' => $customer->id,
                             'platform' => $platformName,
                             'trace_id' => 'IGM-' . now()->format('YmdHis') . '-' . uniqid(),
                         ]);
+
+                        $isNewConversation = true;
                     }
 
                     /**
-                     * Attachment normalization
+                     * 3️⃣ Normalize attachments
                      */
                     $storedAttachments = [];
                     $mediaPaths = [];
@@ -427,7 +443,7 @@ class InstagramWebhookController extends Controller
                         };
 
                         foreach ($attachments as $attachment) {
-                            $downloaded = $this->instagramService->downloadAttachment($attachment);
+                            $downloaded = app('App\Services\InstagramService')->downloadAttachment($attachment);
                             if ($downloaded) {
                                 $storedAttachments[] = $downloaded;
                                 $mediaPaths[] = $downloaded['path'];
@@ -435,27 +451,44 @@ class InstagramWebhookController extends Controller
                         }
                     }
 
+                    /**
+                     * 4️⃣ Parent message resolution
+                     */
                     $resolvedParentId = null;
                     if (! empty($parentMessageId)) {
                         $parent = Message::where('platform_message_id', $parentMessageId)->first();
                         $resolvedParentId = $parent ? $parent->id : $parentMessageId;
                     }
 
-                    $message = Message::firstOrCreate(
-                        ['platform_message_id' => $platformMessageId],
-                        [
-                            'conversation_id' => $conversation->id,
-                            'sender_id' => $customer->id,
-                            'sender_type' => Customer::class,
-                            'type' => $type,
-                            'content' => $text,
-                            'direction' => 'incoming',
-                            'receiver_type' => User::class,
-                            'receiver_id' => $conversation->agent_id,
-                            'parent_id' => $resolvedParentId,
-                        ]
-                    );
+                    /**
+                     * 5️⃣ Store message safely
+                     */
+                    try {
+                        $message = Message::firstOrCreate(
+                            ['platform_message_id' => $platformMessageId],
+                            [
+                                'conversation_id' => $conversation->id,
+                                'sender_id' => $customer->id,
+                                'sender_type' => Customer::class,
+                                'type' => $type,
+                                'content' => $text,
+                                'direction' => 'incoming',
+                                'receiver_type' => User::class,
+                                'receiver_id' => $conversation->agent_id,
+                                'parent_id' => $resolvedParentId,
+                            ]
+                        );
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        if ($e->errorInfo[1] == 1062) {
+                            Log::info('⚠️ Duplicate Instagram message ignored', ['mid' => $platformMessageId]);
+                            return;
+                        }
+                        throw $e;
+                    }
 
+                    /**
+                     * 6️⃣ Save attachments
+                     */
                     if (! empty($storedAttachments)) {
                         MessageAttachment::insert(array_map(fn($att) => [
                             'message_id' => $message->id,
@@ -469,14 +502,21 @@ class InstagramWebhookController extends Controller
                         ], $storedAttachments));
                     }
 
+                    /**
+                     * 7️⃣ Update conversation
+                     */
                     $conversation->update(['last_message_id' => $message->id]);
 
-                    DB::afterCommit(function () use ($conversation, $senderId, $text, $mediaPaths, $timestamp, $senderName, $message) {
+                    /**
+                     * 8️⃣ Dispatch after commit (dynamic conversationType)
+                     */
+                    DB::afterCommit(function () use ($conversation, $senderId, $text, $mediaPaths, $timestamp, $senderName, $message, $isNewConversation) {
+
                         $payload = [
                             'source' => 'instagram_message',
                             'traceId' => $conversation->trace_id,
                             'conversationId' => $conversation->id,
-                            'conversationType' => 'old',
+                            'conversationType' => $isNewConversation ? 'new' : 'old',
                             'sender' => $senderId,
                             'api_key' => config('dispatcher.instagram_api_key'),
                             'timestamp' => $timestamp,
@@ -486,7 +526,7 @@ class InstagramWebhookController extends Controller
                             'messageId' => $message->id,
                         ];
 
-                        Log::info('📤 Dispatching cleaned Instagram message', $payload);
+                        Log::info('📤 Dispatching Instagram payload', $payload);
                         sendToDispatcher($payload);
                     });
                 });
@@ -495,6 +535,7 @@ class InstagramWebhookController extends Controller
 
         return response('EVENT_RECEIVED', 200);
     }
+
 
 
     /**
