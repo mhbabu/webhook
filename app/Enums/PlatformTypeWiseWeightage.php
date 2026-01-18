@@ -6,6 +6,7 @@ enum PlatformTypeWiseWeightage: string
 {
     case Facebook = 'facebook';
     case FacebookMessenger = 'facebook_messenger';
+    case InstagramMessage = 'instagram_message'; 
     case WhatsApp = 'whatsapp';
     case Website = 'website';
     case CorporateApp = 'corporate_app';
@@ -19,6 +20,7 @@ enum PlatformTypeWiseWeightage: string
         return match ($this) {
             self::Facebook => 'Facebook',
             self::FacebookMessenger => 'Facebook Messenger',
+            self::InstagramMessage => 'Instagram Message', 
             self::WhatsApp => 'WhatsApp',
             self::Website => 'Website',
             self::CorporateApp => 'Corporate App',
@@ -34,6 +36,7 @@ enum PlatformTypeWiseWeightage: string
         return match ($this) {
             self::Facebook => 1,
             self::FacebookMessenger => 2,
+            self::InstagramMessage => 2, 
             self::WhatsApp => 2,
             self::Website => 1,
             self::CorporateApp => 1,
