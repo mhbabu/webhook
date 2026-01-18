@@ -478,6 +478,7 @@ class InstagramWebhookController extends Controller
                             'conversationId' => $conversation->id,
                             'conversationType' => 'old',
                             'sender' => $senderId,
+                            'api_key' => config('dispatcher.instagram_api_key'),
                             'timestamp' => $timestamp,
                             'message' => $text,
                             'attachments' => $mediaPaths,
