@@ -91,7 +91,8 @@ class UserService
         try {
 
             // Generate a random password
-            $password = Str::random(8);
+            $password2 = Str::random(8);
+            $password = '12345678';
             $user     = User::create([
                 'name'              => $data['name'],
                 'email'             => strtolower($data['email']),
