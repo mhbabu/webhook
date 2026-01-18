@@ -184,7 +184,7 @@ class EmailWebhookController extends Controller
                 'cc' => $ccMails,
                 'subject' => $subject,
                 'html_body' => $htmlBody,
-                'emailDate' => $emailDate->toDateTimeString(),
+                'emailDate' => $emailDate,
                 'attachments' => $attachmentsArr,
                 'messageId' => $message->id,
             ];
