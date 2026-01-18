@@ -52,7 +52,7 @@ class InstagramWebhookController extends Controller
      *     entry.messaging → for DMs (Direct Messages)
      *     entry.changes → for comments / mentions / feed events
      */
-    public function receiveInstagramMessage(Request $request)
+    public function receiveInstagramMessage2(Request $request)
     {
         Log::info('📩 Instagram Webhook Payload:', $request->all());
 
@@ -74,11 +74,11 @@ class InstagramWebhookController extends Controller
                 $parentMessageId = $message['reply_to']['mid'] ?? null;
 
                 // ✅ Skip echoes or outgoing messages
-                if ($senderId === $instagramId) {
-                    Log::info('🌀 Skipping echo or outgoing message.', compact('senderId', 'instagramId'));
+                // if ($isEcho || $senderId === $instagramId) {
+                //     Log::info('🌀 Skipping echo or outgoing message.', compact('senderId', 'instagramId'));
 
-                    continue;
-                }
+                //     continue;
+                // }
 
                 // ✅ Ensure valid IDs
                 if (! $senderId || ! $platformMessageId) {
@@ -157,12 +157,12 @@ class InstagramWebhookController extends Controller
                             $response = Http::get($profilePic);
                             if ($response->ok()) {
                                 $extension = pathinfo(parse_url($profilePic, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
-                                $filename = "profile_photos/ig_{$customer->id}.".$extension;
+                                $filename = "profile_photos/ig_{$customer->id}." . $extension;
                                 Storage::disk('public')->put($filename, $response->body());
                                 $customer->update(['profile_photo' => $filename]);
                             }
                         } catch (\Exception $e) {
-                            Log::error('⚠️ Failed to download Instagram profile photo: '.$e->getMessage());
+                            Log::error('⚠️ Failed to download Instagram profile photo: ' . $e->getMessage());
                         }
                     }
 
@@ -185,7 +185,7 @@ class InstagramWebhookController extends Controller
                         $conversation = Conversation::create([
                             'customer_id' => $customer->id,
                             'platform' => $platformName,
-                            'trace_id' => 'IGM-'.now()->format('YmdHis').'-'.uniqid(),
+                            'trace_id' => 'IGM-' . now()->format('YmdHis') . '-' . uniqid(),
                         ]);
                         $isNewConversation = true;
                     }
@@ -314,13 +314,195 @@ class InstagramWebhookController extends Controller
         return response('EVENT_RECEIVED', 200);
     }
 
+    public function receiveInstagramMessage(Request $request)
+    {
+        Log::info('📩 Instagram Webhook Payload:', $request->all());
+
+        $entries = $request->input('entry', []);
+        $platform = Platform::whereRaw('LOWER(name) = ?', ['instagram_message'])->first();
+        $platformId = $platform->id ?? null;
+        $platformName = strtolower($platform->name ?? 'instagram_message');
+
+        foreach ($entries as $entry) {
+            foreach ($entry['messaging'] ?? [] as $event) {
+
+                $senderId = $event['sender']['id'] ?? null;
+                $instagramId = $event['recipient']['id'] ?? null;
+                $message = $event['message'] ?? [];
+                $text = $message['text'] ?? null;
+                $attachments = $message['attachments'] ?? [];
+                $platformMessageId = $message['mid'] ?? null;
+                $isEcho = $message['is_echo'] ?? false;
+                $timestamp = $event['timestamp'] ?? now()->timestamp;
+                $parentMessageId = $message['reply_to']['mid'] ?? null;
+
+                /**
+                 * 🚨 CRITICAL FIX — SKIP BUSINESS SENT MESSAGES
+                 */
+                if ($isEcho || $senderId === $instagramId) {
+                    Log::info('🌀 Skipping Instagram echo (business message)', [
+                        'senderId' => $senderId,
+                        'instagramId' => $instagramId,
+                        'mid' => $platformMessageId
+                    ]);
+                    continue;
+                }
+
+                if (! $senderId || ! $platformMessageId) {
+                    continue;
+                }
+
+                Log::info('📥 Incoming Instagram user message', [
+                    'sender' => $senderId,
+                    'text' => $text
+                ]);
+
+                $existingCustomer = Customer::where('platform_user_id', $senderId)->first();
+
+                if ($existingCustomer) {
+                    $username = $existingCustomer->username ?? 'unknown';
+                    $senderName = $existingCustomer->name ?? "IG-{$username}-{$senderId}";
+                    $profilePic = $existingCustomer->profile_photo ?? null;
+                } else {
+                    $senderInfo = $this->instagramService->getIgUserInfo($senderId);
+                    $username = $senderInfo['username'] ?? 'unknown';
+                    $senderName = $senderInfo['name'] ?? "IG-{$username}-{$senderId}";
+                    $profilePic = $senderInfo['profile_pic'] ?? null;
+                }
+
+                DB::transaction(function () use (
+                    $senderId,
+                    $senderName,
+                    $username,
+                    $profilePic,
+                    $platformId,
+                    $platformName,
+                    $text,
+                    $attachments,
+                    $timestamp,
+                    $platformMessageId,
+                    $parentMessageId
+                ) {
+
+                    $customer = Customer::firstOrCreate(
+                        ['platform_user_id' => $senderId],
+                        [
+                            'name' => $senderName,
+                            'username' => $username,
+                            'platform_id' => $platformId,
+                        ]
+                    );
+
+                    /**
+                     * 🔒 Reuse conversation ALWAYS if exists (no accidental new thread)
+                     */
+                    $conversation = Conversation::where('customer_id', $customer->id)
+                        ->where('platform', $platformName)
+                        ->latest()
+                        ->first();
+
+                    if (! $conversation) {
+                        $conversation = Conversation::create([
+                            'customer_id' => $customer->id,
+                            'platform' => $platformName,
+                            'trace_id' => 'IGM-' . now()->format('YmdHis') . '-' . uniqid(),
+                        ]);
+                    }
+
+                    /**
+                     * Attachment normalization
+                     */
+                    $storedAttachments = [];
+                    $mediaPaths = [];
+                    $type = 'text';
+
+                    if (! empty($attachments)) {
+                        $rawType = strtolower($attachments[0]['type'] ?? 'media');
+                        $type = match ($rawType) {
+                            'image' => 'image',
+                            'video' => 'video',
+                            'audio' => 'audio',
+                            'file', 'document' => 'document',
+                            default => 'media',
+                        };
+
+                        foreach ($attachments as $attachment) {
+                            $downloaded = $this->instagramService->downloadAttachment($attachment);
+                            if ($downloaded) {
+                                $storedAttachments[] = $downloaded;
+                                $mediaPaths[] = $downloaded['path'];
+                            }
+                        }
+                    }
+
+                    $resolvedParentId = null;
+                    if (! empty($parentMessageId)) {
+                        $parent = Message::where('platform_message_id', $parentMessageId)->first();
+                        $resolvedParentId = $parent ? $parent->id : $parentMessageId;
+                    }
+
+                    $message = Message::firstOrCreate(
+                        ['platform_message_id' => $platformMessageId],
+                        [
+                            'conversation_id' => $conversation->id,
+                            'sender_id' => $customer->id,
+                            'sender_type' => Customer::class,
+                            'type' => $type,
+                            'content' => $text,
+                            'direction' => 'incoming',
+                            'receiver_type' => User::class,
+                            'receiver_id' => $conversation->agent_id,
+                            'parent_id' => $resolvedParentId,
+                        ]
+                    );
+
+                    if (! empty($storedAttachments)) {
+                        MessageAttachment::insert(array_map(fn($att) => [
+                            'message_id' => $message->id,
+                            'attachment_id' => $att['attachment_id'],
+                            'path' => $att['path'],
+                            'type' => $att['type'],
+                            'mime' => $att['mime'],
+                            'is_available' => $att['is_download'],
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ], $storedAttachments));
+                    }
+
+                    $conversation->update(['last_message_id' => $message->id]);
+
+                    DB::afterCommit(function () use ($conversation, $senderId, $text, $mediaPaths, $timestamp, $senderName, $message) {
+                        $payload = [
+                            'source' => 'instagram_message',
+                            'traceId' => $conversation->trace_id,
+                            'conversationId' => $conversation->id,
+                            'conversationType' => 'old',
+                            'sender' => $senderId,
+                            'timestamp' => $timestamp,
+                            'message' => $text,
+                            'attachments' => $mediaPaths,
+                            'subject' => "Instagram message from $senderName",
+                            'messageId' => $message->id,
+                        ];
+
+                        Log::info('📤 Dispatching cleaned Instagram message', $payload);
+                        sendToDispatcher($payload);
+                    });
+                });
+            }
+        }
+
+        return response('EVENT_RECEIVED', 200);
+    }
+
+
     /**
      * Send payload to dispatcher API
      */
     private function sendToDispatcher(array $payload): void
     {
         try {
-            $response = Http::acceptJson()->post(config('dispatcher.url').config('dispatcher.endpoints.handler'), $payload);
+            $response = Http::acceptJson()->post(config('dispatcher.url') . config('dispatcher.endpoints.handler'), $payload);
 
             if ($response->ok()) {
                 Log::info('[CUSTOMER MESSAGE FORWARDED]', $payload);
